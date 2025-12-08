@@ -1,0 +1,210 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { csrfMiddleware } from './middleware-csrf'
+
+// Rutas públicas que no requieren autenticación
+const publicRoutes = [
+    '/',
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/pricing',
+    '/f', // Formularios públicos embebibles
+    '/api/health',
+    '/api/webhooks',
+    '/api/public',
+    '/api/auth', // Login, cambio de contraseña
+    '/auth/callback',
+]
+
+// Rutas de API que requieren autenticación
+const protectedApiRoutes = [
+    '/api/contacts',
+    '/api/invoices',
+    '/api/payments',
+    '/api/workflows',
+    '/api/products',
+    '/api/campaigns',
+    '/api/settings',
+    '/api/activities',
+    '/api/notifications',
+    '/api/comprobantes',
+    '/api/opportunities',
+    '/api/quotes',
+    '/api/tasks',
+    '/api/events',
+    '/api/integrations',
+    '/api/inventory',
+    '/api/dashboard',
+    '/api/analytics',
+    '/api/accounts',
+    '/api/tickets',
+    '/api/orders',
+    '/api/admin',
+    '/api/onboarding',
+    '/api/subscriptions',
+    '/api/forms', // Gestión de formularios (protegido)
+]
+
+// Rutas que requieren Super Admin
+const adminRoutes = ['/admin']
+
+export async function middleware(request: NextRequest) {
+    const pathname = request.nextUrl.pathname
+
+    // ✅ Permitir webhooks públicos específicos (incluyendo N8N)
+    if (pathname.startsWith('/api/payments/stripe/webhook') || 
+        pathname.startsWith('/api/webhooks/stripe') ||
+        pathname.startsWith('/api/webhooks/n8n')) {
+        return NextResponse.next()
+    }
+
+    // CSRF token fuerte (se complementa con Origin)
+    const csrfCheck = csrfMiddleware(request)
+    if (csrfCheck) return csrfCheck
+
+    let response = NextResponse.next({
+        request: {
+            headers: request.headers,
+        },
+    })
+
+    // Verificar variables de entorno
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('❌ Supabase env vars not configured')
+        // Permitir rutas públicas sin auth
+        if (publicRoutes.some(route => pathname.startsWith(route))) {
+            return response
+        }
+        // Redirigir a login para otras rutas
+        if (!pathname.startsWith('/api/')) {
+            return NextResponse.redirect(new URL('/login', request.url))
+        }
+        return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
+    }
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+            getAll() {
+                return request.cookies.getAll()
+            },
+            setAll(cookiesToSet) {
+                cookiesToSet.forEach(({ name, value }) => 
+                    request.cookies.set(name, value)
+                )
+                response = NextResponse.next({
+                    request: {
+                        headers: request.headers,
+                    },
+                })
+                cookiesToSet.forEach(({ name, value, options }) =>
+                    response.cookies.set(name, value, options)
+                )
+            },
+        },
+    })
+
+    // Verificar sesión usando getUser (más seguro que getSession)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    // Rutas públicas - permitir acceso
+    if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+        // Si está logueado y va a login/signup, redirigir según tipo de usuario
+        if (user && (pathname === '/login' || pathname === '/signup')) {
+            // Verificar si es platform admin
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_platform_admin')
+                .eq('id', user.id)
+                .single()
+            
+            if (profile?.is_platform_admin) {
+                return NextResponse.redirect(new URL('/admin', request.url))
+            }
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+        return response
+    }
+
+    // Rutas de API protegidas
+    if (protectedApiRoutes.some(route => pathname.startsWith(route))) {
+        if (!user) {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 401 }
+            )
+        }
+        return response
+    }
+
+    // Rutas de páginas protegidas
+    if (!user) {
+        const redirectUrl = new URL('/login', request.url)
+        redirectUrl.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(redirectUrl)
+    }
+
+    // Rutas de Admin - verificar is_platform_admin
+    if (adminRoutes.some(route => pathname.startsWith(route))) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_platform_admin')
+            .eq('id', user.id)
+            .single()
+
+        if (!profile?.is_platform_admin) {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+    }
+
+    // Verificar onboarding completado (excepto para /onboarding y /admin)
+    if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/admin')) {
+        const { data: membership } = await supabase
+            .from('organization_members')
+            .select('organization_id, organizations(onboarding_completed)')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .limit(1)
+            .single()
+
+        if (membership) {
+            const org = membership.organizations as any
+            if (org && org.onboarding_completed === false) {
+                return NextResponse.redirect(new URL('/onboarding', request.url))
+            }
+        }
+    }
+
+    // Security headers (defensa básica: clickjacking, sniffing, referrer, HSTS)
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.set('X-Content-Type-Options', 'nosniff')
+    // Aplica HSTS sólo si estás sirviendo por HTTPS; en Vercel/producción suele ser seguro
+    if (request.nextUrl.protocol === 'https:') {
+        response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+    }
+
+    // CSRF defensa básica: para métodos sensibles, validar origen
+    // ✅ Excluir webhooks de la validación de origen
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && 
+        !pathname.startsWith('/api/webhooks/')) {
+        const origin = request.headers.get('origin')
+        const host = request.nextUrl.origin
+        if (origin && origin !== host) {
+            return NextResponse.json({ success: false, error: 'CSRF protection: invalid origin' }, { status: 403 })
+        }
+    }
+
+    return response
+}
+
+export const config = {
+    matcher: [
+        '/((?!_next/static|_next/image|favicon.ico|public|.*\\..*$).*)',
+    ],
+}

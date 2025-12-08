@@ -1,0 +1,24 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/process-events",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/cleanup-cache",
+            "schedule": "0 3 * * *"
+        },
+        {
+            "path": "/api/cron/expire-quotes",
+            "schedule": "0 0 * * *"
+        },
+        {
+            "path": "/api/cron/cleanup-auditoria",
+            "schedule": "0 4 * * *"
+        },
+        {
+            "path": "/api/cron/cleanup-analytics-cache",
+            "schedule": "30 4 * * *"
+        }
+    ]
+}

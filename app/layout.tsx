@@ -1,0 +1,37 @@
+import type React from "react"
+import type { Metadata, Viewport } from "next"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
+import "./globals.css"
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#3b82f6",
+}
+
+export const metadata: Metadata = {
+  title: "NEON SYSTEM - Gestion Inteligente de Negocios",
+  description: "Sistema de gestion empresarial con IA integrada.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CRM AI",
+  },
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="es" suppressHydrationWarning>
+      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+        {children}
+      </body>
+    </html>
+  )
+}

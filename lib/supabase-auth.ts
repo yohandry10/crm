@@ -1,0 +1,157 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import type { OrgRole } from '@/lib/types/organization'
+
+// Valores por defecto (desarrollo)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://crqnkdpjxeoqkfpttncq.supabase.co'
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycW5rZHBqeGVvcWtmcHR0bmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3MDMxNzIsImV4cCI6MjA3OTI3OTE3Mn0.OQphbBgseyF9Rl15M1OrndfgvUAj3TYyboQNlz_uH14'
+
+/**
+ * Crea cliente de Supabase para rutas de API usando SSR
+ */
+export async function createSupabaseRouteClient() {
+    const cookieStore = await cookies()
+
+    return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        cookies: {
+            getAll() {
+                return cookieStore.getAll()
+            },
+            setAll(cookiesToSet) {
+                try {
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        cookieStore.set(name, value, options)
+                    )
+                } catch {
+                    // Ignorar errores en contextos de solo lectura
+                }
+            },
+        },
+    })
+}
+
+/**
+ * Crea cliente autenticado usando SSR
+ */
+export async function createAuthenticatedClient() {
+    const supabase = await createSupabaseRouteClient()
+    return { supabase }
+}
+
+/**
+ * Requiere autenticación
+ */
+export async function requireAuth() {
+    const supabase = await createSupabaseRouteClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error || !user) throw new Error('Unauthorized')
+    return user
+}
+
+/**
+ * Obtiene cliente autenticado y usuario
+ */
+export async function getAuthenticatedClientAndUser() {
+    const supabase = await createSupabaseRouteClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error || !user) throw new Error('Unauthorized')
+    return { supabase, user }
+}
+
+/**
+ * MULTI-TENANT: Obtiene cliente, usuario y organización actual
+ */
+export async function getAuthenticatedContext() {
+    const { supabase, user } = await getAuthenticatedClientAndUser()
+    
+    // Get organization from header or profile
+    const headersList = await headers()
+    let orgId = headersList.get('x-organization-id')
+    
+    if (!orgId) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('current_organization_id')
+            .eq('id', user.id)
+            .single()
+        orgId = profile?.current_organization_id
+    }
+    
+    if (!orgId) {
+        // Get first organization
+        const { data: membership } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .limit(1)
+            .single()
+        orgId = membership?.organization_id
+    }
+    
+    if (!orgId) {
+        throw new Error('No organization found. Please create or join an organization.')
+    }
+    
+    // Verify membership
+    const { data: membership, error: memError } = await supabase
+        .from('organization_members')
+        .select('*, organization:organizations(*)')
+        .eq('organization_id', orgId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+    
+    if (memError || !membership) {
+        throw new Error('Not a member of this organization')
+    }
+    
+    return {
+        supabase,
+        user,
+        organizationId: orgId,
+        organization: membership.organization,
+        membership,
+        role: membership.role as OrgRole,
+    }
+}
+
+/**
+ * MULTI-TENANT: Requiere rol específico en la organización
+ */
+export async function requireOrgRole(allowedRoles: OrgRole[]) {
+    const ctx = await getAuthenticatedContext()
+    
+    if (!allowedRoles.includes(ctx.role)) {
+        throw new Error(`Forbidden: Required roles: ${allowedRoles.join(', ')}`)
+    }
+    
+    return ctx
+}
+
+/**
+ * Wrapper para manejar errores de autenticación
+ */
+export function withAuth<T>(handler: () => Promise<T>, options?: { roles?: OrgRole[] }) {
+    return async () => {
+        try {
+            if (options?.roles) {
+                await requireOrgRole(options.roles)
+            } else {
+                await requireAuth()
+            }
+            return await handler()
+        } catch (error: any) {
+            if (error.message === 'Unauthorized') {
+                return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+            }
+            if (error.message.startsWith('Forbidden')) {
+                return NextResponse.json({ success: false, error: 'Sin permisos' }, { status: 403 })
+            }
+            throw error
+        }
+    }
+}

@@ -1,0 +1,127 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { getAuthenticatedContext } from "@/lib/supabase-auth"
+import { logError } from "@/lib/error-logging"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { z } from "zod"
+import crypto from "crypto"
+
+const productUpdateSchema = z.object({
+    sku: z.string().optional().nullable(),
+    name: z.string().min(1, "Nombre requerido").optional(),
+    description: z.string().optional().nullable(),
+    category_id: z.string().uuid().optional().nullable(),
+    unit_price: z.number().min(0, "Precio debe ser positivo").optional(),
+    cost_price: z.number().min(0).optional().nullable(),
+    currency: z.enum(['PEN', 'USD']).optional(),
+    tax_rate: z.number().min(0).max(100).optional(),
+    is_service: z.boolean().optional(),
+    is_active: z.boolean().optional(),
+    stock_quantity: z.number().int().min(0).optional(),
+    min_stock: z.number().int().min(0).optional(),
+    image_url: z.string().url().optional().nullable(),
+})
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params
+        const { supabase, organizationId } = await getAuthenticatedContext()
+
+        const { data, error } = await supabase
+            .from('products')
+            .select('*, category:product_categories(id, name)')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (error) throw error
+        if (!data) {
+            return NextResponse.json({ success: false, error: "Producto no encontrado" }, { status: 404 })
+        }
+
+        return NextResponse.json({ success: true, data })
+    } catch (error: any) {
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/products/[id]", method: "GET", error })
+        return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
+    }
+}
+
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params
+        const { supabase, organizationId } = await getAuthenticatedContext()
+        const body = await request.json()
+
+        const validation = productUpdateSchema.safeParse(body)
+        if (!validation.success) {
+            throw new ValidationError("Datos inválidos", validation.error.format())
+        }
+
+        // Verificar que el producto pertenece a la organización
+        const { data: existing, error: checkError } = await supabase
+            .from('products')
+            .select('id')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (checkError || !existing) {
+            return NextResponse.json({ success: false, error: "Producto no encontrado" }, { status: 404 })
+        }
+
+        const { data, error } = await supabase
+            .from('products')
+            .update({ ...validation.data, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .select()
+            .single()
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true, data })
+    } catch (error: any) {
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/products/[id]", method: "PUT", error })
+        return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
+    }
+}
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params
+        const { supabase, organizationId } = await getAuthenticatedContext()
+
+        // Verificar que el producto pertenece a la organización
+        const { data: existing, error: checkError } = await supabase
+            .from('products')
+            .select('id')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (checkError || !existing) {
+            return NextResponse.json({ success: false, error: "Producto no encontrado" }, { status: 404 })
+        }
+
+        const { error } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/products/[id]", method: "DELETE", error })
+        return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
+    }
+}
