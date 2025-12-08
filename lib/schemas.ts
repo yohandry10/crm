@@ -43,7 +43,7 @@ export const createInvoiceSchema = z.object({
     contact_id: z.string().uuid("Invalid contact ID"),
     invoice_number: z.string().optional(),
     status: z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']).default('draft'),
-    issue_date: z.string().or(z.date()),
+    issue_date: z.string().or(z.date()).optional().default(() => new Date().toISOString().split('T')[0]),
     due_date: z.string().or(z.date()),
     currency: z.enum(['PEN', 'USD']).default('PEN'),
     notes: z.string().optional().nullable(),
@@ -95,7 +95,7 @@ export const createWorkflowSchema = z.object({
     // ✅ CORREGIDO: Usar notación con punto para coincidir con el sistema de eventos
     trigger_type: z.enum([
         'contact.created',
-        'contact.updated', 
+        'contact.updated',
         'invoice.sent',
         'invoice.paid',
         'payment.completed',

@@ -46,6 +46,7 @@ const protectedApiRoutes = [
     '/api/onboarding',
     '/api/subscriptions',
     '/api/forms', // Gestión de formularios (protegido)
+    '/api/reports',
 ]
 
 // Rutas que requieren Super Admin
@@ -55,7 +56,7 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
 
     // ✅ Permitir webhooks públicos específicos (incluyendo N8N)
-    if (pathname.startsWith('/api/payments/stripe/webhook') || 
+    if (pathname.startsWith('/api/payments/stripe/webhook') ||
         pathname.startsWith('/api/webhooks/stripe') ||
         pathname.startsWith('/api/webhooks/n8n')) {
         return NextResponse.next()
@@ -94,7 +95,7 @@ export async function middleware(request: NextRequest) {
                 return request.cookies.getAll()
             },
             setAll(cookiesToSet) {
-                cookiesToSet.forEach(({ name, value }) => 
+                cookiesToSet.forEach(({ name, value }) =>
                     request.cookies.set(name, value)
                 )
                 response = NextResponse.next({
@@ -122,7 +123,7 @@ export async function middleware(request: NextRequest) {
                 .select('is_platform_admin')
                 .eq('id', user.id)
                 .single()
-            
+
             if (profile?.is_platform_admin) {
                 return NextResponse.redirect(new URL('/admin', request.url))
             }
@@ -191,7 +192,7 @@ export async function middleware(request: NextRequest) {
 
     // CSRF defensa básica: para métodos sensibles, validar origen
     // ✅ Excluir webhooks de la validación de origen
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && 
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) &&
         !pathname.startsWith('/api/webhooks/')) {
         const origin = request.headers.get('origin')
         const host = request.nextUrl.origin

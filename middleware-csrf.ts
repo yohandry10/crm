@@ -37,6 +37,7 @@ const CSRF_EXCLUDED_PATHS = [
   "/api/profile",
   "/api/forms",
   "/api/calendar",
+  "/api/reports",
 ]
 
 // CSRF token middleware: espera header "x-csrf-token" y cookie "csrf-token"

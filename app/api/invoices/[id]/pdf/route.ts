@@ -11,8 +11,8 @@ function generateInvoiceHTML(invoice: any, settings: any): string {
     }
 
     const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('es-PE', { 
-            year: 'numeric', month: 'long', day: 'numeric' 
+        return new Date(date).toLocaleDateString('es-PE', {
+            year: 'numeric', month: 'long', day: 'numeric'
         })
     }
 
@@ -79,12 +79,11 @@ function generateInvoiceHTML(invoice: any, settings: any): string {
                 <p class="date">Emitida: ${formatDate(invoice.issue_date)}</p>
                 <p class="date">Vence: ${formatDate(invoice.due_date)}</p>
                 <div style="margin-top: 12px;">
-                    <span class="status status-${invoice.status}">${
-                        invoice.status === 'draft' ? 'Borrador' :
-                        invoice.status === 'sent' ? 'Enviada' :
-                        invoice.status === 'paid' ? 'Pagada' :
-                        invoice.status === 'overdue' ? 'Vencida' : invoice.status
-                    }</span>
+                    <span class="status status-${invoice.status}">${invoice.status === 'draft' ? 'Borrador' :
+            invoice.status === 'sent' ? 'Enviada' :
+                invoice.status === 'paid' ? 'Pagada' :
+                    invoice.status === 'overdue' ? 'Vencida' : invoice.status
+        }</span>
                 </div>
             </div>
         </div>
@@ -171,11 +170,21 @@ export async function GET(
         }
 
         // Obtener configuración de la organización (ahora está en organizations)
-        const { data: orgSettings } = await supabase
+        const { data: org } = await supabase
             .from('organizations')
             .select('*')
             .eq('id', organizationId)
             .single()
+
+        // Map to frontend/template expected format
+        const orgSettings = {
+            ...org,
+            company_name: org.name,
+            company_ruc: org.ruc,
+            company_address: org.address,
+            company_phone: org.phone,
+            company_email: org.email,
+        }
 
         // Generar HTML
         const html = generateInvoiceHTML(invoice, orgSettings)

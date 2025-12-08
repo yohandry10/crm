@@ -5,6 +5,7 @@ import { Plus, Search, FileText, Eye, Download, Send, CheckCircle, Trash2 } from
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { TutorialButton } from "@/components/tutorials"
 import { ExportButton } from "@/components/data/export-button"
@@ -214,232 +215,234 @@ export default function InvoicingPage() {
     const someSelected = filteredInvoices.some(i => isSelected(i.id)) && !allSelected
 
     return (
-        <div className="container mx-auto p-6 space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">Facturación</h1>
-                    <p className="text-muted-foreground">
-                        Gestiona tus facturas y comprobantes
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <TutorialButton moduleId="invoices" />
-                    <ExportButton
-                        data={invoices}
-                        columns={invoicesExportColumns}
-                        filename="facturas"
-                    />
-                    <Link href="/invoicing/new">
-                        <Button className="gradient-neon border-0">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Nueva Factura
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Borradores</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.draft}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Enviadas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.sent}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pagadas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.paid}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Monto Total</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            S/ {stats.totalAmount.toFixed(2)}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Filters */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar por número o cliente..."
-                                className="pl-8"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-full md:w-[200px]">
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los estados</SelectItem>
-                                <SelectItem value="draft">Borrador</SelectItem>
-                                <SelectItem value="sent">Enviada</SelectItem>
-                                <SelectItem value="paid">Pagada</SelectItem>
-                                <SelectItem value="overdue">Vencida</SelectItem>
-                                <SelectItem value="cancelled">Cancelada</SelectItem>
-                            </SelectContent>
-                        </Select>
+        <DashboardLayout>
+            <div className="container mx-auto p-6 space-y-6">
+                {/* Header */}
+                <div className="flex justify-between items-center">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-bold tracking-tight">Facturación</h1>
+                        <p className="text-muted-foreground">
+                            Gestiona tus facturas y comprobantes
+                        </p>
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="flex items-center gap-2">
+                        <TutorialButton moduleId="invoices" />
+                        <ExportButton
+                            data={invoices}
+                            columns={invoicesExportColumns}
+                            filename="facturas"
+                        />
+                        <Link href="/invoicing/new">
+                            <Button className="gradient-neon border-0">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Nueva Factura
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
 
-            {/* Invoices Table */}
-            <Card>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-12">
-                                    <Checkbox
-                                        checked={allSelected}
-                                        ref={(el) => {
-                                            if (el) (el as any).indeterminate = someSelected
-                                        }}
-                                        onCheckedChange={(checked) => {
-                                            if (checked) selectAll(filteredInvoices)
-                                            else clearSelection()
-                                        }}
-                                        aria-label="Seleccionar todos"
-                                    />
-                                </TableHead>
-                                <TableHead>Número</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Fecha Emisión</TableHead>
-                                <TableHead>Vencimiento</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
+                {/* Stats Cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.total}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Borradores</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.draft}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Enviadas</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.sent}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Pagadas</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.paid}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Monto Total</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                S/ {stats.totalAmount.toFixed(2)}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Filters */}
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Buscar por número o cliente..."
+                                    className="pl-8"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-full md:w-[200px]">
+                                    <SelectValue placeholder="Estado" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos los estados</SelectItem>
+                                    <SelectItem value="draft">Borrador</SelectItem>
+                                    <SelectItem value="sent">Enviada</SelectItem>
+                                    <SelectItem value="paid">Pagada</SelectItem>
+                                    <SelectItem value="overdue">Vencida</SelectItem>
+                                    <SelectItem value="cancelled">Cancelada</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Invoices Table */}
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8">
-                                        Cargando...
-                                    </TableCell>
+                                    <TableHead className="w-12">
+                                        <Checkbox
+                                            checked={allSelected}
+                                            ref={(el) => {
+                                                if (el) (el as any).indeterminate = someSelected
+                                            }}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) selectAll(filteredInvoices)
+                                                else clearSelection()
+                                            }}
+                                            aria-label="Seleccionar todos"
+                                        />
+                                    </TableHead>
+                                    <TableHead>Número</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Fecha Emisión</TableHead>
+                                    <TableHead>Vencimiento</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
-                            ) : filteredInvoices.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8">
-                                        No se encontraron facturas
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredInvoices.map((invoice) => (
-                                    <TableRow 
-                                        key={invoice.id}
-                                        className={isSelected(invoice.id) ? "bg-primary/5" : ""}
-                                    >
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={isSelected(invoice.id)}
-                                                onCheckedChange={() => toggleSelection(invoice.id)}
-                                                aria-label={`Seleccionar ${invoice.invoice_number}`}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {invoice.invoice_number}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">
-                                                    {invoice.contact?.name || "N/A"}
-                                                </div>
-                                                <div className="text-sm text-muted-foreground">
-                                                    {invoice.contact?.email}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDatePE(invoice.issue_date)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDatePE(invoice.due_date)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {getStatusBadge(invoice.status)}
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
-                                            S/ {invoice.total?.toFixed(2)}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Link href={`/invoicing/${invoice.id}`}>
-                                                    <Button variant="ghost" size="sm">
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
-                                                <Button variant="ghost" size="sm">
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-8">
+                                            Cargando...
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : filteredInvoices.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-8">
+                                            No se encontraron facturas
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredInvoices.map((invoice) => (
+                                        <TableRow
+                                            key={invoice.id}
+                                            className={isSelected(invoice.id) ? "bg-primary/5" : ""}
+                                        >
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={isSelected(invoice.id)}
+                                                    onCheckedChange={() => toggleSelection(invoice.id)}
+                                                    aria-label={`Seleccionar ${invoice.invoice_number}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {invoice.invoice_number}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div>
+                                                    <div className="font-medium">
+                                                        {invoice.contact?.name || "N/A"}
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {invoice.contact?.email}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDatePE(invoice.issue_date)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDatePE(invoice.due_date)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {getStatusBadge(invoice.status)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium">
+                                                S/ {invoice.total?.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Link href={`/invoicing/${invoice.id}`}>
+                                                        <Button variant="ghost" size="sm">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </Link>
+                                                    <Button variant="ghost" size="sm">
+                                                        <Download className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
 
-                    {!loading && invoices.length > 0 && (
-                        <div className="p-4">
-                            <PaginationControls
-                                currentPage={page}
-                                totalPages={totalPages}
-                                onPageChange={setPage}
-                                limit={limit}
-                                onLimitChange={setLimit}
-                                totalItems={total}
-                            />
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        {!loading && invoices.length > 0 && (
+                            <div className="p-4">
+                                <PaginationControls
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    onPageChange={setPage}
+                                    limit={limit}
+                                    onLimitChange={setLimit}
+                                    totalItems={total}
+                                />
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-            {/* Bulk Actions Bar */}
-            <BulkActionsBar
-                selectedIds={selectedIds}
-                onClearSelection={clearSelection}
-                actions={bulkActions}
-                entityName="facturas"
-            />
-        </div>
+                {/* Bulk Actions Bar */}
+                <BulkActionsBar
+                    selectedIds={selectedIds}
+                    onClearSelection={clearSelection}
+                    actions={bulkActions}
+                    entityName="facturas"
+                />
+            </div>
+        </DashboardLayout>
     )
 }

@@ -81,39 +81,54 @@ export default function SalesPage() {
 
     return (
         <DashboardLayout>
-            <div className="flex flex-col h-[calc(100vh-4rem)]">
-                <div className="flex items-center justify-between pb-6 border-b">
+            <div className="flex flex-col h-[calc(100vh-2rem)]">
+                {/* Header */}
+                <div className="flex items-center justify-between px-8 py-6 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
-                        <p className="text-muted-foreground">
-                            Gestiona tus oportunidades de venta y seguimiento
+                        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Pipeline de Ventas</h1>
+                        <p className="text-sm text-zinc-500 font-medium">
+                            Gestiona y monitorea tus oportunidades en tiempo real
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         <TutorialButton moduleId="opportunities" />
-                        <Button variant="outline" size="icon" onClick={fetchData}>
-                            <RefreshCw className="h-4 w-4" />
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={fetchData}
+                            className="bg-white hover:bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 transition-colors"
+                        >
+                            <RefreshCw className="h-4 w-4 text-zinc-600" />
                         </Button>
-                        <Button onClick={() => handleAddOpportunity()} className="gradient-neon border-0">
+                        <Button
+                            onClick={() => handleAddOpportunity()}
+                            className="shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 gradient-neon border-0 text-white"
+                        >
                             <Plus className="mr-2 h-4 w-4" />
                             Nueva Oportunidad
                         </Button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden p-6 bg-muted/10">
+                {/* Content */}
+                <div className="flex-1 overflow-hidden">
                     {loading ? (
                         <div className="flex items-center justify-center h-full">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                                <span className="text-sm text-zinc-400 font-medium animate-pulse">Cargando pipeline...</span>
+                            </div>
                         </div>
                     ) : (
-                        <KanbanBoard
-                            stages={stages}
-                            opportunities={opportunities}
-                            onMoveOpportunity={handleMoveOpportunity}
-                            onEditOpportunity={handleEditOpportunity}
-                            onAddOpportunity={handleAddOpportunity}
-                        />
+                        <div className="h-full p-8 overflow-hidden bg-gradient-to-br from-zinc-50/50 to-white/50 dark:from-zinc-950 dark:to-zinc-900/50">
+                            <KanbanBoard
+                                stages={stages}
+                                opportunities={opportunities}
+                                onMoveOpportunity={handleMoveOpportunity}
+                                onEditOpportunity={handleEditOpportunity}
+                                onAddOpportunity={handleAddOpportunity}
+                            />
+                        </div>
                     )}
                 </div>
 

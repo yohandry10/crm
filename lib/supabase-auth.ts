@@ -45,7 +45,7 @@ export async function createAuthenticatedClient() {
 export async function requireAuth() {
     const supabase = await createSupabaseRouteClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     if (error || !user) throw new Error('Unauthorized')
     return user
 }
@@ -56,7 +56,7 @@ export async function requireAuth() {
 export async function getAuthenticatedClientAndUser() {
     const supabase = await createSupabaseRouteClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     if (error || !user) throw new Error('Unauthorized')
     return { supabase, user }
 }
@@ -65,57 +65,62 @@ export async function getAuthenticatedClientAndUser() {
  * MULTI-TENANT: Obtiene cliente, usuario y organización actual
  */
 export async function getAuthenticatedContext() {
-    const { supabase, user } = await getAuthenticatedClientAndUser()
-    
-    // Get organization from header or profile
-    const headersList = await headers()
-    let orgId = headersList.get('x-organization-id')
-    
-    if (!orgId) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('current_organization_id')
-            .eq('id', user.id)
-            .single()
-        orgId = profile?.current_organization_id
-    }
-    
-    if (!orgId) {
-        // Get first organization
-        const { data: membership } = await supabase
+    try {
+        const { supabase, user } = await getAuthenticatedClientAndUser()
+
+        // Get organization from header or profile
+        const headersList = await headers()
+        let orgId = headersList.get('x-organization-id')
+
+        if (!orgId) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('current_organization_id')
+                .eq('id', user.id)
+                .single()
+            orgId = profile?.current_organization_id
+        }
+
+        if (!orgId) {
+            // Get first organization
+            const { data: membership } = await supabase
+                .from('organization_members')
+                .select('organization_id')
+                .eq('user_id', user.id)
+                .eq('is_active', true)
+                .limit(1)
+                .single()
+            orgId = membership?.organization_id
+        }
+
+        if (!orgId) {
+            throw new Error('No organization found. Please create or join an organization.')
+        }
+
+        // Verify membership
+        const { data: membership, error: memError } = await supabase
             .from('organization_members')
-            .select('organization_id')
+            .select('*, organization:organizations(*)')
+            .eq('organization_id', orgId)
             .eq('user_id', user.id)
             .eq('is_active', true)
-            .limit(1)
             .single()
-        orgId = membership?.organization_id
-    }
-    
-    if (!orgId) {
-        throw new Error('No organization found. Please create or join an organization.')
-    }
-    
-    // Verify membership
-    const { data: membership, error: memError } = await supabase
-        .from('organization_members')
-        .select('*, organization:organizations(*)')
-        .eq('organization_id', orgId)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
-    
-    if (memError || !membership) {
-        throw new Error('Not a member of this organization')
-    }
-    
-    return {
-        supabase,
-        user,
-        organizationId: orgId,
-        organization: membership.organization,
-        membership,
-        role: membership.role as OrgRole,
+
+        if (memError || !membership) {
+            throw new Error('Not a member of this organization')
+        }
+
+        return {
+            supabase,
+            user,
+            organizationId: orgId,
+            organization: membership.organization,
+            membership,
+            role: membership.role as OrgRole,
+        }
+    } catch (error) {
+        console.error("❌ Error en getAuthenticatedContext:", error)
+        throw error
     }
 }
 
@@ -124,11 +129,11 @@ export async function getAuthenticatedContext() {
  */
 export async function requireOrgRole(allowedRoles: OrgRole[]) {
     const ctx = await getAuthenticatedContext()
-    
+
     if (!allowedRoles.includes(ctx.role)) {
         throw new Error(`Forbidden: Required roles: ${allowedRoles.join(', ')}`)
     }
-    
+
     return ctx
 }
 

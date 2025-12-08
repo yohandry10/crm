@@ -37,9 +37,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`🔍 Ejecutando reporte para entidad: ${entity}, Org: ${organizationId}`)
+    console.log(`🔍 Query filters:`, JSON.stringify(filters))
+
+    // Log the generated SQL query (simulated)
+    // console.log("Query builder state:", query) 
+
     const { data, error } = await query
 
-    if (error) throw error
+    if (error) {
+      console.error("❌ Supabase Query Error:", JSON.stringify(error, null, 2))
+      throw error
+    }
+
+    console.log(`✅ Query exitosa. Filas encontradas: ${data?.length || 0}`)
 
     // Process data for report
     const result = processReportData(data || [], metrics, groupBy, entity)
@@ -47,6 +58,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: result })
 
   } catch (error: any) {
+    console.error("❌ Error en /api/reports/run:", error)
+    console.error("❌ Detalles del error:", JSON.stringify(error, null, 2))
+
     await logError({
       errorId: crypto.randomUUID(),
       endpoint: "/api/reports/run",
@@ -54,7 +68,7 @@ export async function POST(request: NextRequest) {
       error,
     })
     return NextResponse.json(
-      { success: false, error: sanitizeErrorForClient(error) },
+      { success: false, error: sanitizeErrorForClient(error), details: error.message },
       { status: getHttpStatusForError(error) }
     )
   }
@@ -106,15 +120,15 @@ function getDateFilter(dateRange: string): { start?: string; end?: string } {
 function processReportData(data: any[], metrics: string[], groupBy: string, entity: string) {
   // Group data
   const grouped: Record<string, any[]> = {}
-  
+
   for (const item of data) {
     let groupKey = item[groupBy] || "Sin asignar"
-    
+
     // Handle date grouping
     if (groupBy.includes("month") || groupBy.includes("_month")) {
-      const dateField = groupBy.replace("_month", "") === "created" ? "created_at" : 
-                        groupBy.replace("_month", "") === "close" ? "expected_close_date" :
-                        groupBy.replace("_month", "") === "due" ? "due_date" : "created_at"
+      const dateField = groupBy.replace("_month", "") === "created" ? "created_at" :
+        groupBy.replace("_month", "") === "close" ? "expected_close_date" :
+          groupBy.replace("_month", "") === "due" ? "due_date" : "created_at"
       const date = new Date(item[dateField])
       groupKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
     }

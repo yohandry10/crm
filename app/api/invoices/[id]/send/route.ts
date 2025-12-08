@@ -46,11 +46,20 @@ export async function POST(
     }
 
     // Get organization name
+    // Get organization name and details
     const { data: org } = await supabase
       .from("organizations")
-      .select("name")
+      .select("*")
       .eq("id", organizationId)
       .single()
+
+    const orgSettings = {
+      company_name: org?.name,
+      company_ruc: org?.ruc,
+      company_address: org?.address,
+      company_phone: org?.phone,
+      company_email: org?.email,
+    }
 
     // Format dates
     const formatDate = (date: string) => {

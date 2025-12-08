@@ -21,10 +21,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table"
 import {
-  Users, UserPlus, Mail, MoreHorizontal, Loader2, Trash2, Edit
+  Users, UserPlus, Mail, MoreHorizontal, Loader2, Trash2, Edit, ArrowLeft
 } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { motion } from "framer-motion"
+import Link from "next/link"
 
 interface TeamMember {
   id: string
@@ -186,8 +188,11 @@ export default function TeamPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+          <div className="relative">
+            <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full" />
+            <Loader2 className="w-12 h-12 animate-spin text-cyan-500 relative z-10" />
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -195,151 +200,130 @@ export default function TeamPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Equipo</h1>
-            <p className="text-muted-foreground">Gestiona los miembros de tu organización</p>
+      <div className="max-w-6xl mx-auto space-y-8 pb-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-4"
+        >
+          <Link
+            href="/settings"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-cyan-600 transition-colors w-fit"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Configuración
+          </Link>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+                Equipo
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Gestiona los miembros de tu organización
+              </p>
+            </div>
+
+            {canManageTeam && (
+              <Button
+                onClick={() => setInviteDialogOpen(true)}
+                className="bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20 transition-all hover:scale-105"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Invitar Miembro
+              </Button>
+            )}
           </div>
-          {canManageTeam && (
-            <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
-              <UserPlus className="w-4 h-4" />
-              Invitar Miembro
-            </Button>
-          )}
-        </div>
+        </motion.div>
 
         {/* Team Members */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Miembros ({members.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Desde</TableHead>
-                  {canManageTeam && <TableHead className="w-[50px]"></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => {
-                  const roleConfig = roleLabels[member.role] || roleLabels.viewer
-
-                  return (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={member.profiles?.avatar_url || undefined} />
-                            <AvatarFallback>
-                              {getInitials(member.profiles?.full_name, member.profiles?.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">
-                              {member.profiles?.full_name || "Sin nombre"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {member.profiles?.email}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={roleConfig.color}>{roleConfig.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {member.is_active ? (
-                          <Badge className="bg-green-100 text-green-800">Activo</Badge>
-                        ) : (
-                          <Badge variant="outline">Inactivo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(member.created_at).toLocaleDateString("es-PE")}
-                      </TableCell>
-                      {canManageTeam && (
-                        <TableCell>
-                          {member.role !== "owner" && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditingMember(member)}>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Cambiar Rol
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setMemberToDelete(member.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Pending Invitations */}
-        {invitations.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                Invitaciones Pendientes ({invitations.length})
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
+            <CardHeader className="border-b border-gray-100 bg-white/50">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Users className="w-5 h-5 text-cyan-600" />
+                Miembros ({members.length})
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
+                <TableHeader className="bg-gray-50/50">
+                  <TableRow className="hover:bg-transparent border-gray-100">
+                    <TableHead className="pl-6">Usuario</TableHead>
                     <TableHead>Rol</TableHead>
-                    <TableHead>Enviada</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Desde</TableHead>
                     {canManageTeam && <TableHead className="w-[50px]"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invitations.map((inv) => {
-                    const roleConfig = roleLabels[inv.role] || roleLabels.viewer
+                  {members.map((member) => {
+                    const roleConfig = roleLabels[member.role] || roleLabels.viewer
 
                     return (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-medium">{inv.email}</TableCell>
-                        <TableCell>
-                          <Badge className={roleConfig.color}>{roleConfig.label}</Badge>
+                      <TableRow key={member.id} className="hover:bg-cyan-50/30 border-gray-100 transition-colors">
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
+                              <AvatarImage src={member.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">
+                                {getInitials(member.profiles?.full_name, member.profiles?.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {member.profiles?.full_name || "Sin nombre"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {member.profiles?.email}
+                              </p>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(inv.created_at).toLocaleDateString("es-PE")}
+                        <TableCell>
+                          <Badge className={`${roleConfig.color} border-0 px-2.5 py-0.5`}>{roleConfig.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {member.is_active ? (
+                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-100/50 text-green-700 text-xs font-medium w-fit border border-green-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                              Activo
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500">Inactivo</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(member.created_at).toLocaleDateString("es-PE", { year: 'numeric', month: 'short', day: 'numeric' })}
                         </TableCell>
                         {canManageTeam && (
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => cancelInvitation(inv.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
+                            {member.role !== "owner" && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => setEditingMember(member)} className="cursor-pointer">
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Cambiar Rol
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setMemberToDelete(member.id)}
+                                    className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Eliminar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </TableCell>
                         )}
                       </TableRow>
@@ -349,11 +333,70 @@ export default function TeamPage() {
               </Table>
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Pending Invitations */}
+        {invitations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
+              <CardHeader className="border-b border-gray-100 bg-white/50">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Mail className="w-5 h-5 text-orange-500" />
+                  Invitaciones Pendientes ({invitations.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-gray-50/50">
+                    <TableRow className="hover:bg-transparent border-gray-100">
+                      <TableHead className="pl-6">Email</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Enviada</TableHead>
+                      {canManageTeam && <TableHead className="w-[50px]"></TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invitations.map((inv) => {
+                      const roleConfig = roleLabels[inv.role] || roleLabels.viewer
+
+                      return (
+                        <TableRow key={inv.id} className="hover:bg-orange-50/30 border-gray-100 transition-colors">
+                          <TableCell className="pl-6 font-medium text-gray-700">{inv.email}</TableCell>
+                          <TableCell>
+                            <Badge className={`${roleConfig.color} border-0 px-2.5 py-0.5`}>{roleConfig.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {new Date(inv.created_at).toLocaleDateString("es-PE", { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </TableCell>
+                          {canManageTeam && (
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => cancelInvitation(inv.id)}
+                                className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {/* Invite Dialog */}
         <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Invitar Miembro</DialogTitle>
               <DialogDescription>
@@ -369,6 +412,7 @@ export default function TeamPage() {
                   value={newInvite.email}
                   onChange={(e) => setNewInvite(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="email@ejemplo.com"
+                  className="bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                 />
               </div>
 
@@ -378,7 +422,7 @@ export default function TeamPage() {
                   value={newInvite.role}
                   onValueChange={(v) => setNewInvite(prev => ({ ...prev, role: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-gray-50 border-gray-200 focus:bg-white transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -396,7 +440,7 @@ export default function TeamPage() {
               <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={sendInvitation} disabled={inviting}>
+              <Button onClick={sendInvitation} disabled={inviting} className="gradient-neon border-0 text-white">
                 {inviting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Enviar Invitación
               </Button>
@@ -406,7 +450,7 @@ export default function TeamPage() {
 
         {/* Edit Role Dialog */}
         <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Cambiar Rol</DialogTitle>
               <DialogDescription>
@@ -419,7 +463,7 @@ export default function TeamPage() {
                 value={editingMember?.role}
                 onValueChange={(v) => setEditingMember(prev => prev ? { ...prev, role: v } : null)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-gray-50 border-gray-200 focus:bg-white transition-colors">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -439,6 +483,7 @@ export default function TeamPage() {
               <Button
                 onClick={() => editingMember && updateMemberRole(editingMember.id, editingMember.role)}
                 disabled={updatingRole}
+                className="gradient-neon border-0 text-white"
               >
                 {updatingRole && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Guardar

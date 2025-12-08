@@ -41,6 +41,11 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     async function loadUser() {
@@ -99,10 +104,12 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
+        suppressHydrationWarning
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out flex flex-col",
           "lg:translate-x-0 lg:fixed",
-          open ? "translate-x-0" : "-translate-x-full"
+          /* Hydration fix: only apply open/closed classes on client after mount */
+          mounted && (open ? "translate-x-0" : "-translate-x-full")
         )}
       >
         {/* Header */}

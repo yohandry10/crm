@@ -21,6 +21,7 @@ const settingsSchema = z.object({
     timezone: z.string().optional().nullable(),
     currency: z.string().optional().nullable(),
     default_currency: z.string().optional().nullable(),
+    logo_url: z.string().url().optional().nullable().or(z.literal("")),
     // SUNAT
     sunat_usuario_sol: z.string().optional().nullable(),
     sunat_clave_sol: z.string().optional().nullable(),
@@ -30,6 +31,15 @@ const settingsSchema = z.object({
     serie_nota_credito: z.string().optional().nullable(),
     // Defaults
     default_tax_rate: z.union([z.number(), z.string()]).optional().nullable(),
+    // Payment methods
+    yape_phone: z.string().optional().nullable(),
+    yape_qr_url: z.string().url().optional().nullable().or(z.literal("")),
+    plin_phone: z.string().optional().nullable(),
+    plin_qr_url: z.string().url().optional().nullable().or(z.literal("")),
+    bank_name: z.string().optional().nullable(),
+    bank_account: z.string().optional().nullable(),
+    bank_cci: z.string().optional().nullable(),
+    bank_holder: z.string().optional().nullable(),
     // Notifications
     notify_new_lead: z.boolean().optional().nullable(),
     notify_task_due: z.boolean().optional().nullable(),
@@ -113,6 +123,17 @@ export async function PUT(request: NextRequest) {
         if (validData.notify_payment_received !== undefined) updateData.notify_payment_received = validData.notify_payment_received
         if (validData.notify_invoice_overdue !== undefined) updateData.notify_invoice_overdue = validData.notify_invoice_overdue
 
+        // Payment methods
+        if (validData.logo_url !== undefined) updateData.logo_url = validData.logo_url || null
+        if (validData.yape_phone !== undefined) updateData.yape_phone = validData.yape_phone || null
+        if (validData.yape_qr_url !== undefined) updateData.yape_qr_url = validData.yape_qr_url || null
+        if (validData.plin_phone !== undefined) updateData.plin_phone = validData.plin_phone || null
+        if (validData.plin_qr_url !== undefined) updateData.plin_qr_url = validData.plin_qr_url || null
+        if (validData.bank_name !== undefined) updateData.bank_name = validData.bank_name || null
+        if (validData.bank_account !== undefined) updateData.bank_account = validData.bank_account || null
+        if (validData.bank_cci !== undefined) updateData.bank_cci = validData.bank_cci || null
+        if (validData.bank_holder !== undefined) updateData.bank_holder = validData.bank_holder || null
+
         // Obtener datos actuales para comparar
         const { data: currentData, error: fetchError } = await supabase
             .from('organizations')
@@ -123,10 +144,12 @@ export async function PUT(request: NextRequest) {
         if (fetchError) throw fetchError
 
         // Comparar si hay cambios reales (excluyendo updated_at)
-        const fieldsToCompare = ['name', 'ruc', 'address', 'phone', 'email', 'currency', 'timezone', 
+        const fieldsToCompare = ['name', 'ruc', 'address', 'phone', 'email', 'currency', 'timezone',
             'serie_factura', 'serie_boleta', 'serie_nota_credito', 'default_tax_rate',
-            'notify_new_lead', 'notify_task_due', 'notify_payment_received', 'notify_invoice_overdue']
-        
+            'notify_new_lead', 'notify_task_due', 'notify_payment_received', 'notify_invoice_overdue',
+            'logo_url', 'yape_phone', 'yape_qr_url', 'plin_phone', 'plin_qr_url',
+            'bank_name', 'bank_account', 'bank_cci', 'bank_holder']
+
         const hasRealChanges = fieldsToCompare.some(field => {
             if (!(field in updateData)) return false
             const newValue = String(updateData[field] ?? '')
@@ -135,9 +158,9 @@ export async function PUT(request: NextRequest) {
         })
 
         if (!hasRealChanges) {
-            return NextResponse.json({ 
-                success: false, 
-                error: "No hay cambios para guardar. Los datos ya están actualizados." 
+            return NextResponse.json({
+                success: false,
+                error: "No hay cambios para guardar. Los datos ya están actualizados."
             }, { status: 400 })
         }
 

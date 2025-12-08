@@ -263,72 +263,67 @@ const OpportunityCard = memo(function OpportunityCard({
   onEdit,
   onDelete,
 }: OpportunityCardProps) {
+  const probability = opportunity.probability || 0
+
   return (
-    <Card
+    <div
       draggable
       onDragStart={(e) => onDragStart(e, opportunity.id)}
-      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      onClick={() => onEdit(opportunity)}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '10px 12px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px solid #e5e7eb',
+        cursor: 'grab',
+        marginBottom: '8px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      }}
     >
-      <CardContent className="p-3 space-y-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <GripVertical className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium text-sm line-clamp-1">{opportunity.name}</span>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(opportunity)}>
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(opportunity.id)}
-                className="text-red-600"
-              >
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      {/* Row 1: Title + Badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <span style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {opportunity.name}
+        </span>
+        <span style={{
+          backgroundColor: probability >= 75 ? '#dcfce7' : probability >= 50 ? '#fef9c3' : '#f1f5f9',
+          color: probability >= 75 ? '#16a34a' : probability >= 50 ? '#ca8a04' : '#64748b',
+          fontSize: '11px',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          marginLeft: '8px',
+          fontWeight: 500
+        }}>
+          {probability}%
+        </span>
+      </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <span className="font-bold">S/ {(opportunity.expected_revenue || opportunity.value || 0).toLocaleString()}</span>
-          <Badge variant="outline" className="text-xs ml-auto">
-            {opportunity.probability}%
-          </Badge>
+      {/* Row 2: Price + Contact */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', color: '#16a34a', fontWeight: 600 }}>
+          <DollarSign style={{ width: 12, height: 12, marginRight: 2 }} />
+          S/ {(opportunity.expected_revenue || opportunity.value || 0).toLocaleString()}
         </div>
-
         {opportunity.contact_name && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <User className="w-3 h-3" />
-            <span className="truncate">{opportunity.contact_name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', color: '#6b7280', fontSize: '11px' }}>
+            <User style={{ width: 11, height: 11, marginRight: 2 }} />
+            <span style={{ maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {opportunity.contact_name}
+            </span>
           </div>
         )}
+      </div>
 
-        {opportunity.expected_close_date && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3" />
-            <span>{new Date(opportunity.expected_close_date).toLocaleDateString('es-PE')}</span>
-          </div>
-        )}
-
-        {opportunity.owner_name && (
-          <div className="flex items-center gap-2">
-            <Avatar className="w-5 h-5">
-              <AvatarFallback className="text-[10px]">
-                {opportunity.owner_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-muted-foreground">{opportunity.owner_name}</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Row 3: Date */}
+      {opportunity.expected_close_date && (
+        <div style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
+          <Calendar style={{ width: 11, height: 11, marginRight: 3 }} />
+          {new Date(opportunity.expected_close_date).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+        </div>
+      )}
+    </div>
   )
 })
 

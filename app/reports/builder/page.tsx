@@ -31,7 +31,10 @@ import {
   Target,
   FileText,
   Loader2,
+  ArrowLeft,
 } from "lucide-react"
+import { motion } from "framer-motion"
+import Link from "next/link"
 
 interface ReportConfig {
   id?: string
@@ -230,278 +233,347 @@ export default function ReportBuilderPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Constructor de Reportes</h1>
-            <p className="text-muted-foreground">
-              Crea reportes personalizados con métricas y filtros
-            </p>
+      <div className="max-w-7xl mx-auto space-y-8 pb-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-4"
+        >
+          <Link
+            href="/reports"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-cyan-600 transition-colors w-fit"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Reportes
+          </Link>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+                Constructor de Reportes
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Crea reportes personalizados con métricas y filtros
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={saveReport}
+                className="bg-white/50 border-gray-200 hover:bg-white hover:text-cyan-600 transition-colors"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Guardar
+              </Button>
+              <Button
+                onClick={runReport}
+                disabled={loading}
+                className="gradient-neon border-0 text-white shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+              >
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                Ejecutar
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={saveReport}>
-              <Save className="w-4 h-4 mr-2" />
-              Guardar
-            </Button>
-            <Button onClick={runReport} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              Ejecutar
-            </Button>
-          </div>
-        </div>
+        </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Config Panel */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-lg">Configuración</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nombre del reporte</Label>
-                <Input
-                  value={config.name}
-                  onChange={(e) => setConfig({ ...config, name: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Entidad</Label>
-                <Select
-                  value={config.entity}
-                  onValueChange={(v) => setConfig({
-                    ...config,
-                    entity: v,
-                    metrics: [METRICS[v as keyof typeof METRICS][0].id],
-                    groupBy: GROUP_BY[v as keyof typeof GROUP_BY][0].id,
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ENTITIES.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo de gráfico</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: "bar", icon: BarChart3 },
-                    { id: "line", icon: TrendingUp },
-                    { id: "pie", icon: PieChart },
-                    { id: "table", icon: FileText },
-                  ].map((t) => (
-                    <Button
-                      key={t.id}
-                      variant={config.type === t.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setConfig({ ...config, type: t.id as any })}
-                    >
-                      <t.icon className="w-4 h-4" />
-                    </Button>
-                  ))}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="lg:col-span-1"
+          >
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden h-full">
+              <CardHeader className="border-b border-gray-100 bg-white/50">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Target className="w-5 h-5 text-purple-500" />
+                  Configuración
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 p-6">
+                <div className="space-y-2">
+                  <Label>Nombre del reporte</Label>
+                  <Input
+                    value={config.name}
+                    onChange={(e) => setConfig({ ...config, name: e.target.value })}
+                    className="bg-white/50 border-gray-200 focus:border-purple-500 focus:ring-purple-500"
+                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Métricas</Label>
-                <div className="flex flex-wrap gap-2">
-                  {METRICS[config.entity as keyof typeof METRICS]?.map((m) => (
-                    <Badge
-                      key={m.id}
-                      variant={config.metrics.includes(m.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        const metrics = config.metrics.includes(m.id)
-                          ? config.metrics.filter((x) => x !== m.id)
-                          : [...config.metrics, m.id]
-                        setConfig({ ...config, metrics })
-                      }}
-                    >
-                      {m.name}
-                    </Badge>
-                  ))}
+                <div className="space-y-2">
+                  <Label>Entidad</Label>
+                  <Select
+                    value={config.entity}
+                    onValueChange={(v) => setConfig({
+                      ...config,
+                      entity: v,
+                      metrics: [METRICS[v as keyof typeof METRICS][0].id],
+                      groupBy: GROUP_BY[v as keyof typeof GROUP_BY][0].id,
+                    })}
+                  >
+                    <SelectTrigger className="bg-white/50 border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENTITIES.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          <div className="flex items-center gap-2">
+                            <e.icon className="w-4 h-4" />
+                            {e.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Agrupar por</Label>
-                <Select
-                  value={config.groupBy}
-                  onValueChange={(v) => setConfig({ ...config, groupBy: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GROUP_BY[config.entity as keyof typeof GROUP_BY]?.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Período</Label>
-                <Select
-                  value={config.dateRange}
-                  onValueChange={(v) => setConfig({ ...config, dateRange: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DATE_RANGES.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Filtros</Label>
-                  <Button variant="ghost" size="sm" onClick={addFilter}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {config.filters.map((filter, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <Input
-                      placeholder="Campo"
-                      value={filter.field}
-                      onChange={(e) => {
-                        const filters = [...config.filters]
-                        filters[i].field = e.target.value
-                        setConfig({ ...config, filters })
-                      }}
-                      className="flex-1"
-                    />
-                    <Input
-                      placeholder="Valor"
-                      value={filter.value}
-                      onChange={(e) => {
-                        const filters = [...config.filters]
-                        filters[i].value = e.target.value
-                        setConfig({ ...config, filters })
-                      }}
-                      className="flex-1"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeFilter(i)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Results Panel */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Resultados</CardTitle>
-              {reportData && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => exportReport("csv")}>
-                    <Download className="w-4 h-4 mr-1" />
-                    CSV
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => exportReport("xlsx")}>
-                    <Download className="w-4 h-4 mr-1" />
-                    Excel
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {!reportData ? (
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <BarChart3 className="w-12 h-12 mb-4 opacity-50" />
-                  <p>Configura y ejecuta el reporte para ver resultados</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Summary */}
-                  <div className="grid grid-cols-3 gap-4">
-                    {reportData.summary?.map((s: any, i: number) => (
-                      <Card key={i}>
-                        <CardContent className="pt-4">
-                          <p className="text-sm text-muted-foreground">{s.label}</p>
-                          <p className="text-2xl font-bold">{s.value}</p>
-                        </CardContent>
-                      </Card>
+                <div className="space-y-2">
+                  <Label>Tipo de gráfico</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: "bar", icon: BarChart3 },
+                      { id: "line", icon: TrendingUp },
+                      { id: "pie", icon: PieChart },
+                      { id: "table", icon: FileText },
+                    ].map((t) => (
+                      <Button
+                        key={t.id}
+                        variant={config.type === t.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setConfig({ ...config, type: t.id as any })}
+                        className={config.type === t.id ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-white/50 hover:bg-white"}
+                      >
+                        <t.icon className="w-4 h-4" />
+                      </Button>
                     ))}
                   </div>
+                </div>
 
-                  {/* Table */}
-                  {reportData.rows && (
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-muted">
-                          <tr>
-                            {reportData.columns?.map((col: string) => (
-                              <th key={col} className="px-4 py-2 text-left text-sm font-medium">
-                                {col}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.rows.map((row: any, i: number) => (
-                            <tr key={i} className="border-t">
-                              {reportData.columns?.map((col: string) => (
-                                <td key={col} className="px-4 py-2 text-sm">
-                                  {row[col]}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                <div className="space-y-2">
+                  <Label>Métricas</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {METRICS[config.entity as keyof typeof METRICS]?.map((m) => (
+                      <Badge
+                        key={m.id}
+                        variant={config.metrics.includes(m.id) ? "default" : "outline"}
+                        className={`cursor-pointer transition-all ${config.metrics.includes(m.id) ? "bg-cyan-100 text-cyan-800 hover:bg-cyan-200 border-cyan-200" : "hover:bg-gray-100"}`}
+                        onClick={() => {
+                          const metrics = config.metrics.includes(m.id)
+                            ? config.metrics.filter((x) => x !== m.id)
+                            : [...config.metrics, m.id]
+                          setConfig({ ...config, metrics })
+                        }}
+                      >
+                        {m.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Agrupar por</Label>
+                  <Select
+                    value={config.groupBy}
+                    onValueChange={(v) => setConfig({ ...config, groupBy: v })}
+                  >
+                    <SelectTrigger className="bg-white/50 border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GROUP_BY[config.entity as keyof typeof GROUP_BY]?.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Período</Label>
+                  <Select
+                    value={config.dateRange}
+                    onValueChange={(v) => setConfig({ ...config, dateRange: v })}
+                  >
+                    <SelectTrigger className="bg-white/50 border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DATE_RANGES.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Filtros</Label>
+                    <Button variant="ghost" size="sm" onClick={addFilter} className="hover:text-cyan-600">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {config.filters.map((filter, i) => (
+                    <div key={i} className="flex gap-2 items-center mb-2">
+                      <Input
+                        placeholder="Campo"
+                        value={filter.field}
+                        onChange={(e) => {
+                          const filters = [...config.filters]
+                          filters[i].field = e.target.value
+                          setConfig({ ...config, filters })
+                        }}
+                        className="flex-1 h-8 bg-white/50 text-xs"
+                      />
+                      <Input
+                        placeholder="Valor"
+                        value={filter.value}
+                        onChange={(e) => {
+                          const filters = [...config.filters]
+                          filters[i].value = e.target.value
+                          setConfig({ ...config, filters })
+                        }}
+                        className="flex-1 h-8 bg-white/50 text-xs"
+                      />
+                      <Button variant="ghost" size="icon" onClick={() => removeFilter(i)} className="h-8 w-8 text-red-400 hover:text-red-600">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
+                  ))}
+                  {config.filters.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">Sin filtros configurados</p>
                   )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Results Panel */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="lg:col-span-2"
+          >
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden min-h-[500px]">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 bg-white/50">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-cyan-500" />
+                  Resultados
+                </CardTitle>
+                {reportData && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => exportReport("csv")} className="bg-white/50 hover:bg-white hover:text-green-600">
+                      <Download className="w-4 h-4 mr-1" />
+                      CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportReport("xlsx")} className="bg-white/50 hover:bg-white hover:text-green-600">
+                      <Download className="w-4 h-4 mr-1" />
+                      Excel
+                    </Button>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-6">
+                {!reportData ? (
+                  <div className="flex flex-col items-center justify-center h-96 text-muted-foreground bg-gray-50/30 rounded-lg border-2 border-dashed border-gray-200 m-4">
+                    <BarChart3 className="w-16 h-16 mb-4 text-gray-300" />
+                    <p className="text-lg font-medium text-gray-400">Configura y ejecuta el reporte para ver resultados</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {reportData.summary?.map((s: any, i: number) => (
+                        <Card key={i} className="bg-white/80 border-0 shadow-sm">
+                          <CardContent className="pt-6">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
+                            <p className="text-3xl font-bold text-gray-900">{s.value}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Table */}
+                    {reportData.rows && (
+                      <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm bg-white/80">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50/80">
+                              <tr>
+                                {reportData.columns?.map((col: string) => (
+                                  <th key={col} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {col}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {reportData.rows.map((row: any, i: number) => (
+                                <tr key={i} className="hover:bg-cyan-50/20 transition-colors">
+                                  {reportData.columns?.map((col: string) => (
+                                    <td key={col} className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
+                                      {row[col]}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Saved Reports */}
         {savedReports.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Reportes Guardados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-3 gap-4">
-                {savedReports.map((report) => (
-                  <Card
-                    key={report.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => setConfig(report)}
-                  >
-                    <CardContent className="pt-4">
-                      <p className="font-medium">{report.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {ENTITIES.find((e) => e.id === report.entity)?.name} • {report.type}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
+              <CardHeader className="border-b border-gray-100 bg-white/50">
+                <CardTitle className="text-lg">Reportes Guardados</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid md:grid-cols-3 gap-4">
+                  {savedReports.map((report) => (
+                    <Card
+                      key={report.id}
+                      className="cursor-pointer border-gray-100 hover:border-cyan-400 hover:shadow-md transition-all group bg-white/80"
+                      onClick={() => setConfig(report)}
+                    >
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-semibold text-gray-900 group-hover:text-cyan-700 transition-colors">{report.name}</p>
+                          <Badge variant="outline" className="bg-white">{report.type}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          {ENTITIES.find((e) => e.id === report.entity)?.icon ? (
+                            (() => {
+                              const Icon = ENTITIES.find((e) => e.id === report.entity)!.icon;
+                              return <Icon className="w-3 h-3" />
+                            })()
+                          ) : null}
+                          {ENTITIES.find((e) => e.id === report.entity)?.name}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
       </div>
     </DashboardLayout>

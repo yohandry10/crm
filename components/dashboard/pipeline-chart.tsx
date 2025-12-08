@@ -1,9 +1,8 @@
 "use client"
 
 import { memo, useMemo } from "react"
-import { Bar, BarChart, XAxis, YAxis, Cell, LabelList } from "recharts"
-import { Target, TrendingUp } from "lucide-react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { Target } from "lucide-react"
 
 interface PipelineStage {
   stage: string
@@ -30,20 +29,19 @@ const stageColors: Record<string, string> = {
 
 const defaultColors = ["#06b6d4", "#8b5cf6", "#f59e0b", "#ec4899", "#10b981", "#6366f1"]
 
-const chartConfig = {
-  value: {
-    label: "Valor",
-    color: "#06b6d4",
-  },
-} satisfies ChartConfig
+const formatCurrency = (value: number) => {
+  if (value >= 1000000) return `S/ ${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `S/ ${(value / 1000).toFixed(0)}K`
+  return `S/ ${value}`
+}
 
 const EmptyState = memo(() => (
-  <div className="flex flex-col items-center justify-center h-[280px] text-center px-4">
-    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/10 to-emerald-500/10 flex items-center justify-center mb-4">
+  <div className="flex flex-col items-center justify-center h-[300px] text-center px-4">
+    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/10 to-emerald-500/10 flex items-center justify-center mb-4 backdrop-blur-sm">
       <Target className="w-8 h-8 text-amber-500" />
     </div>
-    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">Pipeline vacío</h3>
-    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[200px]">
+    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-1">Pipeline vacío</h3>
+    <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-[200px]">
       Las etapas de tu pipeline aparecerán aquí cuando agregues oportunidades
     </p>
   </div>
@@ -51,31 +49,47 @@ const EmptyState = memo(() => (
 
 EmptyState.displayName = "PipelineEmptyState"
 
-const formatCurrency = (value: number) => {
-  if (value >= 1000000) return `S/ ${(value / 1000000).toFixed(1)}M`
-  if (value >= 1000) return `S/ ${(value / 1000).toFixed(0)}K`
-  return `S/ ${value}`
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-xl shadow-xl min-w-[150px]">
+        <div className="flex items-center gap-2 mb-2">
+          <div
+            className="w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-zinc-900"
+            style={{ backgroundColor: data.fill }}
+          />
+          <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50">{data.stage}</p>
+        </div>
+        <div className="flex items-center justify-between gap-4 mb-1">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">Valor Potencial</span>
+          <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{formatCurrency(data.value)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">Oportunidades</span>
+          <span className="text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-600 dark:text-zinc-300">
+            {data.count}
+          </span>
+        </div>
+      </div>
+    )
+  }
+  return null
 }
 
-const formatShortCurrency = (value: number) => {
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
-  return `${value}`
-}
-
-export const PipelineChart = memo(({ 
+export const PipelineChart = memo(({
   data = [],
-  title = "Pipeline",
-  description = "Valor por etapa"
+  title = "Pipeline de Ventas",
+  description = "Valor total por etapa"
 }: PipelineChartProps) => {
   const hasData = data.length > 0
 
   const { totalValue, totalCount } = useMemo(() => {
     if (!hasData) return { totalValue: 0, totalCount: 0 }
-    
+
     const value = data.reduce((sum, item) => sum + (item.value || 0), 0)
     const count = data.reduce((sum, item) => sum + (item.count || 0), 0)
-    
+
     return { totalValue: value, totalCount: count }
   }, [data, hasData])
 
@@ -83,97 +97,71 @@ export const PipelineChart = memo(({
     return stageColors[stage] || defaultColors[index % defaultColors.length]
   }
 
+  const chartData = useMemo(() => {
+    return data.map((item, index) => ({
+      ...item,
+      fill: getColor(item.stage, index)
+    }))
+  }, [data])
+
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="group relative bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 rounded-3xl p-6 hover:shadow-2xl hover:shadow-zinc-500/5 dark:hover:shadow-black/20 transition-all duration-500">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+        <Target className="w-24 h-24 text-amber-500 transform -rotate-12" />
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{title}</h3>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{description}</p>
         </div>
+
         {hasData && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">
-            <TrendingUp className="w-3.5 h-3.5" />
-            {totalCount} oportunidades
+          <div className="text-right">
+            <p className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{formatCurrency(totalValue)}</p>
+            <div className="flex items-center justify-end gap-1.5 mt-1">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{totalCount} oportunidades activas</p>
+            </div>
           </div>
         )}
       </div>
 
-      {hasData && (
-        <div className="mb-4">
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalValue)}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Valor total del pipeline</p>
-        </div>
-      )}
-
       {hasData ? (
-        <ChartContainer config={chartConfig} className="h-[280px] w-full">
-          <BarChart 
-            data={data} 
-            layout="vertical" 
-            margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
-          >
-            <XAxis 
-              type="number" 
-              axisLine={false} 
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#94a3b8" }}
-              tickFormatter={formatShortCurrency}
-            />
-            <YAxis 
-              type="category" 
-              dataKey="stage" 
-              axisLine={false} 
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#374151" }}
-              width={90}
-            />
-            <ChartTooltip 
-              content={<ChartTooltipContent />}
-              formatter={(value: number, name: string, props: any) => [
-                formatCurrency(value),
-                `${props.payload.count} oportunidades`
-              ]}
-              cursor={{ fill: "#f9fafb" }}
-            />
-            <Bar 
-              dataKey="value" 
-              radius={[0, 6, 6, 0]} 
-              barSize={28}
-              background={{ fill: "#f9fafb" }}
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 0, right: 0, left: 30, bottom: 0 }}
+              barSize={32} // Thicker bars for modern look
             >
-              {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={getColor(entry.stage, index)}
-                />
-              ))}
-              <LabelList 
-                dataKey="value" 
-                position="right" 
-                formatter={(value: any) => formatShortCurrency(Number(value))}
-                style={{ fontSize: 11, fill: "#6b7280", fontWeight: 500 }}
+              <XAxis type="number" hide />
+              <YAxis
+                type="category"
+                dataKey="stage"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 13, fill: "#64748b", fontWeight: 600 }}
+                width={100}
+                dx={-10}
               />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+              <Bar
+                dataKey="value"
+                radius={[0, 8, 8, 0]}
+                background={{ fill: '#f1f5f9', radius: [0, 8, 8, 0], className: 'dark:fill-zinc-800/50' }}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       ) : (
         <EmptyState />
-      )}
-
-      {hasData && (
-        <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-          {data.map((item, index) => (
-            <div key={item.stage} className="flex items-center gap-2">
-              <div 
-                className="w-2.5 h-2.5 rounded-full" 
-                style={{ backgroundColor: getColor(item.stage, index) }}
-              />
-              <span className="text-xs text-gray-600 dark:text-gray-400">
-                {item.stage} ({item.count})
-              </span>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   )

@@ -15,13 +15,31 @@ interface EmailResult {
   error?: string
 }
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const DEFAULT_FROM = process.env.EMAIL_FROM || "CRM <noreply@tudominio.com>"
+// Read at runtime to ensure Next.js loads .env.local properly
+function getResendApiKey() {
+  return process.env.RESEND_API_KEY
+}
+
+function getDefaultFrom() {
+  return process.env.EMAIL_FROM || "CRM <noreply@tudominio.com>"
+}
 
 export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
+  const RESEND_API_KEY = getResendApiKey()
+  const DEFAULT_FROM = getDefaultFrom()
+
+  // Debug logs
+  console.log("--- DEBUG EMAIL SENDING ---")
+  console.log("Process ID:", process.pid)
+  console.log("RESEND_API_KEY configured:", !!RESEND_API_KEY)
+  console.log("RESEND_API_KEY length:", RESEND_API_KEY?.length || 0)
+  console.log("First 3 chars:", RESEND_API_KEY?.substring(0, 3) || "N/A")
+  console.log("NODE_ENV:", process.env.NODE_ENV)
+  console.log("---------------------------")
+
   if (!RESEND_API_KEY) {
-    console.log("Email not sent (Resend not configured):", params.subject, "to:", params.to)
-    return { success: false, error: "Email service not configured" }
+    console.log("❌ Email not sent (Resend not configured):", params.subject, "to:", params.to)
+    return { success: false, error: "Email service not configured (Key missing)" }
   }
 
   try {
@@ -229,7 +247,7 @@ export function welcomeEmailTemplate(params: {
 
 // Helper to check if email is configured
 export function isEmailConfigured(): boolean {
-  return !!RESEND_API_KEY
+  return !!getResendApiKey()
 }
 
 // Invoice Email Template
@@ -243,7 +261,17 @@ export function invoiceEmailTemplate(params: {
   viewLink: string
   downloadLink?: string
   organizationName?: string
+  logoUrl?: string
   items?: Array<{ description: string; quantity: number; unitPrice: string; total: string }>
+  // Payment methods
+  yapePhone?: string
+  yapeQrUrl?: string
+  plinPhone?: string
+  plinQrUrl?: string
+  bankName?: string
+  bankAccount?: string
+  bankCci?: string
+  bankHolder?: string
 }): string {
   const itemsHtml = params.items?.map(item => `
     <tr>
@@ -253,6 +281,48 @@ export function invoiceEmailTemplate(params: {
       <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${item.total}</td>
     </tr>
   `).join('') || ''
+
+  // Build payment methods section
+  const hasPaymentMethods = params.yapePhone || params.plinPhone || params.bankName
+
+  const paymentMethodsHtml = hasPaymentMethods ? `
+    <!-- Payment Methods -->
+    <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin: 0 0 15px 0; color: #166534; font-size: 16px;">💰 Medios de Pago</h3>
+      
+      ${params.yapePhone ? `
+      <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #bbf7d0;">
+        <strong style="color: #7c3aed;">📱 Yape</strong>
+        <p style="margin: 5px 0;">Número: <strong>${params.yapePhone}</strong></p>
+        ${params.yapeQrUrl ? `<img src="${params.yapeQrUrl}" alt="QR Yape" style="max-width: 120px; margin-top: 10px;" />` : ''}
+      </div>
+      ` : ''}
+      
+      ${params.plinPhone ? `
+      <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #bbf7d0;">
+        <strong style="color: #0891b2;">📱 Plin</strong>
+        <p style="margin: 5px 0;">Número: <strong>${params.plinPhone}</strong></p>
+        ${params.plinQrUrl ? `<img src="${params.plinQrUrl}" alt="QR Plin" style="max-width: 120px; margin-top: 10px;" />` : ''}
+      </div>
+      ` : ''}
+      
+      ${params.bankName ? `
+      <div>
+        <strong style="color: #059669;">🏦 Transferencia Bancaria</strong>
+        <table style="margin-top: 10px; font-size: 14px;">
+          <tr><td style="color: #64748b; padding: 3px 10px 3px 0;">Banco:</td><td><strong>${params.bankName}</strong></td></tr>
+          ${params.bankHolder ? `<tr><td style="color: #64748b; padding: 3px 10px 3px 0;">Titular:</td><td>${params.bankHolder}</td></tr>` : ''}
+          ${params.bankAccount ? `<tr><td style="color: #64748b; padding: 3px 10px 3px 0;">Cuenta:</td><td><strong>${params.bankAccount}</strong></td></tr>` : ''}
+          ${params.bankCci ? `<tr><td style="color: #64748b; padding: 3px 10px 3px 0;">CCI:</td><td>${params.bankCci}</td></tr>` : ''}
+        </table>
+      </div>
+      ` : ''}
+      
+      <p style="margin: 15px 0 0 0; font-size: 13px; color: #166534;">
+        <strong>Referencia:</strong> ${params.invoiceNumber} - ${params.currency || 'S/'} ${params.total}
+      </p>
+    </div>
+  ` : ''
 
   return `
 <!DOCTYPE html>
@@ -265,6 +335,7 @@ export function invoiceEmailTemplate(params: {
   <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 30px; text-align: center;">
+      ${params.logoUrl ? `<img src="${params.logoUrl}" alt="Logo" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
       <h1 style="color: white; margin: 0; font-size: 24px;">${params.organizationName || 'CRM'}</h1>
       <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Factura ${params.invoiceNumber}</p>
     </div>
@@ -312,6 +383,8 @@ export function invoiceEmailTemplate(params: {
         </tbody>
       </table>
       ` : ''}
+      
+      ${paymentMethodsHtml}
       
       <!-- CTA Buttons -->
       <div style="text-align: center; margin: 30px 0;">

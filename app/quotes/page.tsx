@@ -14,7 +14,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, RefreshCw, Download } from "lucide-react"
+import { Plus, Search, RefreshCw, Download, FileText, Loader2, Link, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 
@@ -24,6 +24,8 @@ export default function QuotesPage() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedQuote, setSelectedQuote] = useState<any>(null)
     const [filter, setFilter] = useState("")
+    const [converting, setConverting] = useState<string | null>(null)
+    const [generatingLink, setGeneratingLink] = useState<string | null>(null)
 
     const fetchQuotes = async () => {
         setLoading(true)
@@ -51,11 +53,74 @@ export default function QuotesPage() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'accepted': return 'default' // green-ish usually
+            case 'accepted': return 'default'
             case 'sent': return 'secondary'
             case 'rejected': return 'destructive'
             case 'draft': return 'outline'
+            case 'converted': return 'default'
+            case 'expired': return 'destructive'
             default: return 'secondary'
+        }
+    }
+
+    const getStatusLabel = (status: string) => {
+        const labels: Record<string, string> = {
+            draft: 'Borrador',
+            sent: 'Enviada',
+            accepted: 'Aceptada',
+            rejected: 'Rechazada',
+            converted: 'Facturada',
+            expired: 'Vencida',
+        }
+        return labels[status] || status
+    }
+
+    const handleConvertToInvoice = async (quoteId: string) => {
+        if (!confirm('¿Generar factura desde esta cotización? Esta acción no se puede deshacer.')) return
+
+        setConverting(quoteId)
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}/convert`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skipPaymentCheck: true })
+            })
+            const data = await res.json()
+
+            if (!res.ok) throw new Error(data.error || 'Error al convertir')
+
+            toast.success(data.data?.message || 'Factura generada exitosamente')
+            fetchQuotes()
+        } catch (error: any) {
+            toast.error(error.message || 'Error al generar factura')
+        } finally {
+            setConverting(null)
+        }
+    }
+
+    const canConvert = (status: string) => ['accepted', 'sent'].includes(status)
+
+    const handleGeneratePaymentLink = async (quoteId: string) => {
+        setGeneratingLink(quoteId)
+        try {
+            const res = await fetch('/api/payment-links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quote_id: quoteId, expires_days: 30 })
+            })
+            const data = await res.json()
+
+            if (!res.ok) throw new Error(data.error || 'Error al generar enlace')
+
+            // Copy to clipboard
+            await navigator.clipboard.writeText(data.data.link)
+            toast.success('Enlace copiado al portapapeles', {
+                description: data.data.link
+            })
+        } catch (error: any) {
+            toast.error(error.message || 'Error al generar enlace')
+        } finally {
+            setGeneratingLink(null)
         }
     }
 
@@ -137,10 +202,40 @@ export default function QuotesPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={getStatusColor(quote.status) as any}>
-                                                    {quote.status}
+                                                    {getStatusLabel(quote.status)}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right space-x-1">
+                                                {canConvert(quote.status) && (
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="gradient-neon border-0"
+                                                        disabled={converting === quote.id}
+                                                        onClick={() => handleConvertToInvoice(quote.id)}
+                                                    >
+                                                        {converting === quote.id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <><FileText className="h-4 w-4 mr-1" /> Facturar</>
+                                                        )}
+                                                    </Button>
+                                                )}
+                                                {quote.status !== 'converted' && quote.status !== 'rejected' && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={generatingLink === quote.id}
+                                                        onClick={() => handleGeneratePaymentLink(quote.id)}
+                                                        title="Copiar enlace de pago"
+                                                    >
+                                                        {generatingLink === quote.id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <><Share2 className="h-4 w-4 mr-1" /> Link</>
+                                                        )}
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"

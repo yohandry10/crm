@@ -39,11 +39,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: any
     try {
         const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const { invoice_id, amount, payment_method, transaction_id, gateway } = body
+        const { invoice_id, amount, payment_method, transaction_id, gateway } = requestBody
 
         if (!invoice_id || !amount || !payment_method || !gateway) {
             throw new ValidationError("Campos requeridos faltantes", { required: ['invoice_id', 'amount', 'payment_method', 'gateway'] })
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
             throw new ValidationError("El monto debe ser un número positivo")
         }
 
-        const allowedGateways = ['stripe', 'bank_transfer', 'cash', 'yape', 'plin', 'mercadopago']
+        const allowedGateways = ['stripe', 'bank_transfer', 'cash', 'yape', 'plin', 'mercadopago', 'manual']
         if (!allowedGateways.includes(gateway.toLowerCase())) {
             throw new ValidationError(`Gateway inválido. Permitidos: ${allowedGateways.join(', ')}`)
         }
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
             message: isFullyPaid ? 'Pago completado - Factura pagada' : 'Pago registrado'
         })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/payments", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/payments", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

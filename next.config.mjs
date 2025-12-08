@@ -7,6 +7,9 @@ const nextConfig = {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
     N8N_BASE_URL: process.env.N8N_BASE_URL,
+    // Email service (Resend)
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
   },
   async headers() {
     return [
