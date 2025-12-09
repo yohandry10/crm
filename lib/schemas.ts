@@ -111,7 +111,7 @@ export const createWorkflowSchema = z.object({
         'schedule'
     ]),
     trigger_conditions: z.record(z.any()).optional(),
-    actions: z.array(workflowActionSchema).min(1, "At least one action is required"),
+    actions: z.array(workflowActionSchema).default([]),
     is_active: z.boolean().default(true)
 })
 

@@ -32,20 +32,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             error,
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    let requestBody: any
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId } = await getAuthenticatedContext()
         const { id } = await params
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const { status } = body
+        const { status } = requestBody
 
         // Get current quote status
         const { data: currentQuote, error: fetchError } = await supabase
@@ -71,16 +72,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 // ✅ FIX: Verificar stock disponible antes de aceptar
                 const { data: stockCheck, error: stockError } = await supabase
                     .rpc('check_quote_stock_availability', { p_quote_id: id })
-                
+
                 if (stockError) {
                     console.warn('Stock check failed, continuing without validation:', stockError)
                 } else if (stockCheck && stockCheck.length > 0) {
                     const outOfStock = stockCheck.filter((item: any) => !item.has_stock)
                     if (outOfStock.length > 0) {
-                        const itemNames = outOfStock.map((i: any) => 
+                        const itemNames = outOfStock.map((i: any) =>
                             `${i.product_name} (necesita: ${i.required_quantity}, disponible: ${i.available_quantity})`
                         ).join(', ')
-                        
+
                         return NextResponse.json({
                             success: false,
                             error: `Stock insuficiente para: ${itemNames}`,
@@ -88,7 +89,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         }, { status: 400 })
                     }
                 }
-                
+
                 // Map quote items to invoice items
                 const invoiceItems = quoteItems.map(item => ({
                     description: item.description,
@@ -99,7 +100,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 // Create invoice using atomic RPC - MULTI-TENANT
                 const { data: invoiceData, error: invoiceError } = await supabase
                     .rpc('create_invoice_with_items_atomic', {
-                        p_organization_id: organizationId,
+                        p_org_id: organizationId,
+                        p_user_id: user.id,
                         p_contact_id: currentQuote.contact_id,
                         p_items: invoiceItems,
                         p_due_date: null,
@@ -147,10 +149,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             endpoint: `/api/quotes/[id]`,
             method: "PATCH",
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }
@@ -179,7 +181,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             error,
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }

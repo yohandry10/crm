@@ -14,8 +14,15 @@ const quoteItemSchema = z.object({
 
 const quoteSchema = z.object({
     contact_id: z.string().uuid("ID de contacto inválido"),
-    opportunity_id: z.string().uuid().optional().nullable(),
-    valid_until: z.string().datetime().optional().nullable(),
+    opportunity_id: z.string().optional().nullable().transform(val => {
+        if (!val || val === '' || val === 'none') return null
+        return val
+    }),
+    valid_until: z.string().optional().nullable().transform(val => {
+        if (!val || val === '') return null
+        // Accept both date-only (YYYY-MM-DD) and full ISO datetime formats
+        return val
+    }),
     notes: z.string().max(1000).optional().nullable(),
     terms: z.string().max(2000).optional().nullable(),
     items: z.array(quoteItemSchema).min(1, "Se requiere al menos un item")
@@ -54,12 +61,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: any = undefined
     try {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
         const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        const bodyText = await request.text()
+        requestBody = bodyText ? JSON.parse(bodyText) : undefined
+        const body = requestBody
 
         const validation = quoteSchema.safeParse(body)
         if (!validation.success) {
@@ -98,7 +108,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: quote })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/quotes", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/quotes", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

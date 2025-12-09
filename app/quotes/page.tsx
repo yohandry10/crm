@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { QuoteDialog } from "@/components/quotes/quote-dialog"
+import { SendQuoteModal } from "@/components/quotes/send-quote-modal"
+import { RegisterPaymentModal } from "@/components/quotes/register-payment-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,7 +16,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, RefreshCw, Download, FileText, Loader2, Link, Share2 } from "lucide-react"
+import { Plus, Search, RefreshCw, Download, FileText, Loader2, Link, Share2, Send, CheckCircle, XCircle, Trash2, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 
@@ -26,6 +28,74 @@ export default function QuotesPage() {
     const [filter, setFilter] = useState("")
     const [converting, setConverting] = useState<string | null>(null)
     const [generatingLink, setGeneratingLink] = useState<string | null>(null)
+    const [changingStatus, setChangingStatus] = useState<string | null>(null)
+    const [sendModalOpen, setSendModalOpen] = useState(false)
+    const [quoteToSend, setQuoteToSend] = useState<any>(null)
+    const [deleting, setDeleting] = useState<string | null>(null)
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+    const [quoteForPayment, setQuoteForPayment] = useState<any>(null)
+
+    // Open payment modal
+    const handleOpenPaymentModal = (quote: any) => {
+        setQuoteForPayment(quote)
+        setPaymentModalOpen(true)
+    }
+
+    // Handle delete quote
+    const handleDeleteQuote = async (quoteId: string, quoteNumber: string) => {
+        if (!confirm(`¿Eliminar la cotización #${quoteNumber}? Esta acción no se puede deshacer.`)) return
+
+        setDeleting(quoteId)
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}`, {
+                method: 'DELETE'
+            })
+            const data = await res.json()
+
+            if (!res.ok) throw new Error(data.error || 'Error al eliminar')
+
+            toast.success('Cotización eliminada')
+            fetchQuotes()
+        } catch (error: any) {
+            toast.error(error.message || 'Error al eliminar')
+        } finally {
+            setDeleting(null)
+        }
+    }
+
+    // Open send modal instead of just changing status
+    const handleSendQuote = (quote: any) => {
+        setQuoteToSend(quote)
+        setSendModalOpen(true)
+    }
+
+    const handleStatusChange = async (quoteId: string, newStatus: string, statusLabel: string) => {
+        // For 'sent' status, we use the modal instead
+        if (newStatus === 'sent') {
+            const quote = quotes.find(q => q.id === quoteId)
+            if (quote) handleSendQuote(quote)
+            return
+        }
+
+        setChangingStatus(quoteId)
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            const data = await res.json()
+
+            if (!res.ok) throw new Error(data.error || 'Error al cambiar estado')
+
+            toast.success(`Cotización marcada como ${statusLabel}`)
+            fetchQuotes()
+        } catch (error: any) {
+            toast.error(error.message || 'Error al cambiar estado')
+        } finally {
+            setChangingStatus(null)
+        }
+    }
 
     const fetchQuotes = async () => {
         setLoading(true)
@@ -59,6 +129,7 @@ export default function QuotesPage() {
             case 'draft': return 'outline'
             case 'converted': return 'default'
             case 'expired': return 'destructive'
+            case 'paid': return 'default'
             default: return 'secondary'
         }
     }
@@ -71,6 +142,7 @@ export default function QuotesPage() {
             rejected: 'Rechazada',
             converted: 'Facturada',
             expired: 'Vencida',
+            paid: 'Pagada',
         }
         return labels[status] || status
     }
@@ -205,50 +277,143 @@ export default function QuotesPage() {
                                                     {getStatusLabel(quote.status)}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-1">
-                                                {canConvert(quote.status) && (
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1 flex-wrap">
+                                                    {/* Enviar: draft → sent */}
+                                                    {quote.status === 'draft' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            disabled={changingStatus === quote.id}
+                                                            onClick={() => handleStatusChange(quote.id, 'sent', 'Enviada')}
+                                                            title="Marcar como enviada al cliente"
+                                                        >
+                                                            {changingStatus === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <><Send className="h-4 w-4 mr-1" /> Enviar</>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Aceptar: sent → accepted (auto-creates invoice) */}
+                                                    {quote.status === 'sent' && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                            disabled={changingStatus === quote.id}
+                                                            onClick={() => handleStatusChange(quote.id, 'accepted', 'Aceptada')}
+                                                            title="Cliente aceptó - genera factura automáticamente"
+                                                        >
+                                                            {changingStatus === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <><CheckCircle className="h-4 w-4 mr-1" /> Aceptar</>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Rechazar: sent → rejected */}
+                                                    {quote.status === 'sent' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-red-600 hover:bg-red-50 border-red-200"
+                                                            disabled={changingStatus === quote.id}
+                                                            onClick={() => handleStatusChange(quote.id, 'rejected', 'Rechazada')}
+                                                            title="Cliente rechazó la cotización"
+                                                        >
+                                                            {changingStatus === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <><XCircle className="h-4 w-4 mr-1" /> Rechazar</>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Facturar: accepted/sent → converted */}
+                                                    {canConvert(quote.status) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="gradient-neon border-0"
+                                                            disabled={converting === quote.id}
+                                                            onClick={() => handleConvertToInvoice(quote.id)}
+                                                            title="Convertir a factura"
+                                                        >
+                                                            {converting === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <><FileText className="h-4 w-4 mr-1" /> Facturar</>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Registrar Pago: para accepted/sent */}
+                                                    {['accepted', 'sent'].includes(quote.status) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-green-600 hover:bg-green-50 border-green-200"
+                                                            onClick={() => handleOpenPaymentModal(quote)}
+                                                            title="Registrar pago recibido"
+                                                        >
+                                                            <CreditCard className="h-4 w-4 mr-1" /> Pago
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Link de pago */}
+                                                    {!['converted', 'rejected', 'expired', 'paid'].includes(quote.status) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            disabled={generatingLink === quote.id}
+                                                            onClick={() => handleGeneratePaymentLink(quote.id)}
+                                                            title="Copiar enlace de pago"
+                                                        >
+                                                            {generatingLink === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <><Share2 className="h-4 w-4 mr-1" /> Link</>
+                                                            )}
+                                                        </Button>
+                                                    )}
+
+                                                    {/* PDF */}
                                                     <Button
-                                                        variant="default"
+                                                        variant="ghost"
                                                         size="sm"
-                                                        className="gradient-neon border-0"
-                                                        disabled={converting === quote.id}
-                                                        onClick={() => handleConvertToInvoice(quote.id)}
+                                                        onClick={() => {
+                                                            const pdfWindow = window.open(`/api/quotes/${quote.id}/pdf`, '_blank')
+                                                            if (pdfWindow) {
+                                                                pdfWindow.onload = () => setTimeout(() => pdfWindow.print(), 500)
+                                                            }
+                                                            toast.success('PDF generado - usa Ctrl+P para guardar')
+                                                        }}
+                                                        title="Descargar PDF"
                                                     >
-                                                        {converting === quote.id ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <><FileText className="h-4 w-4 mr-1" /> Facturar</>
-                                                        )}
+                                                        <Download className="h-4 w-4 mr-1" /> PDF
                                                     </Button>
-                                                )}
-                                                {quote.status !== 'converted' && quote.status !== 'rejected' && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        disabled={generatingLink === quote.id}
-                                                        onClick={() => handleGeneratePaymentLink(quote.id)}
-                                                        title="Copiar enlace de pago"
-                                                    >
-                                                        {generatingLink === quote.id ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <><Share2 className="h-4 w-4 mr-1" /> Link</>
-                                                        )}
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        const pdfWindow = window.open(`/api/quotes/${quote.id}/pdf`, '_blank')
-                                                        if (pdfWindow) {
-                                                            pdfWindow.onload = () => setTimeout(() => pdfWindow.print(), 500)
-                                                        }
-                                                        toast.success('PDF generado - usa Ctrl+P para guardar')
-                                                    }}
-                                                >
-                                                    <Download className="h-4 w-4 mr-1" /> PDF
-                                                </Button>
+
+                                                    {/* Eliminar - solo si no está convertida */}
+                                                    {quote.status !== 'converted' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                            disabled={deleting === quote.id}
+                                                            onClick={() => handleDeleteQuote(quote.id, quote.quote_number)}
+                                                            title="Eliminar cotización"
+                                                        >
+                                                            {deleting === quote.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -262,6 +427,20 @@ export default function QuotesPage() {
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
                     quote={selectedQuote}
+                    onSuccess={fetchQuotes}
+                />
+
+                <SendQuoteModal
+                    open={sendModalOpen}
+                    onOpenChange={setSendModalOpen}
+                    quote={quoteToSend}
+                    onSent={fetchQuotes}
+                />
+
+                <RegisterPaymentModal
+                    open={paymentModalOpen}
+                    onOpenChange={setPaymentModalOpen}
+                    quote={quoteForPayment}
                     onSuccess={fetchQuotes}
                 />
             </div>

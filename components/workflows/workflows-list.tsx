@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, Plus } from "lucide-react"
+import { Edit, Trash2, Plus, MonitorPlay } from "lucide-react"
+import Link from "next/link"
 import { WorkflowDialog } from "./workflow-dialog"
 import { Loading } from "@/components/ui/loading"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -144,6 +145,12 @@ export function WorkflowsList() {
                                 </div>
 
                                 <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                                    <Link href={`/workflows/${workflow.id}/builder`} passHref>
+                                        <Button variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/10">
+                                            <MonitorPlay className="w-4 h-4 mr-2" />
+                                            Diseñador
+                                        </Button>
+                                    </Link>
                                     <Button variant="ghost" size="sm" onClick={() => handleEdit(workflow)}>
                                         <Edit className="w-4 h-4 mr-2" />
                                         Editar

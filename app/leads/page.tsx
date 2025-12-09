@@ -234,7 +234,7 @@ export default function LeadsPage() {
                                     </TableRow>
                                 ) : (
                                     filteredLeads.map((lead) => (
-                                        <TableRow 
+                                        <TableRow
                                             key={lead.id}
                                             className={isSelected(lead.id) ? "bg-primary/5" : ""}
                                         >

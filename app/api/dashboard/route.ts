@@ -19,7 +19,10 @@ export async function GET(_request: NextRequest) {
             { data: invoicesThisMonth },
             { count: inventoryThisMonth },
             { count: contactsLastMonth },
-            { data: invoicesLastMonth }
+            { data: invoicesLastMonth },
+            { data: opportunities },
+            { data: leadsData },
+            { data: stages }
         ] = await Promise.all([
             supabase.from("contacts").select("*", { count: "exact", head: true })
                 .eq("organization_id", organizationId).gte("created_at", thisMonthStart.toISOString()),
@@ -30,7 +33,21 @@ export async function GET(_request: NextRequest) {
             supabase.from("contacts").select("*", { count: "exact", head: true })
                 .eq("organization_id", organizationId).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
             supabase.from("invoices").select("total")
-                .eq("organization_id", organizationId).gte("issue_date", lastMonthStart.toISOString()).lte("issue_date", lastMonthEnd.toISOString()).in("status", ["paid", "sent"])
+                .eq("organization_id", organizationId).gte("issue_date", lastMonthStart.toISOString()).lte("issue_date", lastMonthEnd.toISOString()).in("status", ["paid", "sent"]),
+            // Fetch opportunities for Pipeline & Activity
+            supabase.from("opportunities")
+                .select("id, created_at, expected_revenue, stage_id")
+                .eq("organization_id", organizationId),
+            // Fetch leads for Activity
+            supabase.from("contacts")
+                .select("id, created_at")
+                .eq("organization_id", organizationId)
+                .not("lead_status", "is", null)
+                .gte("created_at", new Date(now.setDate(now.getDate() - 30)).toISOString()), // Last 30 days
+            supabase.from("pipeline_stages")
+                .select("id, name, position")
+                .eq("organization_id", organizationId)
+                .order("position")
         ])
 
         const totalSalesThisMonth = invoicesThisMonth?.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) || 0
@@ -48,6 +65,71 @@ export async function GET(_request: NextRequest) {
             { title: "Facturas Generadas", value: (invoicesThisMonth?.length || 0).toString(), change: `${invoicesThisMonth?.length || 0} este mes`, changeType: "positive", icon: "FileText" }
         ]
 
+        // --- Process Activity Overview (Last 30 days) ---
+        const activityMap = new Map<string, { leads: number, deals: number }>()
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        // Init last 30 days with 0
+        for (let i = 0; i <= 30; i++) {
+            const d = new Date(thirtyDaysAgo)
+            d.setDate(d.getDate() + i)
+            const dateStr = d.toISOString().split('T')[0] // YYYY-MM-DD
+            activityMap.set(dateStr, { leads: 0, deals: 0 })
+        }
+
+        // Aggregate Leads
+        leadsData?.forEach((lead: any) => {
+            const dateStr = new Date(lead.created_at).toISOString().split('T')[0]
+            if (activityMap.has(dateStr)) {
+                const entry = activityMap.get(dateStr)!
+                entry.leads++
+            }
+        })
+
+        // Aggregate Deals (Opportunities) - Filter for Last 30 days
+        opportunities?.forEach((opp: any) => {
+            const dateStr = new Date(opp.created_at).toISOString().split('T')[0]
+            if (activityMap.has(dateStr)) {
+                const entry = activityMap.get(dateStr)!
+                entry.deals++
+            }
+        })
+
+        const activityOverview = Array.from(activityMap.entries()).map(([date, counts]) => ({
+            date,
+            leads: counts.leads,
+            deals: counts.deals
+        })).sort((a, b) => a.date.localeCompare(b.date))
+
+        // --- Process Pipeline ---
+        // Group opportunities by stage
+        const pipelineMap = new Map<string, { value: number, count: number }>()
+
+        // Init stages
+        stages?.forEach((stage: any) => {
+            pipelineMap.set(stage.id, { value: 0, count: 0 })
+        })
+
+        opportunities?.forEach((opp: any) => {
+            if (opp.stage_id && pipelineMap.has(opp.stage_id)) { // Only count if stage exists
+                const entry = pipelineMap.get(opp.stage_id)!
+                entry.value += Number(opp.expected_revenue || 0)
+                entry.count++
+            }
+        })
+
+        const pipeline = stages?.map((stage: any) => {
+            const data = pipelineMap.get(stage.id)!
+            return {
+                stage: stage.name,
+                value: data.value,
+                count: data.count
+            }
+        }) || []
+
+
+        // --- Recent Invoices (Existing logic) ---
         const { data: recentInvoices } = await supabase
             .from("invoices")
             .select("invoice_number, total, status, issue_date")
@@ -57,7 +139,7 @@ export async function GET(_request: NextRequest) {
 
         const response = NextResponse.json({
             success: true,
-            data: { stats, recentInvoices: recentInvoices || [] },
+            data: { stats, activityOverview, pipeline, recentInvoices: recentInvoices || [] },
             cachedAt: new Date().toISOString()
         })
         response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=0')

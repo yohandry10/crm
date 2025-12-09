@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { formatDatePE } from "@/lib/date-utils"
+import { PaymentVerificationPanel } from "@/components/invoicing/payment-verification-panel"
 
 interface Invoice {
     id: string
@@ -291,6 +292,9 @@ export default function InvoicingPage() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Payment Verification Panel */}
+                <PaymentVerificationPanel onPaymentVerified={fetchInvoices} />
 
                 {/* Filters */}
                 <Card>

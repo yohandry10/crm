@@ -151,7 +151,7 @@ export const PipelineChart = memo(({
               <Bar
                 dataKey="value"
                 radius={[0, 8, 8, 0]}
-                background={{ fill: '#f1f5f9', radius: [0, 8, 8, 0], className: 'dark:fill-zinc-800/50' }}
+                background={{ fill: '#f1f5f9' }}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />

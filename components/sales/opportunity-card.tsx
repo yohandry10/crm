@@ -35,7 +35,8 @@ export function OpportunityCard({ opportunity, onDragStart, onClick }: Opportuni
             draggable
             onDragStart={(e) => {
                 // native drag needed for HTML5 dnd api that the board uses
-                onDragStart(e, opportunity.id)
+                // Cast to React.DragEvent since framer-motion has different event types
+                onDragStart(e as unknown as React.DragEvent, opportunity.id)
             }}
             onClick={() => onClick(opportunity)}
         >

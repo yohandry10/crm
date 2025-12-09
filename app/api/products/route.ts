@@ -6,12 +6,12 @@ import { z } from "zod"
 import crypto from "crypto"
 
 const productSchema = z.object({
-    sku: z.string().optional(),
+    sku: z.string().optional().nullable(),
     name: z.string().min(1, "Nombre requerido"),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     category_id: z.string().uuid().optional().nullable(),
     unit_price: z.number().min(0, "Precio debe ser positivo"),
-    cost_price: z.number().min(0).optional(),
+    cost_price: z.number().min(0).optional().nullable(),
     currency: z.enum(['PEN', 'USD']).default('PEN'),
     tax_rate: z.number().min(0).max(100).default(18),
     is_service: z.boolean().default(false),
@@ -24,7 +24,7 @@ const productSchema = z.object({
 export async function GET(request: NextRequest) {
     try {
         const { supabase, organizationId } = await getAuthenticatedContext()
-        
+
         const searchParams = request.nextUrl.searchParams
         const category_id = searchParams.get('category_id')
         const is_active = searchParams.get('is_active')
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
             .from('products')
-            .select('*, category:product_categories(id, name)', { count: 'exact' })
+            .select('*', { count: 'exact' })
             .eq('organization_id', organizationId)
             .order('name', { ascending: true })
             .range(offset, offset + limit - 1)

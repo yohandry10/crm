@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -61,10 +61,10 @@ export default function ProductsPage() {
         try {
             const params = new URLSearchParams()
             if (search) params.set('search', search)
-            
+
             const res = await fetch(`/api/products?${params}`)
             const data = await res.json()
-            
+
             if (data.success) {
                 setProducts(data.data)
             }
@@ -101,16 +101,16 @@ export default function ProductsPage() {
                 is_service: form.is_service || false,
                 is_active: form.is_active !== false,
             }
-            
+
             const res = await fetch(form.id ? `/api/products/${form.id}` : "/api/products", {
                 method: form.id ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             })
-            
+
             const json = await res.json()
             if (!json.success) throw new Error(json.error || "Error")
-            
+
             toast.success(form.id ? "Producto actualizado" : "Producto creado")
             setDialogOpen(false)
             setForm({})
@@ -277,7 +277,7 @@ export default function ProductsPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {products.map((product) => (
-                                        <TableRow 
+                                        <TableRow
                                             key={product.id}
                                             className={isSelected(product.id) ? "bg-primary/5" : ""}
                                         >
@@ -324,62 +324,65 @@ export default function ProductsPage() {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>{form.id ? "Editar producto" : "Nuevo producto"}</DialogTitle>
+                            <DialogDescription>
+                                {form.id ? "Modifica los detalles del producto existente." : "Ingresa los datos para registrar un nuevo producto en el catálogo."}
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Nombre*</Label>
-                                    <Input 
-                                        value={form.name || ""} 
-                                        onChange={(e) => setForm({ ...form, name: e.target.value })} 
+                                    <Input
+                                        value={form.name || ""}
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     />
                                 </div>
                                 <div>
                                     <Label>SKU</Label>
-                                    <Input 
-                                        value={form.sku || ""} 
-                                        onChange={(e) => setForm({ ...form, sku: e.target.value })} 
+                                    <Input
+                                        value={form.sku || ""}
+                                        onChange={(e) => setForm({ ...form, sku: e.target.value })}
                                     />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Precio Venta</Label>
-                                    <Input 
-                                        type="number" 
-                                        value={form.unit_price || 0} 
-                                        onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} 
+                                    <Input
+                                        type="number"
+                                        value={form.unit_price || 0}
+                                        onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })}
                                     />
                                 </div>
                                 <div>
                                     <Label>Precio Costo</Label>
-                                    <Input 
-                                        type="number" 
-                                        value={form.cost_price || 0} 
-                                        onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} 
+                                    <Input
+                                        type="number"
+                                        value={form.cost_price || 0}
+                                        onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })}
                                     />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Stock</Label>
-                                    <Input 
-                                        type="number" 
-                                        value={form.stock_quantity || 0} 
+                                    <Input
+                                        type="number"
+                                        value={form.stock_quantity || 0}
                                         onChange={(e) => setForm({ ...form, stock_quantity: Number(e.target.value) })}
                                         disabled={form.is_service}
                                     />
                                 </div>
                                 <div className="flex items-center gap-4 pt-6">
                                     <div className="flex items-center gap-2">
-                                        <Switch 
+                                        <Switch
                                             checked={form.is_service || false}
                                             onCheckedChange={(checked) => setForm({ ...form, is_service: checked })}
                                         />
                                         <Label>Es servicio</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Switch 
+                                        <Switch
                                             checked={form.is_active !== false}
                                             onCheckedChange={(checked) => setForm({ ...form, is_active: checked })}
                                         />

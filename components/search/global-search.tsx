@@ -3,19 +3,19 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Dialog, DialogContent
+  Dialog, DialogContent, DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Search, User, Building2, DollarSign, FileText, CheckSquare, 
+import {
+  Search, User, Building2, DollarSign, FileText, CheckSquare,
   Ticket, Package, Loader2, ArrowRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SearchResult {
   id: string
-  type: "contact" | "account" | "opportunity" | "invoice" | "task" | "ticket" | "product"
+  type: "contact" | "account" | "opportunity" | "invoice" | "task" | "ticket" | "product" | "navigation"
   title: string
   subtitle: string
   url: string
@@ -29,6 +29,7 @@ const typeConfig: Record<string, { icon: any; label: string; color: string }> = 
   task: { icon: CheckSquare, label: "Tarea", color: "bg-yellow-100 text-yellow-700" },
   ticket: { icon: Ticket, label: "Ticket", color: "bg-red-100 text-red-700" },
   product: { icon: Package, label: "Producto", color: "bg-cyan-100 text-cyan-700" },
+  navigation: { icon: ArrowRight, label: "Ir a", color: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
 }
 
 interface GlobalSearchProps {
@@ -103,6 +104,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 gap-0 max-w-2xl">
+        <DialogTitle className="sr-only">Búsqueda Global</DialogTitle>
         <div className="flex items-center border-b px-4">
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input

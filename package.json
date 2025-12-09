@@ -60,6 +60,7 @@
     "react-dom": "^19",
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
+    "reactflow": "^11.11.4",
     "recharts": "latest",
     "resend": "^6.5.2",
     "sonner": "latest",

@@ -4,6 +4,7 @@ export type EventType =
     | 'contact.created'
     | 'contact.updated'
     | 'invoice.created'
+    | 'invoice.created_from_quote'
     | 'invoice.sent'
     | 'invoice.paid'
     | 'payment.created'
@@ -376,7 +377,7 @@ async function executeSendEmail(action: any, payload: any): Promise<void> {
 
     // Determinar destinatario: puede venir del action o del payload
     const recipient = to || payload.email || payload.contact_email
-    
+
     if (!recipient) {
         console.warn('Email action missing recipient - no "to" param or email in payload')
         return
@@ -384,28 +385,28 @@ async function executeSendEmail(action: any, payload: any): Promise<void> {
 
     try {
         const { sendEmail, getEmailTemplate } = await import('./email')
-        
+
         let emailContent: { subject: string; html: string }
-        
+
         if (template && ['welcome', 'task_assigned', 'order_completed'].includes(template)) {
             emailContent = getEmailTemplate(template, { ...payload, ...action.params })
         } else {
             // ✅ FIX: Sanitizar payload para prevenir XSS
             const sanitizedPayload = escapeHtml(JSON.stringify(payload, null, 2))
             const sanitizedSubject = escapeHtml(subject || `Notificación CRM - ${payload.event_type || 'Actualización'}`)
-            
+
             emailContent = {
                 subject: sanitizedSubject,
                 html: body || `<p>Tienes una nueva notificación relacionada con tu cuenta.</p><pre style="background:#f5f5f5;padding:10px;border-radius:4px;overflow:auto;">${sanitizedPayload}</pre>`
             }
         }
-        
+
         const result = await sendEmail({
             to: recipient,
             subject: emailContent.subject,
             html: emailContent.html
         })
-        
+
         if (result.success) {
             console.log(`Email sent successfully to ${recipient}: ${emailContent.subject}`)
         } else {
@@ -484,9 +485,9 @@ async function executeCreateTask(action: any, payload: any, supabase: any, userI
  * ✅ FIX: Validar URL de webhook para prevenir SSRF
  */
 const BLOCKED_HOSTS = [
-    'localhost', 
-    '127.0.0.1', 
-    '0.0.0.0', 
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
     '169.254.169.254',  // AWS metadata
     'metadata.google.internal',  // GCP metadata
     '::1'  // IPv6 localhost
@@ -497,26 +498,26 @@ const BLOCKED_PROTOCOLS = ['file:', 'ftp:', 'gopher:', 'data:', 'javascript:']
 function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string } {
     try {
         const url = new URL(urlString)
-        
+
         // Verificar protocolo
         if (BLOCKED_PROTOCOLS.includes(url.protocol)) {
             return { valid: false, error: `Protocolo no permitido: ${url.protocol}` }
         }
-        
+
         // Solo permitir HTTPS en producción
         if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
             return { valid: false, error: 'Solo se permiten URLs HTTPS en producción' }
         }
-        
+
         // Verificar hosts bloqueados
         const hostname = url.hostname.toLowerCase()
         if (BLOCKED_HOSTS.includes(hostname)) {
             return { valid: false, error: `Host no permitido: ${hostname}` }
         }
-        
+
         // Verificar rangos de IP privadas
-        if (hostname.startsWith('192.168.') || 
-            hostname.startsWith('10.') || 
+        if (hostname.startsWith('192.168.') ||
+            hostname.startsWith('10.') ||
             hostname.startsWith('172.16.') ||
             hostname.startsWith('172.17.') ||
             hostname.startsWith('172.18.') ||
@@ -526,7 +527,7 @@ function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string 
             hostname.startsWith('172.31.')) {
             return { valid: false, error: 'No se permiten IPs privadas' }
         }
-        
+
         return { valid: true }
     } catch {
         return { valid: false, error: 'URL inválida' }
@@ -551,17 +552,17 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
     try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 10000) // 10s timeout
-        
+
         const response = await fetch(url, {
             method,
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'CRM-AI-Peru-Webhook/1.0'
             },
             body: JSON.stringify(payload),
             signal: controller.signal
         })
-        
+
         clearTimeout(timeout)
 
         if (!response.ok) {

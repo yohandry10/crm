@@ -168,15 +168,50 @@ export function ActivityTimeline({
     return formatDistanceToNow(new Date(date), { addSuffix: true, locale: es })
   }
 
+  // Helper for value translation
+  const translateValue = (val: any) => {
+    if (typeof val !== 'string') return val
+
+    const map: Record<string, string> = {
+      // Invoices
+      'draft': 'borrador',
+      'paid': 'pagado',
+      'sent': 'enviado',
+      'overdue': 'vencido',
+      'cancelled': 'cancelado',
+      // Opportunities / Leads
+      'open': 'abierto',
+      'won': 'ganado',
+      'lost': 'perdido',
+      'qualified': 'calificado',
+      'proposal': 'propuesta',
+      'negotiation': 'negociación',
+      'new': 'nuevo',
+      'cold': 'frío',
+      'warm': 'tibio',
+      'hot': 'caliente',
+      // Tasks
+      'pending': 'pendiente',
+      'in_progress': 'en curso',
+      'completed': 'completado',
+      'high': 'alta',
+      'medium': 'media',
+      'low': 'baja',
+    }
+
+    const lower = val.toLowerCase()
+    return map[lower] || val
+  }
+
   const renderChanges = (changes: Record<string, { old: any; new: any }>) => {
     return (
       <div className="mt-2 text-xs space-y-1">
         {Object.entries(changes).map(([field, { old: oldVal, new: newVal }]) => (
           <div key={field} className="flex items-center gap-2 text-muted-foreground">
-            <span className="font-medium">{field}:</span>
-            <span className="line-through text-red-500">{String(oldVal || "-")}</span>
+            <span className="font-medium">{field === 'status' ? 'estado' : field}:</span>
+            <span className="line-through text-red-500">{String(translateValue(oldVal) || "-")}</span>
             <span>→</span>
-            <span className="text-green-600">{String(newVal || "-")}</span>
+            <span className="text-green-600 font-medium">{String(translateValue(newVal) || "-")}</span>
           </div>
         ))}
       </div>
@@ -289,9 +324,8 @@ export function ActivityTimeline({
                             </span>
                             {" "}
                             <span className="text-muted-foreground">
-                              {activity.description || 
-                                `${actionLabels[activity.action] || activity.action} ${
-                                  entityLabels[activity.entity_type] || activity.entity_type
+                              {activity.description ||
+                                `${actionLabels[activity.action] || activity.action} ${entityLabels[activity.entity_type] || activity.entity_type
                                 }${activity.entity_name ? ` "${activity.entity_name}"` : ""}`
                               }
                             </span>

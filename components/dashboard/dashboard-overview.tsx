@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useState, useEffect } from "react"
+import { memo } from "react"
 import useSWR from "swr"
 import { motion } from "framer-motion"
 import { TrendingUp, Users, DollarSign, FileText, Target, Zap, Package, ArrowUpRight, ArrowDownRight } from "lucide-react"
@@ -32,10 +32,7 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => {
   const isPositive = stat.changeType === "positive"
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1 }}
+    <div
       className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:border-gray-200 transition-all duration-300"
     >
       <div className="flex items-start justify-between mb-4">
@@ -53,7 +50,7 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => {
       <p className="text-sm text-gray-500 mb-1">{stat.title}</p>
       <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
       <p className="text-xs text-gray-400 mt-2">{stat.description}</p>
-    </motion.div>
+    </div>
   )
 })
 
@@ -67,79 +64,9 @@ const fetcher = async (url: string) => {
   return json
 }
 
-function DashboardOverviewContent() {
-  const { data, isLoading } = useSWR('/api/dashboard', fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 5 * 60 * 1000,
-    shouldRetryOnError: false,
-    onError: (error) => {
-      console.error("Error fetching dashboard:", error)
-      toast.error("Error al cargar el dashboard")
-    }
-  })
-
-  if (isLoading) {
-    return <DashboardOverviewSkeleton />
-  }
-
-  const stats = data?.data?.stats ?? []
-
+export function DashboardOverviewSkeleton() {
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
-      >
-        <h1 className="text-3xl font-bold text-gray-900">
-          Bienvenido a{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-600">
-            NEON
-          </span>
-        </h1>
-        <p className="text-gray-500">
-          Tu centro de control para gestión empresarial inteligente
-        </p>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat: any, index: number) => (
-          <StatCard key={index} stat={stat} index={index} />
-        ))}
-      </div>
-
-      {/* Charts Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
-        className="grid gap-5 lg:grid-cols-2"
-      >
-        <ActivityOverviewChart data={data?.data?.activityOverview} />
-        <PipelineChart data={data?.data?.pipeline} />
-      </motion.div>
-
-      {/* Activity Timeline */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.5 }}
-      >
-        <ActivityTimeline 
-          limit={10} 
-          showFilters={true}
-          compact={true}
-        />
-      </motion.div>
-    </div>
-  )
-}
-
-function DashboardOverviewSkeleton() {
-  return (
-    <div className="space-y-8">
+    <div className="space-y-8" suppressHydrationWarning>
       <div className="space-y-3">
         <div className="h-9 w-72 bg-gray-100 rounded-lg animate-pulse" />
         <div className="h-5 w-96 bg-gray-50 rounded animate-pulse" />
@@ -161,19 +88,63 @@ function DashboardOverviewSkeleton() {
 }
 
 export const DashboardOverview = memo(() => {
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
-  if (!mounted) {
+  const { data, isLoading } = useSWR('/api/dashboard', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 5 * 60 * 1000,
+    shouldRetryOnError: false,
+    onError: (error) => {
+      console.error("Error fetching dashboard:", error)
+      toast.error("Error al cargar el dashboard")
+    }
+  })
+
+  if (isLoading) {
     return <DashboardOverviewSkeleton />
   }
-  
-  return <DashboardOverviewContent />
+
+  const stats = data?.data?.stats ?? []
+
+  return (
+    <div className="space-y-8" suppressHydrationWarning>
+      {/* Header */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Bienvenido a{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-600">
+            NEON
+          </span>
+        </h1>
+        <p className="text-gray-500">
+          Tu centro de control para gestión empresarial inteligente
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat: any, index: number) => (
+          <StatCard key={index} stat={stat} index={index} />
+        ))}
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <ActivityOverviewChart data={data?.data?.activityOverview} />
+        <PipelineChart data={data?.data?.pipeline} />
+      </div>
+
+      {/* Activity Timeline */}
+      <div>
+        <ActivityTimeline
+          limit={10}
+          showFilters={true}
+          compact={true}
+        />
+      </div>
+    </div>
+  )
 })
 
 DashboardOverview.displayName = "DashboardOverview"
 
 export default DashboardOverview
+

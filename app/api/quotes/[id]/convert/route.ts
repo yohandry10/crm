@@ -5,7 +5,7 @@ import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "
 import crypto from "crypto"
 
 interface RouteParams {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 /**
@@ -20,7 +20,7 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
         const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const quoteId = params.id
+        const { id: quoteId } = await params
 
         if (!quoteId) {
             throw new ValidationError("ID de cotización requerido")

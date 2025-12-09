@@ -1,0 +1,337 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Loader2, Mail, MessageCircle, Copy, Check, ExternalLink } from "lucide-react"
+import { toast } from "sonner"
+
+interface Quote {
+    id: string
+    quote_number: string
+    total_amount: number
+    contact?: {
+        name: string
+        email?: string
+        phone?: string
+    }
+}
+
+interface SendQuoteModalProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    quote: Quote | null
+    onSent: () => void
+}
+
+export function SendQuoteModal({ open, onOpenChange, quote, onSent }: SendQuoteModalProps) {
+    const [method, setMethod] = useState<"email" | "whatsapp" | null>(null)
+    const [email, setEmail] = useState("")
+    const [phone, setPhone] = useState("")
+    const [message, setMessage] = useState("")
+    const [sending, setSending] = useState(false)
+    const [paymentLink, setPaymentLink] = useState("")
+    const [copied, setCopied] = useState(false)
+
+    // Reset form when modal opens
+    useEffect(() => {
+        if (open && quote) {
+            setMethod(null)
+            setEmail(quote.contact?.email || "")
+            setPhone(quote.contact?.phone || "")
+            setPaymentLink("")
+            setCopied(false)
+
+            // Generate default message
+            const defaultMessage = `Hola ${quote.contact?.name || ""},
+
+Te envío la cotización #${quote.quote_number} por S/ ${quote.total_amount?.toFixed(2)}.
+
+Puedes ver los detalles y realizar el pago en el siguiente enlace:
+[LINK]
+
+¡Gracias por tu preferencia!`
+            setMessage(defaultMessage)
+        }
+    }, [open, quote])
+
+    // Generate payment link when method is selected
+    useEffect(() => {
+        if (method && quote && !paymentLink) {
+            generatePaymentLink()
+        }
+    }, [method])
+
+    const generatePaymentLink = async () => {
+        if (!quote) return
+
+        try {
+            const res = await fetch('/api/payment-links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quote_id: quote.id, expires_days: 30 })
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                setPaymentLink(data.data.link)
+                setMessage(prev => prev.replace('[LINK]', data.data.link))
+            }
+        } catch (error) {
+            console.error("Error generating link:", error)
+        }
+    }
+
+    const handleSendEmail = async () => {
+        if (!email || !quote) {
+            toast.error("Ingresa un correo electrónico")
+            return
+        }
+
+        setSending(true)
+        try {
+            // Send quote via email API
+            const res = await fetch(`/api/quotes/${quote.id}/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    method: 'email',
+                    to: email,
+                    message,
+                    payment_link: paymentLink
+                })
+            })
+
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || "Error al enviar")
+
+            // Update quote status to sent
+            await fetch(`/api/quotes/${quote.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'sent' })
+            })
+
+            toast.success("Cotización enviada por correo")
+            onOpenChange(false)
+            onSent()
+        } catch (error: any) {
+            toast.error(error.message || "Error al enviar")
+        } finally {
+            setSending(false)
+        }
+    }
+
+    const handleSendWhatsApp = async () => {
+        if (!phone || !quote) {
+            toast.error("Ingresa un número de teléfono")
+            return
+        }
+
+        setSending(true)
+        try {
+            // Clean phone number (remove spaces, dashes)
+            const cleanPhone = phone.replace(/\D/g, '')
+
+            // Encode message for WhatsApp
+            const encodedMessage = encodeURIComponent(message)
+
+            // Open WhatsApp link
+            const waLink = `https://wa.me/${cleanPhone}?text=${encodedMessage}`
+            window.open(waLink, '_blank')
+
+            // Update quote status to sent
+            await fetch(`/api/quotes/${quote.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'sent' })
+            })
+
+            toast.success("Abriendo WhatsApp...")
+            onOpenChange(false)
+            onSent()
+        } catch (error: any) {
+            toast.error(error.message || "Error al enviar")
+        } finally {
+            setSending(false)
+        }
+    }
+
+    const handleCopyLink = async () => {
+        if (paymentLink) {
+            await navigator.clipboard.writeText(paymentLink)
+            setCopied(true)
+            toast.success("Link copiado al portapapeles")
+            setTimeout(() => setCopied(false), 2000)
+        }
+    }
+
+    if (!quote) return null
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Enviar Cotización</DialogTitle>
+                    <DialogDescription>
+                        Cotización #{quote.quote_number} • S/ {quote.total_amount?.toFixed(2)}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {/* Step 1: Choose method */}
+                {!method && (
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            ¿Cómo deseas enviar la cotización a <strong>{quote.contact?.name}</strong>?
+                        </p>
+
+                        <Button
+                            variant="outline"
+                            className="w-full justify-start h-14 px-4"
+                            onClick={() => setMethod("email")}
+                        >
+                            <Mail className="w-5 h-5 mr-3 text-blue-500" />
+                            <div className="text-left">
+                                <div className="font-medium">Correo Electrónico</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {quote.contact?.email || "Sin email registrado"}
+                                </div>
+                            </div>
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            className="w-full justify-start h-14 px-4"
+                            onClick={() => setMethod("whatsapp")}
+                        >
+                            <MessageCircle className="w-5 h-5 mr-3 text-green-500" />
+                            <div className="text-left">
+                                <div className="font-medium">WhatsApp</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {quote.contact?.phone || "Sin teléfono registrado"}
+                                </div>
+                            </div>
+                        </Button>
+                    </div>
+                )}
+
+                {/* Step 2a: Email form */}
+                {method === "email" && (
+                    <div className="space-y-4">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setMethod(null)}
+                        >
+                            ← Cambiar método
+                        </Button>
+
+                        <div className="space-y-2">
+                            <Label>Correo del destinatario</Label>
+                            <Input
+                                type="email"
+                                placeholder="cliente@email.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Mensaje personalizado</Label>
+                            <Textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                rows={6}
+                                className="text-sm"
+                            />
+                        </div>
+
+                        {paymentLink && (
+                            <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
+                                <span className="truncate flex-1">{paymentLink}</span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleCopyLink}
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                            </div>
+                        )}
+
+                        <Button
+                            className="w-full gradient-neon border-0"
+                            onClick={handleSendEmail}
+                            disabled={sending || !email}
+                        >
+                            {sending ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                            ) : (
+                                <><Mail className="w-4 h-4 mr-2" /> Enviar por Email</>
+                            )}
+                        </Button>
+                    </div>
+                )}
+
+                {/* Step 2b: WhatsApp form */}
+                {method === "whatsapp" && (
+                    <div className="space-y-4">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setMethod(null)}
+                        >
+                            ← Cambiar método
+                        </Button>
+
+                        <div className="space-y-2">
+                            <Label>Número de WhatsApp (con código de país)</Label>
+                            <Input
+                                type="tel"
+                                placeholder="51987654321"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Ejemplo: 51 para Perú + número sin espacios
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Mensaje</Label>
+                            <Textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                rows={6}
+                                className="text-sm"
+                            />
+                        </div>
+
+                        <Button
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            onClick={handleSendWhatsApp}
+                            disabled={sending || !phone}
+                        >
+                            {sending ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo...</>
+                            ) : (
+                                <><MessageCircle className="w-4 h-4 mr-2" /> Abrir WhatsApp</>
+                            )}
+                        </Button>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    )
+}

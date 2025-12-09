@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, organizationId } = await getAuthenticatedContext()
-    
+
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get("q")?.trim()
 
@@ -18,6 +18,41 @@ export async function GET(request: NextRequest) {
 
     const searchPattern = `%${query}%`
     const results: any[] = []
+
+    // Search navigation
+    const navigationOptions = [
+      { title: "Dashboard", url: "/dashboard", icon: "LayoutDashboard" },
+      { title: "Contactos", url: "/contacts", icon: "Users" },
+      { title: "Leads", url: "/leads", icon: "Users" },
+      { title: "Pipeline", url: "/pipeline", icon: "BarChart3" },
+      { title: "Oportunidades", url: "/sales", icon: "DollarSign" },
+      { title: "Cotizaciones", url: "/quotes", icon: "FileText" },
+      { title: "Facturación", url: "/invoicing", icon: "Receipt" },
+      { title: "Productos", url: "/products", icon: "Package" },
+      { title: "Campañas", url: "/marketing", icon: "Megaphone" },
+      { title: "Tareas", url: "/tasks", icon: "CheckSquare" },
+      { title: "Calendario", url: "/calendar", icon: "Calendar" },
+      { title: "Inventario", url: "/inventory", icon: "Boxes" },
+      { title: "Analytics", url: "/analytics", icon: "PieChart" },
+      { title: "Reportes", url: "/reports", icon: "BarChart" },
+      { title: "Workflows", url: "/workflows", icon: "GitFork" },
+      { title: "Integraciones", url: "/integrations", icon: "Link" },
+      { title: "Configuración", url: "/settings", icon: "Settings" },
+    ]
+
+    const matchedNav = navigationOptions.filter(opt =>
+      opt.title.toLowerCase().includes(query.toLowerCase())
+    )
+
+    matchedNav.forEach(nav => {
+      results.push({
+        id: `nav-${nav.title}`,
+        type: "navigation",
+        title: nav.title,
+        subtitle: "Ir a módulo",
+        url: nav.url,
+      })
+    })
 
     // Search contacts
     const { data: contacts } = await supabase

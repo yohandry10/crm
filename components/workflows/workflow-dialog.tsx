@@ -135,7 +135,8 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                 <Label htmlFor="is_active">Activo</Label>
                             </div>
                         </div>
-                        <div className="space-y-2">
+                        {/* Advanced fields hidden for visual builder simplicity */}
+                        <div className="hidden">
                             <Label htmlFor="trigger_conditions">Condiciones (JSON)</Label>
                             <Textarea
                                 id="trigger_conditions"
@@ -144,9 +145,8 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                 value={formData.trigger_conditions || "{}"}
                                 onChange={(e) => setFormData({ ...formData, trigger_conditions: e.target.value })}
                             />
-                            <p className="text-xs text-muted-foreground">Ej: {"{ \"min_score\": 80 }"}</p>
                         </div>
-                        <div className="space-y-2">
+                        <div className="hidden">
                             <Label htmlFor="actions">Acciones (JSON)</Label>
                             <Textarea
                                 id="actions"
@@ -155,7 +155,6 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                 value={formData.actions || "[]"}
                                 onChange={(e) => setFormData({ ...formData, actions: e.target.value })}
                             />
-                            <p className="text-xs text-muted-foreground">Ej: {"[{ \"type\": \"send_email\", \"template\": \"welcome\" }]"}</p>
                         </div>
                     </div>
                     <DialogFooter>
