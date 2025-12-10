@@ -3,6 +3,11 @@ import { openApiSpec, generateApiDocsHTML } from "@/lib/openapi-spec"
 
 // GET: Return OpenAPI spec or HTML docs
 export async function GET(request: NextRequest) {
+  const allowPublicDocs = process.env.PUBLIC_API_DOCS === "true" || process.env.NODE_ENV === "development"
+  if (!allowPublicDocs) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
   const accept = request.headers.get("accept") || ""
   const format = request.nextUrl.searchParams.get("format")
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 
 import { toast } from "sonner"
-import { CalendarDays, Clock, CheckCircle, Loader2 } from "lucide-react"
+import { CalendarDays, Clock, CheckCircle, Loader2, ArrowLeft } from "lucide-react"
 
 interface BookingSlot {
   start: string
@@ -124,6 +125,21 @@ export default function PublicBookingPage() {
                 </p>
               </div>
             )}
+            <div className="mt-6 flex flex-col gap-2 items-center">
+              <Button variant="outline" onClick={() => {
+                setBooked(false)
+                setSelectedSlot(null)
+                setSelectedDate(undefined)
+              }}>
+                Ver otra fecha
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Volver al dashboard
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

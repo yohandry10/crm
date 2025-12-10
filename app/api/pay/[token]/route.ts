@@ -1,13 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { logError } from "@/lib/error-logging"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 
-// Public endpoint - no auth required, uses service role
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getServiceClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!url || !serviceKey) {
+        throw new Error("Missing Supabase credentials for pay token endpoint")
+    }
+
+    return createClient(url, serviceKey)
+}
+
+function getAllowedOrigin(request: NextRequest): string | null {
+    const allowed = (process.env.PUBLIC_PAY_ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+    const origin = request.headers.get('origin')
+    const hostOrigin = request.nextUrl.origin
+    if (allowed.length === 0) return origin || hostOrigin
+    if (origin && allowed.includes(origin)) return origin
+    if (!origin && allowed.includes(hostOrigin)) return hostOrigin
+    return null
+}
 
 interface RouteParams {
     params: { token: string }
@@ -20,6 +36,15 @@ interface RouteParams {
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
     try {
+        const rate = await rateLimit(_request, RATE_LIMITS.sensitive)
+        if (rate) return rate
+
+        const allowedOrigin = getAllowedOrigin(_request)
+        if (!allowedOrigin) {
+            return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
+        }
+
+        const supabase = getServiceClient()
         const token = params.token
 
         if (!token || token.length < 32) {
@@ -75,7 +100,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         const document = tokenData.quote || tokenData.invoice
         const type = tokenData.quote ? 'quote' : 'invoice'
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: {
                 type,
@@ -99,6 +124,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
                 }
             }
         })
+        response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+        return response
 
     } catch (error: any) {
         await logError({
@@ -120,6 +149,15 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.sensitive)
+        if (rate) return rate
+
+        const allowedOrigin = getAllowedOrigin(request)
+        if (!allowedOrigin) {
+            return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
+        }
+
+        const supabase = getServiceClient()
         const token = params.token
         const body = await request.json()
         const { proof_url, payment_method, notes } = body
@@ -182,13 +220,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         if (paymentError) throw paymentError
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: {
                 payment_id: payment.id,
                 message: "Comprobante recibido. Será verificado pronto."
             }
         })
+        response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+        return response
 
     } catch (error: any) {
         await logError({
@@ -202,4 +244,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             { status: 500 }
         )
     }
+}
+
+export async function OPTIONS(request: NextRequest) {
+    const allowedOrigin = getAllowedOrigin(request) || '*'
+    const response = new NextResponse(null, { status: 204 })
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+    return response
 }

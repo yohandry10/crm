@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+    if (process.env.NODE_ENV !== 'development') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     // Check all relevant env vars
     const envCheck = {
         // These should work via next.config.mjs

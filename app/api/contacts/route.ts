@@ -130,11 +130,9 @@ export async function POST(request: NextRequest) {
         console.log("8. Validación OK")
 
         console.log("9. Creando cliente Supabase admin...")
-        const { createSupabaseServiceClient } = await import("@/lib/supabase-service")
-        const supabaseAdmin = createSupabaseServiceClient()
-        console.log("10. Cliente admin creado")
+        console.log("10. Usando cliente autenticado con RLS")
 
-        console.log("11. Insertando contacto en la BD...")
+        console.log("11. Insertando contacto en la BD vía RLS...")
         const insertData = {
             ...validation.data,
             organization_id: organizationId,
@@ -142,7 +140,7 @@ export async function POST(request: NextRequest) {
         }
         console.log("12. Datos a insertar:", JSON.stringify(insertData))
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from("contacts")
             .insert(insertData)
             .select()

@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Fallback para variables de entorno (Next.js a veces no las carga bien en dev)
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://crqnkdpjxeoqkfpttncq.supabase.co'
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycW5rZHBqeGVvcWtmcHR0bmNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzcwMzE3MiwiZXhwIjoyMDc5Mjc5MTcyfQ.iE4sjwPky0u_NN7_krMOogGPrGUbtN_JhhIqEGmwvTo'
-const N8N_WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET || 'n8n_wh_k7X9mP2vL4qR8sT1wY6zN3bF5jH0'
+import { createSupabaseServiceClient } from '@/lib/supabase-service'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 /**
  * Webhook endpoint para recibir acciones de N8N
@@ -14,6 +10,18 @@ export async function POST(request: NextRequest) {
   console.log('[N8N Webhook] POST request received')
   
   try {
+    const rate = await rateLimit(request, RATE_LIMITS.webhook)
+    if (rate) return rate
+
+    const N8N_WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Supabase no configurado' }, { status: 500 })
+    }
+    if (!N8N_WEBHOOK_SECRET) {
+      return NextResponse.json({ error: 'N8N_WEBHOOK_SECRET no configurado' }, { status: 500 })
+    }
+
     // Validar secret (opcional pero recomendado)
     const authHeader = request.headers.get('x-n8n-secret')
     console.log('[N8N Webhook] Auth check:', { hasSecret: !!N8N_WEBHOOK_SECRET, hasHeader: !!authHeader })
@@ -33,8 +41,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Cliente admin de Supabase (usa fallbacks si env vars no están disponibles)
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    // Cliente admin de Supabase (usa env obligatorias)
+    const supabase = createSupabaseServiceClient()
 
     let result: any = null
 

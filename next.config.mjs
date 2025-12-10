@@ -53,13 +53,8 @@ const nextConfig = {
   // VARIABLES DE ENTORNO
   // ==============================
   env: {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://crqnkdpjxeoqkfpttncq.supabase.co',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycW5rZHBqeGVvcWtmcHR0bmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3MDMxNzIsImV4cCI6MjA3OTI3OTE3Mn0.OQphbBgseyF9Rl15M1OrndfgvUAj3TYyboQNlz_uH14',
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
-    N8N_BASE_URL: process.env.N8N_BASE_URL,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
-    EMAIL_FROM: process.env.EMAIL_FROM,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
 
   // ==============================
@@ -120,4 +115,3 @@ const nextConfig = {
 }
 
 export default nextConfig
-

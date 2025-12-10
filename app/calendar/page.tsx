@@ -8,12 +8,14 @@ import { CalendarView } from "@/components/calendar/calendar-view"
 import { EventDialog } from "@/components/calendar/event-dialog"
 import { TutorialButton } from "@/components/tutorials"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw } from "lucide-react"
+import { Plus, RefreshCw, Link as LinkIcon } from "lucide-react"
 import { toast } from "sonner"
 
 export default function CalendarPage() {
     const [events, setEvents] = useState<any[]>([])
+    const [bookingConfigs, setBookingConfigs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [loadingBookings, setLoadingBookings] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedEvent, setSelectedEvent] = useState<any>(null)
     const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -40,8 +42,53 @@ export default function CalendarPage() {
 
     useEffect(() => {
         fetchEvents()
+        fetchBookings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentDate])
+
+    const fetchBookings = async () => {
+        setLoadingBookings(true)
+        try {
+            const res = await fetch('/api/calendar/booking')
+            if (!res.ok) throw new Error('No se pudieron cargar los enlaces de booking')
+            const data = await res.json()
+            setBookingConfigs(data.data || [])
+        } catch (error) {
+            console.error(error)
+            toast.error("Error al cargar enlaces de booking")
+        } finally {
+            setLoadingBookings(false)
+        }
+    }
+
+    const handleCreateBookingLink = async () => {
+        setLoadingBookings(true)
+        try {
+            const body = {
+                name: "Link de booking 30min",
+                duration: 30,
+                buffer: 10,
+                available_days: [1, 2, 3, 4, 5], // L-V
+                available_hours: { start: "09:00", end: "17:00" },
+                max_advance_days: 30,
+                questions: [],
+                is_active: true
+            }
+            const res = await fetch('/api/calendar/booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            if (!res.ok) throw new Error('No se pudo crear el link de booking')
+            toast.success('Link de booking creado')
+            await fetchBookings()
+        } catch (error: any) {
+            console.error(error)
+            toast.error(error.message || "Error creando link de booking")
+        } finally {
+            setLoadingBookings(false)
+        }
+    }
 
     const handleDateClick = (date: Date) => {
         setSelectedDate(date)
@@ -79,6 +126,59 @@ export default function CalendarPage() {
                             <Plus className="mr-2 h-4 w-4" />
                             Nuevo Evento
                         </Button>
+                    </div>
+                </div>
+
+                {/* Booking público */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-4">
+                    <div className="col-span-1 lg:col-span-3 bg-white border border-gray-200 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <h2 className="text-lg font-semibold">Enlaces públicos de booking</h2>
+                                <p className="text-sm text-muted-foreground">Genera un link para que tus clientes agenden reuniones.</p>
+                            </div>
+                            <Button size="sm" onClick={handleCreateBookingLink} disabled={loadingBookings}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Nuevo enlace
+                            </Button>
+                        </div>
+                        <div className="space-y-2">
+                            {loadingBookings ? (
+                                <p className="text-sm text-muted-foreground">Cargando...</p>
+                            ) : bookingConfigs.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Aún no tienes enlaces de booking.</p>
+                            ) : (
+                                bookingConfigs.map((config) => (
+                                    <div key={config.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-3">
+                                        <div>
+                                            <p className="font-medium">{config.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {config.available_hours?.start} - {config.available_hours?.end} · {config.duration} min · {Array.isArray(config.available_days) ? config.available_days.length : 0} días
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                                                href={`/book/${config.id}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <LinkIcon className="w-4 h-4" />
+                                                Abrir
+                                            </a>
+                                            <a
+                                                className="text-sm text-muted-foreground hover:underline"
+                                                href={`/api/calendar/booking?config_id=${config.id}&date=${new Date().toISOString().slice(0, 10)}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Ver slots
+                                            </a>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 

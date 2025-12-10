@@ -55,6 +55,19 @@ const adminRoutes = ['/admin']
 export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
 
+    // 🔒 Cron jobs protegidos por secreto
+    if (pathname.startsWith('/api/cron')) {
+        const cronSecret = process.env.CRON_SECRET
+        if (!cronSecret) {
+            return NextResponse.json({ success: false, error: 'Cron secret not configured' }, { status: 500 })
+        }
+        const provided = request.headers.get('x-cron-secret')
+        if (provided !== cronSecret) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+        }
+        return NextResponse.next()
+    }
+
     // ✅ Permitir webhooks públicos específicos (incluyendo N8N)
     if (pathname.startsWith('/api/payments/stripe/webhook') ||
         pathname.startsWith('/api/webhooks/stripe') ||

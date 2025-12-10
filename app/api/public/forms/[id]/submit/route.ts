@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) {
+    throw new Error('Missing Supabase credentials for public forms submit')
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    url,
+    serviceKey
   )
+}
+
+function getAllowedOrigin(request: NextRequest): string | null {
+  const allowed = (process.env.PUBLIC_FORMS_ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+  const origin = request.headers.get('origin')
+  const hostOrigin = request.nextUrl.origin
+
+  if (allowed.length === 0) return origin || hostOrigin
+  if (origin && allowed.includes(origin)) return origin
+  if (!origin && allowed.includes(hostOrigin)) return hostOrigin
+  return null
 }
 
 // POST - Enviar formulario (público)
@@ -14,6 +33,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rate = await rateLimit(request, RATE_LIMITS.sensitive)
+    if (rate) return rate
+
+    const allowedOrigin = getAllowedOrigin(request)
+    if (!allowedOrigin) {
+      return corsResponse({ error: 'Origin not allowed' }, 403, '*')
+    }
+
     const { id } = await params
     const body = await request.json()
     const { data, utm_source, utm_medium, utm_campaign } = body
@@ -50,11 +77,11 @@ export async function POST(
     const fields = form.fields as any[]
     for (const field of fields) {
       if (field.required && !data[field.id]) {
-        return corsResponse({ 
-          error: `El campo "${field.label}" es requerido`,
-          field: field.id 
-        }, 400)
-      }
+      return corsResponse({ 
+        error: `El campo "${field.label}" es requerido`,
+        field: field.id 
+      }, 400, allowedOrigin)
+    }
     }
 
     // Honeypot check (anti-spam)
@@ -64,7 +91,7 @@ export async function POST(
         success: true,
         message: form.success_message,
         redirect_url: form.redirect_url
-      })
+      }, 200, allowedOrigin)
     }
 
     // Crear submission
@@ -181,27 +208,29 @@ export async function POST(
       contact_id: contactId,
       message: form.success_message,
       redirect_url: form.redirect_url
-    })
+    }, 200, allowedOrigin)
 
   } catch (error: any) {
     console.error('[Public Forms Submit] Error:', error)
-    return corsResponse({ error: error.message }, 500)
+    const origin = getAllowedOrigin(request) || '*'
+    return corsResponse({ error: error.message }, 500, origin)
   }
 }
 
 // OPTIONS - CORS preflight
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const allowedOrigin = getAllowedOrigin(request) || '*'
   const response = new NextResponse(null, { status: 204 })
-  response.headers.set('Access-Control-Allow-Origin', '*')
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
   return response
 }
 
 // Helper para respuestas con CORS
-function corsResponse(data: any, status = 200) {
+function corsResponse(data: any, status = 200, origin: string = '*') {
   const response = NextResponse.json(data, { status })
-  response.headers.set('Access-Control-Allow-Origin', '*')
+  response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
   return response

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import {
   ArrowLeft, Building2, CreditCard, Activity, Loader2, CheckCircle
 } from "lucide-react"
@@ -54,6 +55,7 @@ export default function OrganizationDetailPage() {
   const [activating, setActivating] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState("starter")
   const [billingPeriod, setBillingPeriod] = useState("monthly")
+  const [paymentReference, setPaymentReference] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
 
   const orgId = params?.id as string
@@ -89,6 +91,7 @@ export default function OrganizationDetailPage() {
           organizationId: orgId,
           plan: selectedPlan,
           billingPeriod,
+          paymentReference: paymentReference || undefined,
         }),
       })
 
@@ -316,6 +319,16 @@ export default function OrganizationDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[13px] font-medium text-slate-300">Referencia de pago (opcional)</label>
+            <Input
+              placeholder="Ej: transferencia #123 o Yape/Plin"
+              value={paymentReference}
+              onChange={(e) => setPaymentReference(e.target.value)}
+              className="bg-white/[0.04] border-white/[0.08] text-slate-200"
+            />
           </div>
 
           <Button onClick={activateSubscription} disabled={activating} className="gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">

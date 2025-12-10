@@ -11,16 +11,19 @@ export type ResourceType = "users" | "contacts" | "invoices"
 
 /**
  * Verifica si se puede crear un nuevo recurso según los límites del plan
- * NOTA: Temporalmente siempre devuelve allowed=true para debugging
  */
 export async function checkPlanLimit(
   organizationId: string,
   resource: ResourceType
 ): Promise<PlanLimitResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) {
+    throw new Error("Missing Supabase credentials for plan limits check")
+  }
+
+  const supabase = createClient(url, serviceKey)
 
   try {
     const { data, error } = await supabase.rpc("check_plan_limits", {
@@ -28,45 +31,40 @@ export async function checkPlanLimit(
       p_resource: resource,
     })
 
-    if (error) {
-      console.error("Error checking plan limits (RPC error):", error)
-      return {
-        allowed: true,
-        currentCount: 0,
-        maxAllowed: 999999,
-        planName: "unknown",
-      }
-    }
+    if (error) throw error
 
     if (!data || data.length === 0) {
       console.warn("No plan limit data returned for org:", organizationId)
       return {
-        allowed: true,
+        allowed: false,
         currentCount: 0,
-        maxAllowed: 999999,
-        planName: "default",
+        maxAllowed: 0,
+        planName: "unknown",
       }
     }
 
     const result = data[0]
+    const currentCount = result.current_count ?? 0
+    const maxAllowed = result.max_allowed ?? 0
+    const planName = result.plan_name ?? "unknown"
+    const allowed = typeof result.allowed === "boolean"
+      ? result.allowed
+      : currentCount < maxAllowed
 
-    // Log para debugging
-    console.log("Plan limit check result:", { organizationId, resource, result })
+    console.log("Plan limit check result:", { organizationId, resource, currentCount, maxAllowed, planName, allowed })
 
-    // TEMPORAL: Siempre permitir hasta diagnosticar problema con RPC
-    // TODO: Restaurar lógica original una vez que subscription_plans esté configurada
     return {
-      allowed: true, // Temporal: siempre permitir
-      currentCount: result.current_count ?? 0,
-      maxAllowed: result.max_allowed ?? 999999,
-      planName: result.plan_name ?? "unlimited",
+      allowed,
+      currentCount,
+      maxAllowed,
+      planName,
     }
   } catch (err) {
     console.error("Exception checking plan limits:", err)
     return {
-      allowed: true,
+      allowed: false,
       currentCount: 0,
-      maxAllowed: 999999,
+      maxAllowed: 0,
       planName: "error",
     }
   }
@@ -102,10 +100,14 @@ export async function requirePlanLimit(
  * Obtiene el uso actual de recursos de una organización
  */
 export async function getResourceUsage(organizationId: string) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) {
+    throw new Error("Missing Supabase credentials for plan limits check")
+  }
+
+  const supabase = createClient(url, serviceKey)
 
   const [users, contacts, invoices] = await Promise.all([
     supabase.rpc("check_plan_limits", { p_organization_id: organizationId, p_resource: "users" }),

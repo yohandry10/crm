@@ -27,6 +27,7 @@ const navigation = [
   { name: "Facturación", href: "/invoicing", icon: Receipt },
   { name: "Productos", href: "/products", icon: Package },
   { name: "Campañas", href: "/campaigns", icon: Mail },
+  { name: "Formularios", href: "/forms", icon: FileText },
   { name: "Tareas", href: "/tasks", icon: CheckSquare },
   { name: "Calendario", href: "/calendar", icon: Calendar },
   { name: "Inventario", href: "/inventory", icon: Layers },

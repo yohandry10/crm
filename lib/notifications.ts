@@ -1,5 +1,5 @@
 import { logError } from "./error-logging"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseServiceClient } from "./supabase-service"
 import crypto from "crypto"
 
 export interface NotificationPayload {
@@ -20,10 +20,7 @@ export interface NotificationPayload {
  */
 export async function sendNotification(payload: NotificationPayload) {
     try {
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
+        const supabase = createSupabaseServiceClient()
 
         // 1. Guardar notificación en BD
         const { data: notification, error: dbError } = await supabase

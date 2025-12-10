@@ -3,14 +3,17 @@ import { NextResponse } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import type { OrgRole } from '@/lib/types/organization'
 
-// Valores por defecto (desarrollo)
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://crqnkdpjxeoqkfpttncq.supabase.co'
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycW5rZHBqeGVvcWtmcHR0bmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3MDMxNzIsImV4cCI6MjA3OTI3OTE3Mn0.OQphbBgseyF9Rl15M1OrndfgvUAj3TYyboQNlz_uH14'
-
 /**
  * Crea cliente de Supabase para rutas de API usando SSR
  */
 export async function createSupabaseRouteClient() {
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        throw new Error('Missing Supabase env vars (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)')
+    }
+
     const cookieStore = await cookies()
 
     return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

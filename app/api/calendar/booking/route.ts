@@ -37,6 +37,27 @@ const bookingRequestSchema = z.object({
   answers: z.record(z.string()).optional(),
 })
 
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) {
+    throw new Error("Missing Supabase credentials for booking endpoint")
+  }
+
+  return createClient(url, serviceKey)
+}
+
+function getAllowedOrigin(request: NextRequest): string | null {
+  const allowed = (process.env.PUBLIC_BOOKING_ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+  const origin = request.headers.get('origin')
+  const hostOrigin = request.nextUrl.origin
+  if (allowed.length === 0) return origin || hostOrigin
+  if (origin && allowed.includes(origin)) return origin
+  if (!origin && allowed.includes(hostOrigin)) return hostOrigin
+  return null
+}
+
 // GET: List booking configs or get available slots
 export async function GET(request: NextRequest) {
   try {
@@ -49,10 +70,12 @@ export async function GET(request: NextRequest) {
 
     // Public endpoint for getting slots
     if (configId && date) {
-      const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
+      const allowedOrigin = getAllowedOrigin(request)
+      if (!allowedOrigin) {
+        return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
+      }
+
+      const supabaseAdmin = getAdminClient()
 
       // Get booking config
       const { data: config, error: configError } = await supabaseAdmin
@@ -88,7 +111,7 @@ export async function GET(request: NextRequest) {
       // Generate available slots
       const slots = generateSlots(config, targetDate, events || [])
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         data: {
           config: {
@@ -98,6 +121,10 @@ export async function GET(request: NextRequest) {
           slots
         }
       })
+      response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+      return response
     }
 
     // Authenticated endpoint for managing configs
@@ -137,6 +164,11 @@ export async function POST(request: NextRequest) {
 
     // Public booking request
     if (body.config_id && body.slot_start) {
+      const allowedOrigin = getAllowedOrigin(request)
+      if (!allowedOrigin) {
+        return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
+      }
+
       const validation = bookingRequestSchema.safeParse(body)
       if (!validation.success) {
         return NextResponse.json({
@@ -146,10 +178,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
 
-      const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
+      const supabaseAdmin = getAdminClient()
 
       // Get config
       const { data: config } = await supabaseAdmin
@@ -238,7 +267,7 @@ export async function POST(request: NextRequest) {
 
       // TODO: Send confirmation email
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         data: {
           event_id: event.id,
@@ -246,6 +275,10 @@ export async function POST(request: NextRequest) {
           end: slotEnd,
         }
       })
+      response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+      return response
     }
 
     // Authenticated: Create booking config
@@ -335,4 +368,13 @@ function generateSlots(
   }
 
   return slots
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const allowedOrigin = getAllowedOrigin(request) || '*'
+  const response = new NextResponse(null, { status: 204 })
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+  return response
 }
