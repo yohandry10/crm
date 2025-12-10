@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { contactSchema } from "@/lib/schemas"
 import { rateLimit } from "@/lib/rate-limit"
+import { requirePlanLimit } from "@/lib/plan-limits"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 100 }
@@ -102,8 +103,18 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         console.log("5. Body recibido:", JSON.stringify(body))
 
-        // TEMPORALMENTE DESHABILITADO: verificación de límites del plan
-        console.log("6. Plan limits DESHABILITADO - saltando verificación")
+        // VERIFICACIÓN DE LÍMITES DEL PLAN
+        console.log("6. Verificando límites del plan...")
+        const planCheck = await requirePlanLimit(organizationId, "contacts")
+        if (!planCheck.allowed) {
+            console.log("ERROR: Límite de plan excedido")
+            return NextResponse.json({
+                success: false,
+                error: planCheck.error,
+                limit: planCheck.limit
+            }, { status: 403 })
+        }
+        console.log("6. Plan limits OK")
 
         console.log("7. Validando schema...")
         const validation = contactSchema.safeParse(body)

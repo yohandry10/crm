@@ -84,32 +84,19 @@ export const paymentSchema = createPaymentSchema
 // WORKFLOW SCHEMAS
 // =====================================================
 
+// ✅ FIX WF-006: Importar constantes centralizadas
+import { WORKFLOW_TRIGGERS, WORKFLOW_ACTIONS } from './workflow-constants'
+
 export const workflowActionSchema = z.object({
-    type: z.enum(['send_email', 'update_lead_score', 'update_lead_status', 'create_task', 'webhook']),
+    type: z.enum(WORKFLOW_ACTIONS),
     params: z.record(z.any())
 })
 
 export const createWorkflowSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().optional().nullable(),
-    // ✅ CORREGIDO: Usar notación con punto para coincidir con el sistema de eventos
-    trigger_type: z.enum([
-        'contact.created',
-        'contact.updated',
-        'invoice.sent',
-        'invoice.paid',
-        'payment.completed',
-        'opportunity.created',
-        'opportunity.updated',
-        'task.created',
-        'task.completed',
-        'ticket.created',
-        'ticket.resolved',
-        'campaign.created',
-        'quote.created',
-        'manual',
-        'schedule'
-    ]),
+    // ✅ FIX WF-006: Usar constantes centralizadas
+    trigger_type: z.enum(WORKFLOW_TRIGGERS),
     trigger_conditions: z.record(z.any()).optional(),
     actions: z.array(workflowActionSchema).default([]),
     is_active: z.boolean().default(true)

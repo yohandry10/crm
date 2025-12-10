@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
 
         if (error) throw error
 
+        // Emit event for workflows
+        const { emitEvent } = await import('@/lib/events')
+        await emitEvent({
+            event_type: 'order.created',
+            source: 'api/orders',
+            payload: { ...data, user_id: user.id, organization_id: organizationId }
+        }, supabase)
+
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/orders", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })

@@ -33,16 +33,16 @@ export async function triggerWorkflowsForEvent(
     userId?: string
 ): Promise<void> {
     console.log(`[Workflows] Triggering workflows for event: ${eventType}`)
-    
+
     // ✅ FIX: Detección de loops
     const executionKey = `${userId || 'system'}:${eventType}:${payload.id || 'unknown'}`
     const currentDepth = EXECUTION_STACK.get(executionKey) || 0
-    
+
     if (currentDepth >= MAX_RECURSION_DEPTH) {
         console.warn(`[Workflows] ⚠️ Loop detected for ${executionKey} at depth ${currentDepth}, stopping execution`)
         return
     }
-    
+
     EXECUTION_STACK.set(executionKey, currentDepth + 1)
 
     try {
@@ -51,7 +51,7 @@ export async function triggerWorkflowsForEvent(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
-        
+
         // Cleanup execution stack al finalizar
         const cleanupStack = () => {
             const newDepth = (EXECUTION_STACK.get(executionKey) || 1) - 1
@@ -65,7 +65,7 @@ export async function triggerWorkflowsForEvent(
         // Fetch active workflows matching this event type
         // ✅ FIX WF-001: Usar organization_id del payload para multi-tenant
         const organizationId = payload.organization_id
-        
+
         let query = supabase
             .from('workflows')
             .select('*')
@@ -245,11 +245,12 @@ function getNestedValue(obj: any, path: string): any {
 async function executeWorkflowActions(supabase: any, workflow: any, payload: any): Promise<void> {
     const contact_id = payload.id || payload.contact_id
     const organizationId = payload.organization_id || workflow.organization_id
-    
-    // Create execution record
+
+    // Create execution record - ✅ FIX WF-003: Incluir organization_id
     const { data: execution, error: execError } = await supabase
         .from("workflow_executions")
         .insert({
+            organization_id: organizationId,
             workflow_id: workflow.id,
             contact_id,
             status: 'running',

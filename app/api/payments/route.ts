@@ -2,11 +2,15 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 
 export async function GET(request: NextRequest) {
     try {
         const { supabase, organizationId } = await getAuthenticatedContext()
+        // Rate limit for sensitive data reading
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+        if (rateLimitResponse) return rateLimitResponse
 
         const searchParams = request.nextUrl.searchParams
         const invoice_id = searchParams.get('invoice_id')
@@ -41,6 +45,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     let requestBody: any
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         requestBody = await request.json()
 

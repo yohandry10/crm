@@ -28,8 +28,9 @@ export async function GET(_request: NextRequest) {
                 .eq("organization_id", organizationId).gte("created_at", thisMonthStart.toISOString()),
             supabase.from("invoices").select("total, status")
                 .eq("organization_id", organizationId).gte("issue_date", thisMonthStart.toISOString()).in("status", ["paid", "sent"]),
-            supabase.from("inventory").select("*", { count: "exact", head: true })
-                .eq("organization_id", organizationId),
+            supabase.from("products").select("*", { count: "exact", head: true })
+                .eq("organization_id", organizationId)
+                .eq("is_service", false),
             supabase.from("contacts").select("*", { count: "exact", head: true })
                 .eq("organization_id", organizationId).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
             supabase.from("invoices").select("total")

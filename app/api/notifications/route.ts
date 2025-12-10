@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // GET - Get user notifications (from both tables)
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { supabase, user, organizationId } = await getAuthenticatedContext()
-    
+
     const searchParams = request.nextUrl.searchParams
     const unreadOnly = searchParams.get("unread") === "true"
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -85,6 +89,9 @@ export async function GET(request: NextRequest) {
 // PUT - Mark notifications as read
 export async function PUT(request: NextRequest) {
   try {
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { supabase, user } = await getAuthenticatedContext()
     const body = await request.json()
 
@@ -113,7 +120,7 @@ export async function PUT(request: NextRequest) {
           .in("id", notificationIds)
           .eq("user_id", user.id)
       }
-      
+
       if (source === 'system_notifications' || !source) {
         await supabase
           .from("system_notifications")

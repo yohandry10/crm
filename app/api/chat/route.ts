@@ -2,9 +2,13 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { generateAIResponse } from "@/lib/ai"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { supabase, user, organizationId } = await getAuthenticatedContext()
     const { message, conversation_id } = await request.json()
 

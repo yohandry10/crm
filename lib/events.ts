@@ -20,6 +20,7 @@ export type EventType =
     | 'quote.created'
     | 'quote.sent'
     | 'quote.accepted'
+    | 'order.created'
     | 'workflow.executed'
 
 export interface WebhookEvent {
@@ -180,20 +181,20 @@ async function processEvent(event: any, supabase: any): Promise<void> {
 async function handleContactCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling contact.created for contact ${payload.id}`)
 
-    // ✅ CORREGIDO: Filtrar workflows por user_id del payload
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('contact.created event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('contact.created event missing organization_id in payload')
         return
     }
 
-    // 1. Trigger workflows with event type 'contact.created' for THIS user only
+    // 1. Trigger workflows with event type 'contact.created' for THIS organization only
     const { data: workflows } = await supabase
         .from('workflows')
         .select('*')
         .eq('trigger_type', 'contact.created')
         .eq('is_active', true)
-        .eq('user_id', userId)  // ✅ Solo workflows del usuario
+        .eq('organization_id', organizationId)  // ✅ FIX: Filtrar por organization_id
 
     for (const workflow of workflows || []) {
         try {
@@ -202,11 +203,12 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
             // Execute workflow actions
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
-            // Log execution
+            // Log execution - ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.id,
                 status: 'success',
@@ -216,6 +218,7 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
         } catch (error: any) {
             console.error(`Failed to execute workflow ${workflow.id}:`, error)
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.id,
                 status: 'failed',
@@ -229,28 +232,31 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
 async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
     console.log(`Handling invoice.paid for invoice ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('invoice.paid event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('invoice.paid event missing organization_id in payload')
         return
     }
 
-    // 1. Trigger workflows - ✅ CORREGIDO: Filtrar por user_id
+    // 1. Trigger workflows - ✅ FIX: Filtrar por organization_id
     const { data: workflows } = await supabase
         .from('workflows')
         .select('*')
         .eq('trigger_type', 'invoice.paid')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -281,31 +287,36 @@ async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
     }
 }
 
+
+
 async function handlePaymentCompleted(payload: any, supabase: any): Promise<void> {
     console.log(`Handling payment.completed for payment ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('payment.completed event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('payment.completed event missing organization_id in payload')
         return
     }
 
-    // 1. Trigger workflows - ✅ CORREGIDO: Filtrar por user_id
+    // 1. Trigger workflows - ✅ FIX: Filtrar por organization_id
     const { data: workflows } = await supabase
         .from('workflows')
         .select('*')
         .eq('trigger_type', 'payment.completed')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -323,12 +334,13 @@ async function handlePaymentCompleted(payload: any, supabase: any): Promise<void
 
 /**
  * Execute a single workflow action
+ * ✅ FIX WF-001: Cambiar userId a organizationId para multi-tenant
  */
 async function executeWorkflowAction(
     action: any,
     payload: any,
     supabase: any,
-    userId: string
+    organizationId: string
 ): Promise<void> {
     const actionType = action.type
 
@@ -346,7 +358,7 @@ async function executeWorkflowAction(
             break
 
         case 'create_task':
-            await executeCreateTask(action, payload, supabase, userId)
+            await executeCreateTask(action, payload, supabase, organizationId)
             break
 
         case 'webhook':
@@ -459,8 +471,8 @@ async function executeUpdateLeadStatus(action: any, payload: any, supabase: any)
     console.log(`Updated lead status for contact ${targetContactId} to ${status}`)
 }
 
-async function executeCreateTask(action: any, payload: any, supabase: any, userId: string): Promise<void> {
-    const { title, description, due_date, priority, contactId } = action.params || {}
+async function executeCreateTask(action: any, payload: any, supabase: any, organizationId: string): Promise<void> {
+    const { title, description, due_date, priority, contactId, assigned_to } = action.params || {}
     const targetContactId = contactId || payload.id || payload.contact_id
 
     if (!title) {
@@ -468,8 +480,10 @@ async function executeCreateTask(action: any, payload: any, supabase: any, userI
         return
     }
 
+    // ✅ FIX WF-001: Usar organization_id en lugar de user_id
     await supabase.from('tasks').insert({
-        user_id: userId,
+        organization_id: organizationId,
+        assigned_to: assigned_to || payload.created_by || null,
         contact_id: targetContactId,
         title,
         description,
@@ -588,9 +602,10 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
 async function handleContactUpdated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling contact.updated for contact ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('contact.updated event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('contact.updated event missing organization_id in payload')
         return
     }
 
@@ -600,16 +615,18 @@ async function handleContactUpdated(payload: any, supabase: any): Promise<void> 
         .select('*')
         .eq('trigger_type', 'contact.updated')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.id,
                 status: 'success',
@@ -619,6 +636,7 @@ async function handleContactUpdated(payload: any, supabase: any): Promise<void> 
         } catch (error: any) {
             console.error(`Failed to execute workflow ${workflow.id}:`, error)
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.id,
                 status: 'failed',
@@ -632,9 +650,11 @@ async function handleContactUpdated(payload: any, supabase: any): Promise<void> 
 async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
     console.log(`Handling invoice.sent for invoice ${payload.invoice_id || payload.id}`)
 
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('invoice.sent event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    const userId = payload.user_id || payload.userId || payload.created_by
+    if (!organizationId) {
+        console.warn('invoice.sent event missing organization_id in payload')
         return
     }
 
@@ -644,16 +664,18 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
         .select('*')
         .eq('trigger_type', 'invoice.sent')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -666,7 +688,7 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
     }
 
     // Crear notificación para el usuario
-    if (payload.contact_id) {
+    if (payload.contact_id && userId) {
         await supabase.from('notifications').insert({
             user_id: userId,
             type: 'info',
@@ -681,9 +703,10 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
 async function handleOpportunityCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling opportunity.created for opportunity ${payload.opportunityId || payload.id}`)
 
-    const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('opportunity.created event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('opportunity.created event missing organization_id in payload')
         return
     }
 
@@ -693,16 +716,18 @@ async function handleOpportunityCreated(payload: any, supabase: any): Promise<vo
         .select('*')
         .eq('trigger_type', 'opportunity.created')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.opportunity?.contact_id || payload.contact_id,
                 status: 'success',
@@ -718,9 +743,11 @@ async function handleOpportunityCreated(payload: any, supabase: any): Promise<vo
 async function handleOpportunityUpdated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling opportunity.updated for opportunity ${payload.opportunityId || payload.id}`)
 
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId
-    if (!userId) {
-        console.warn('opportunity.updated event missing user_id in payload')
+    if (!organizationId) {
+        console.warn('opportunity.updated event missing organization_id in payload')
         return
     }
 
@@ -730,16 +757,18 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
         .select('*')
         .eq('trigger_type', 'opportunity.updated')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.opportunity?.contact_id || payload.contact_id,
                 status: 'success',
@@ -752,7 +781,7 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
     }
 
     // Si cambió de etapa, crear notificación
-    if (payload.oldStageId && payload.newStageId && payload.oldStageId !== payload.newStageId) {
+    if (userId && payload.oldStageId && payload.newStageId && payload.oldStageId !== payload.newStageId) {
         await supabase.from('notifications').insert({
             user_id: userId,
             type: 'info',
@@ -772,9 +801,11 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
 async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling task.created for task ${payload.id}`)
 
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) {
-        console.warn('task.created event missing user_id in payload')
+    if (!organizationId) {
+        console.warn('task.created event missing organization_id in payload')
         return
     }
 
@@ -784,16 +815,18 @@ async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
         .select('*')
         .eq('trigger_type', 'task.created')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -821,8 +854,9 @@ async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
 async function handleTaskCompleted(payload: any, supabase: any): Promise<void> {
     console.log(`Handling task.completed for task ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) return
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) return
 
     // Trigger workflows for task.completed
     const { data: workflows } = await supabase
@@ -830,16 +864,18 @@ async function handleTaskCompleted(payload: any, supabase: any): Promise<void> {
         .select('*')
         .eq('trigger_type', 'task.completed')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -855,9 +891,10 @@ async function handleTaskCompleted(payload: any, supabase: any): Promise<void> {
 async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling ticket.created for ticket ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) {
-        console.warn('ticket.created event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('ticket.created event missing organization_id in payload')
         return
     }
 
@@ -867,16 +904,18 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
         .select('*')
         .eq('trigger_type', 'ticket.created')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -894,7 +933,7 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
         const { data: supportMembers } = await supabase
             .from('organization_members')
             .select('user_id')
-            .eq('organization_id', payload.organization_id)
+            .eq('organization_id', organizationId)
             .in('role', ['support', 'admin', 'owner'])
 
         for (const member of supportMembers || []) {
@@ -913,8 +952,9 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
 async function handleTicketResolved(payload: any, supabase: any): Promise<void> {
     console.log(`Handling ticket.resolved for ticket ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) return
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) return
 
     // Trigger workflows for ticket.resolved
     const { data: workflows } = await supabase
@@ -922,16 +962,18 @@ async function handleTicketResolved(payload: any, supabase: any): Promise<void> 
         .select('*')
         .eq('trigger_type', 'ticket.resolved')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -947,9 +989,10 @@ async function handleTicketResolved(payload: any, supabase: any): Promise<void> 
 async function handleCampaignCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling campaign.created for campaign ${payload.id}`)
 
-    const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) {
-        console.warn('campaign.created event missing user_id in payload')
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
+    if (!organizationId) {
+        console.warn('campaign.created event missing organization_id in payload')
         return
     }
 
@@ -959,16 +1002,18 @@ async function handleCampaignCreated(payload: any, supabase: any): Promise<void>
         .select('*')
         .eq('trigger_type', 'campaign.created')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 status: 'success',
                 executed_actions: actions,
@@ -983,9 +1028,11 @@ async function handleCampaignCreated(payload: any, supabase: any): Promise<void>
 async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
     console.log(`Handling quote.created for quote ${payload.id}`)
 
+    // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
+    const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId || payload.created_by
-    if (!userId) {
-        console.warn('quote.created event missing user_id in payload')
+    if (!organizationId) {
+        console.warn('quote.created event missing organization_id in payload')
         return
     }
 
@@ -995,16 +1042,18 @@ async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
         .select('*')
         .eq('trigger_type', 'quote.created')
         .eq('is_active', true)
-        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
 
     for (const workflow of workflows || []) {
         try {
             const actions = workflow.actions || []
             for (const action of actions) {
-                await executeWorkflowAction(action, payload, supabase, workflow.user_id)
+                await executeWorkflowAction(action, payload, supabase, workflow.organization_id)
             }
 
+            // ✅ FIX WF-003: Incluir organization_id
             await supabase.from('workflow_executions').insert({
+                organization_id: organizationId,
                 workflow_id: workflow.id,
                 contact_id: payload.contact_id,
                 status: 'success',
@@ -1017,12 +1066,14 @@ async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
     }
 
     // Crear notificación
-    await supabase.from('notifications').insert({
-        user_id: userId,
-        type: 'info',
-        title: 'Cotización creada',
-        message: `Nueva cotización por ${payload.total_amount ? `S/ ${payload.total_amount.toLocaleString()}` : 'monto pendiente'}`,
-        related_type: 'quote',
-        related_id: payload.id
-    })
+    if (userId) {
+        await supabase.from('notifications').insert({
+            user_id: userId,
+            type: 'info',
+            title: 'Cotización creada',
+            message: `Nueva cotización por ${payload.total_amount ? `S/ ${payload.total_amount.toLocaleString()}` : 'monto pendiente'}`,
+            related_type: 'quote',
+            related_id: payload.id
+        })
+    }
 }

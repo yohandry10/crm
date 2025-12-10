@@ -58,10 +58,11 @@ export async function POST(request: NextRequest) {
         const errors = []
         let actionIndex = 0
 
-        // Create execution record first
+        // Create execution record first - ✅ FIX WF-003: Incluir organization_id
         const { data: execution, error: execError } = await supabase
             .from("workflow_executions")
             .insert({
+                organization_id: organizationId,
                 workflow_id,
                 contact_id,
                 status: 'running',
@@ -77,8 +78,9 @@ export async function POST(request: NextRequest) {
             let logId: string | null = null
 
             try {
-                // Log action start
+                // Log action start - ✅ FIX WF-002: Agregar p_org_id
                 const { data: startLog } = await supabase.rpc('log_workflow_action_start', {
+                    p_org_id: organizationId,
                     p_execution_id: execution.id,
                     p_action_type: action.type,
                     p_action_index: actionIndex,
@@ -150,7 +152,7 @@ export async function POST(request: NextRequest) {
             requestBody: await request.clone().json().catch(() => undefined),
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }

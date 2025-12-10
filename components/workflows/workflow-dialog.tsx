@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+// ✅ FIX WF-006: Importar constantes centralizadas
+import { WORKFLOW_TRIGGER_OPTIONS } from "@/lib/workflow-constants"
 
 interface WorkflowDialogProps {
     open: boolean
@@ -99,7 +101,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="trigger_type">Tipo de Disparador</Label>
-                                {/* ✅ FIX: Sincronizado con lib/schemas.ts trigger_type enum */}
+                                {/* ✅ FIX WF-006: Usar opciones centralizadas */}
                                 <Select
                                     value={formData.trigger_type || "contact.created"}
                                     onValueChange={(value) => setFormData({ ...formData, trigger_type: value })}
@@ -108,21 +110,11 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                         <SelectValue placeholder="Seleccionar tipo" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="contact.created">Contacto Creado</SelectItem>
-                                        <SelectItem value="contact.updated">Contacto Actualizado</SelectItem>
-                                        <SelectItem value="invoice.sent">Factura Enviada</SelectItem>
-                                        <SelectItem value="invoice.paid">Factura Pagada</SelectItem>
-                                        <SelectItem value="payment.completed">Pago Completado</SelectItem>
-                                        <SelectItem value="opportunity.created">Oportunidad Creada</SelectItem>
-                                        <SelectItem value="opportunity.updated">Oportunidad Actualizada</SelectItem>
-                                        <SelectItem value="task.created">Tarea Creada</SelectItem>
-                                        <SelectItem value="task.completed">Tarea Completada</SelectItem>
-                                        <SelectItem value="ticket.created">Ticket Creado</SelectItem>
-                                        <SelectItem value="ticket.resolved">Ticket Resuelto</SelectItem>
-                                        <SelectItem value="campaign.created">Campaña Creada</SelectItem>
-                                        <SelectItem value="quote.created">Cotización Creada</SelectItem>
-                                        <SelectItem value="manual">Manual</SelectItem>
-                                        <SelectItem value="schedule">Programado</SelectItem>
+                                        {WORKFLOW_TRIGGER_OPTIONS.map(option => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

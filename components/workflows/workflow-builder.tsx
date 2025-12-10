@@ -94,9 +94,9 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
     return (
         <div className="flex h-[80vh] w-full border rounded-lg overflow-hidden bg-background">
             {/* Sidebar de herramientas */}
-            <aside className="w-64 border-r bg-muted/20 p-4 flex flex-col gap-4">
+            <aside className="w-64 border-r bg-muted/20 p-4 flex flex-col gap-4 overflow-y-auto">
                 <div className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                    Bloques
+                    Disparadores
                 </div>
 
                 <div
@@ -111,7 +111,11 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
                         <MonitorPlay className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium">Disparador</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Inicia el flujo (ej. Nuevo Lead)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Inicia el flujo</p>
+                </div>
+
+                <div className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-4">
+                    Acciones
                 </div>
 
                 <div
@@ -142,6 +146,55 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
                         <Play className="w-4 h-4 text-green-500" />
                         <span className="text-sm font-medium">Crear Tarea</span>
                     </div>
+                </div>
+
+                <div
+                    className="p-3 bg-card border rounded shadow-sm cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
+                    draggable
+                    onDragStart={(event) => {
+                        event.dataTransfer.setData('application/reactflow', 'action');
+                        event.dataTransfer.setData('label', 'Actualizar Lead Score');
+                        event.dataTransfer.setData('actionType', 'update_lead_score');
+                    }}
+                >
+                    <div className="flex items-center gap-2">
+                        <Play className="w-4 h-4 text-yellow-500" />
+                        <span className="text-sm font-medium">Actualizar Score</span>
+                    </div>
+                </div>
+
+                <div
+                    className="p-3 bg-card border rounded shadow-sm cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
+                    draggable
+                    onDragStart={(event) => {
+                        event.dataTransfer.setData('application/reactflow', 'action');
+                        event.dataTransfer.setData('label', 'Actualizar Estado');
+                        event.dataTransfer.setData('actionType', 'update_lead_status');
+                    }}
+                >
+                    <div className="flex items-center gap-2">
+                        <Play className="w-4 h-4 text-purple-500" />
+                        <span className="text-sm font-medium">Cambiar Estado</span>
+                    </div>
+                </div>
+
+                <div
+                    className="p-3 bg-card border rounded shadow-sm cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
+                    draggable
+                    onDragStart={(event) => {
+                        event.dataTransfer.setData('application/reactflow', 'action');
+                        event.dataTransfer.setData('label', 'Webhook');
+                        event.dataTransfer.setData('actionType', 'webhook');
+                    }}
+                >
+                    <div className="flex items-center gap-2">
+                        <Play className="w-4 h-4 text-orange-500" />
+                        <span className="text-sm font-medium">Webhook</span>
+                    </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground mt-4 p-2 bg-muted/30 rounded">
+                    <strong>Tip:</strong> Arrastra los bloques al canvas y conectalos. Haz clic en un nodo para configurarlo.
                 </div>
             </aside>
 
