@@ -1,7 +1,8 @@
 /**
  * Workflow Executor - Módulo consolidado para ejecución de acciones
  * ✅ FIX WF-005: Consolidar lógica de ejecución duplicada
- * 
+ * ✅ FEATURE: Template Variables - Soporte para variables dinámicas {{variable}}
+ *
  * Este módulo centraliza toda la lógica de ejecución de acciones de workflows,
  * evitando duplicación entre lib/workflows.ts y lib/events.ts
  */
@@ -9,6 +10,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { validateActionParams, sanitizeActionParams } from './workflow-validators'
 import { WORKFLOW_ACTIONS, WorkflowActionType } from './workflow-constants'
+import { replaceTemplateVariablesInObject } from './workflow-templates'
 
 // =====================================================
 // TYPES
@@ -438,7 +440,13 @@ export async function executeWorkflowAction(
     context: ExecutionContext
 ): Promise<ActionResult> {
     const actionType = action.type
-    const params = sanitizeActionParams(actionType, action.params || {})
+    let params = sanitizeActionParams(actionType, action.params || {})
+
+    // ✅ FEATURE: Replace template variables with actual data
+    // This allows using {{contact.email}}, {{invoice.total}}, etc. in action parameters
+    if (context.payload) {
+        params = replaceTemplateVariablesInObject(params, context.payload)
+    }
 
     // Validate action type
     if (!WORKFLOW_ACTIONS.includes(actionType as WorkflowActionType)) {

@@ -2,13 +2,38 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Sidebar } from "@/components/dashboard/sidebar"
+import dynamic from "next/dynamic"
+import { SidebarOptimized } from "@/components/dashboard/sidebar-optimized"
 import { Header } from "@/components/dashboard/header"
-import { TrialBanner } from "@/components/subscription/trial-banner"
-import { WelcomeTour } from "@/components/tutorials"
-import { KeyboardShortcutsDialog, useKeyboardShortcuts } from "@/components/keyboard"
+import { useCRMPrefetch } from "@/hooks/use-route-prefetch"
+import { useKeyboardShortcuts } from "@/components/keyboard"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Toaster } from "@/components/ui/sonner"
+
+// Lazy load componentes pesados que no son críticos para la primera carga
+const TrialBanner = dynamic(
+  () => import("@/components/subscription/trial-banner").then(mod => ({ default: mod.TrialBanner })),
+  {
+    loading: () => <div className="h-12" />,
+    ssr: false
+  }
+)
+
+const WelcomeTour = dynamic(
+  () => import("@/components/tutorials").then(mod => ({ default: mod.WelcomeTour })),
+  {
+    loading: () => null,
+    ssr: false
+  }
+)
+
+const KeyboardShortcutsDialog = dynamic(
+  () => import("@/components/keyboard").then(mod => ({ default: mod.KeyboardShortcutsDialog })),
+  {
+    loading: () => null,
+    ssr: false
+  }
+)
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -20,7 +45,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // Enable keyboard shortcuts
+  // Prefetch rutas frecuentes en segundo plano
+  useCRMPrefetch()
+
+  // Keyboard shortcuts
   useKeyboardShortcuts()
 
   // Evitar hydration mismatch
@@ -36,16 +64,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [])
 
   useEffect(() => {
+    let isMounted = true
+
     const getOrganization = async () => {
       const supabase = getSupabaseBrowserClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user || !isMounted) return
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("current_organization_id")
         .eq("id", user.id)
         .single()
+
+      if (!isMounted) return
 
       if (profile?.current_organization_id) {
         setOrganizationId(profile.current_organization_id)
@@ -59,20 +91,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           .limit(1)
           .single()
 
-        if (membership) {
+        if (membership && isMounted) {
           setOrganizationId(membership.organization_id)
         }
       }
     }
+
     getOrganization()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
+      <SidebarOptimized open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
       <div className="lg:pl-72">
-        {organizationId && <TrialBanner organizationId={organizationId} />}
+        {mounted && organizationId && <TrialBanner organizationId={organizationId} />}
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-6 lg:p-8">
@@ -80,17 +117,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
 
-      {/* Welcome tour for new users */}
-      <WelcomeTour />
+      {/* Lazy load componentes no críticos */}
+      {mounted && (
+        <>
+          <WelcomeTour />
 
-      {/* Keyboard shortcuts dialog */}
-      <KeyboardShortcutsDialog 
-        open={shortcutsOpen} 
-        onOpenChange={setShortcutsOpen} 
-      />
+          <KeyboardShortcutsDialog
+            open={shortcutsOpen}
+            onOpenChange={setShortcutsOpen}
+          />
 
-      {/* Toast notifications - solo renderizar en cliente */}
-      {mounted && <Toaster />}
+          {/* Toast notifications */}
+          <Toaster />
+        </>
+      )}
     </div>
   )
 }

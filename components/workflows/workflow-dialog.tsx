@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 // ✅ FIX WF-006: Importar constantes centralizadas
 import { WORKFLOW_TRIGGER_OPTIONS } from "@/lib/workflow-constants"
+// ✅ FEATURE: Template variables helper
+import { TemplateVariablesHelper } from "./template-variables-helper"
 
 interface WorkflowDialogProps {
     open: boolean
@@ -125,6 +127,20 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                     onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                                 />
                                 <Label htmlFor="is_active">Activo</Label>
+                            </div>
+                        </div>
+                        {/* ✅ FEATURE: Template variables helper */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-blue-900 mb-1">
+                                        💡 Usa Variables Dinámicas
+                                    </p>
+                                    <p className="text-xs text-blue-700">
+                                        Personaliza tus acciones con datos del evento usando <code className="bg-blue-100 px-1 py-0.5 rounded">{`{{variable}}`}</code>
+                                    </p>
+                                </div>
+                                <TemplateVariablesHelper triggerType={formData.trigger_type || "contact.created"} />
                             </div>
                         </div>
                         {/* Advanced fields hidden for visual builder simplicity */}

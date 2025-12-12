@@ -44,11 +44,11 @@ export async function POST(request: NextRequest) {
         const { email, password } = validation.data
 
         // Verificar rate limit ANTES de intentar login
-        const rateLimitCheck = checkAuthRateLimit(email, ip)
+        const rateLimitCheck = await checkAuthRateLimit(email, ip)
         if (!rateLimitCheck.allowed) {
             return NextResponse.json(
-                { 
-                    success: false, 
+                {
+                    success: false,
                     error: rateLimitCheck.error,
                     blocked: true
                 },
@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
         if (error) {
             // Registrar intento fallido
             const identifier = getLoginIdentifier(email, ip)
-            recordFailedLogin(identifier)
+            await recordFailedLogin(identifier)
 
             // Obtener intentos restantes
-            const status = checkAuthRateLimit(email, ip)
+            const status = await checkAuthRateLimit(email, ip)
 
             // Mensaje de error amigable
             let errorMessage = 'Email o contraseña incorrectos'
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
         // Login exitoso - limpiar intentos
         const identifier = getLoginIdentifier(email, ip)
-        clearLoginAttempts(identifier)
+        await clearLoginAttempts(identifier)
 
         // PROTECCIÓN CONTRA SESSION FIXATION (Resuelve AUTH-003)
         // Supabase ya regenera el session token automáticamente en signInWithPassword,
