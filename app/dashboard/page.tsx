@@ -1,11 +1,15 @@
+import { Suspense } from 'react'
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { AIChatbot } from "@/components/chatbot/ai-chatbot"
 import { DashboardWrapper } from "@/components/dashboard/dashboard-wrapper"
+import { DashboardModuleSkeleton } from '@/components/ui/module-skeleton'
 
 export default function DashboardPage() {
   return (
     <DashboardLayout>
-      <DashboardWrapper />
+      <Suspense fallback={<DashboardModuleSkeleton />}>
+        <DashboardWrapper />
+      </Suspense>
       <AIChatbot />
     </DashboardLayout>
   )

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { RefreshCw, Search } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { KanbanModuleSkeleton } from '@/components/ui/module-skeleton'
 import {
   Select,
   SelectContent,
@@ -196,9 +197,7 @@ export default function PipelinePage() {
         {/* Kanban Board */}
         <div className="flex-1 overflow-hidden">
           {loading && opportunities.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
+            <KanbanModuleSkeleton />
           ) : (
             <KanbanBoard
               opportunities={opportunities}

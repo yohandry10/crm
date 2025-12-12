@@ -11,7 +11,13 @@
       "Bash(timeout:*)",
       "Bash(node test-rate-limit.js:*)",
       "Bash(redis-cli:*)",
-      "Bash(pnpm dev)"
+      "Bash(pnpm dev)",
+      "Bash(taskkill /F /PID 18412)",
+      "Bash(taskkill //F //PID 18412)",
+      "Bash(taskkill //F //PID 12616)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(del nul)"
     ]
   }
 }

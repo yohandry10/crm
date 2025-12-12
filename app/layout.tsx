@@ -3,6 +3,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
+import { NavigationLoadingProvider } from "@/components/providers/navigation-loading-provider"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -31,7 +32,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-        {children}
+        <NavigationLoadingProvider>
+          {children}
+        </NavigationLoadingProvider>
       </body>
     </html>
   )
