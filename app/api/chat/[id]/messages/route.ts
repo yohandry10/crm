@@ -9,7 +9,7 @@ const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 50 }
 // GET: List messages for a conversation
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const rateLimitResponse = await rateLimit(request, READ_LIMIT)
@@ -66,7 +66,7 @@ const createMessageSchema = z.object({
 // POST: Send a message
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)

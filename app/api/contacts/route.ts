@@ -86,59 +86,38 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    console.log("=== CONTACTS API POST: Iniciando ===")
     try {
-        console.log("1. Verificando rate limit...")
         const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
-        if (rateLimitResponse) {
-            console.log("ERROR: Rate limit excedido")
-            return rateLimitResponse
-        }
-        console.log("2. Rate limit OK")
+        if (rateLimitResponse) return rateLimitResponse
 
-        console.log("3. Obteniendo contexto de autenticación...")
         const { supabase, user, organizationId } = await getAuthenticatedContext()
-        console.log("4. Contexto obtenido:", { userId: user?.id, organizationId })
-
         const body = await request.json()
-        console.log("5. Body recibido:", JSON.stringify(body))
 
         // VERIFICACIÓN DE LÍMITES DEL PLAN
-        console.log("6. Verificando límites del plan...")
         const planCheck = await requirePlanLimit(organizationId, "contacts")
         if (!planCheck.allowed) {
-            console.log("ERROR: Límite de plan excedido")
             return NextResponse.json({
                 success: false,
                 error: planCheck.error,
                 limit: planCheck.limit
             }, { status: 403 })
         }
-        console.log("6. Plan limits OK")
 
-        console.log("7. Validando schema...")
         const validation = contactSchema.safeParse(body)
 
         if (!validation.success) {
-            console.log("ERROR: Validación fallida:", validation.error.errors)
             return NextResponse.json({
                 success: false,
                 error: "Validation failed",
                 details: validation.error.errors
             }, { status: 400 })
         }
-        console.log("8. Validación OK")
 
-        console.log("9. Creando cliente Supabase admin...")
-        console.log("10. Usando cliente autenticado con RLS")
-
-        console.log("11. Insertando contacto en la BD vía RLS...")
         const insertData = {
             ...validation.data,
             organization_id: organizationId,
             created_by: user.id,
         }
-        console.log("12. Datos a insertar:", JSON.stringify(insertData))
 
         const { data, error } = await supabase
             .from("contacts")
@@ -146,13 +125,9 @@ export async function POST(request: NextRequest) {
             .select()
             .single()
 
-        if (error) {
-            console.log("ERROR EN INSERT:", error)
-            throw error
-        }
-        console.log("13. Insert exitoso, data:", data?.id)
+        if (error) throw error
 
-        console.log("14. Logging audit...")
+        // Audit logging (non-blocking)
         try {
             await logAudit({
                 supabase,
@@ -164,12 +139,11 @@ export async function POST(request: NextRequest) {
                 recordId: data.id,
                 newData: validation.data,
             })
-            console.log("15. Audit OK")
         } catch (auditError) {
             console.error("Error en audit (no bloqueante):", auditError)
         }
 
-        console.log("16. Emitiendo evento...")
+        // Event emission (non-blocking)
         try {
             const { emitEvent } = await import('@/lib/events')
             await emitEvent({
@@ -184,32 +158,20 @@ export async function POST(request: NextRequest) {
                     lead_status: data.lead_status
                 }
             }, supabase as any)
-            console.log("17. Evento emitido OK")
         } catch (eventError) {
             console.error("Error en evento (no bloqueante):", eventError)
         }
 
-        console.log("=== CONTACTS API POST: ÉXITO ===")
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        console.log("=== CONTACTS API POST: ERROR CAPTURADO ===")
-        console.log("Error message:", error.message)
-        console.log("Error code:", error.code)
-        console.log("Error completo:", JSON.stringify(error, null, 2))
-
-        try {
-            await logError({
-                errorId: crypto.randomUUID(),
-                endpoint: "/api/contacts",
-                method: "POST",
-                error,
-            })
-        } catch (logErr) {
-            console.error("Error logging error:", logErr)
-        }
+        await logError({
+            errorId: crypto.randomUUID(),
+            endpoint: "/api/contacts",
+            method: "POST",
+            error,
+        })
 
         const status = getHttpStatusForError(error)
-        console.log("Status a devolver:", status)
 
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) },

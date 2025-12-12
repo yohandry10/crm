@@ -1,3 +1,4 @@
+import "@/polyfills/self"
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"

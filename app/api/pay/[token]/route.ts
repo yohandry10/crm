@@ -26,7 +26,7 @@ function getAllowedOrigin(request: NextRequest): string | null {
 }
 
 interface RouteParams {
-    params: { token: string }
+    params: Promise<{ token: string }>
 }
 
 /**
@@ -44,8 +44,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
         }
 
+        const { token } = await params
         const supabase = getServiceClient()
-        const token = params.token
 
         if (!token || token.length < 32) {
             return NextResponse.json(
@@ -157,8 +157,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: "Origin not allowed" }, { status: 403 })
         }
 
+        const { token } = await params
         const supabase = getServiceClient()
-        const token = params.token
         const body = await request.json()
         const { proof_url, payment_method, notes } = body
 

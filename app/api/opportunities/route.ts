@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
 
         const { name, contact_id, stage_id, expected_revenue, expected_close_date, description, probability } = validation.data
 
+        // SEGURIDAD: Usar SOLO cliente autenticado con RLS (NO Service Client)
+        // Resuelve: SEC-003 del reporte forense
+
         // Mapeo de IDs semánticos a nombres de stage
         const stageNameMap: Record<string, { name: string, position: number, probability: number }> = {
             'prospecting': { name: 'Prospección', position: 1, probability: 10 },
@@ -76,10 +79,6 @@ export async function POST(request: NextRequest) {
             'closed_lost': { name: 'Perdido', position: 6, probability: 0 },
         }
 
-        // Usar service role para operaciones de BD
-        const { createSupabaseServiceClient } = await import("@/lib/supabase-service")
-        const supabaseAdmin = createSupabaseServiceClient()
-
         // Obtener o crear el stage
         let finalStageId = stage_id
         let finalProbability = probability
@@ -88,11 +87,10 @@ export async function POST(request: NextRequest) {
             // Es un ID semántico, buscar o crear el stage en la BD
             const stageInfo = stageNameMap[stage_id]
 
-            // Buscar stage existente por nombre
-            const { data: existingStage } = await supabaseAdmin
+            // Buscar stage existente por nombre (RLS protege organization_id)
+            const { data: existingStage } = await supabase
                 .from('pipeline_stages')
                 .select('id, win_probability')
-                .eq('organization_id', organizationId)
                 .eq('name', stageInfo.name)
                 .single()
 
@@ -100,11 +98,10 @@ export async function POST(request: NextRequest) {
                 finalStageId = existingStage.id
                 if (!finalProbability) finalProbability = existingStage.win_probability
             } else {
-                // Crear el stage
-                const { data: newStage, error: stageError } = await supabaseAdmin
+                // Crear el stage (RLS automáticamente setea organization_id)
+                const { data: newStage, error: stageError } = await supabase
                     .from('pipeline_stages')
                     .insert({
-                        organization_id: organizationId,
                         name: stageInfo.name,
                         position: stageInfo.position,
                         win_probability: stageInfo.probability,
@@ -124,10 +121,9 @@ export async function POST(request: NextRequest) {
             }
         } else if (!stage_id) {
             // No se proporcionó stage, usar el primero disponible o crear uno por defecto
-            const { data: defaultStage } = await supabaseAdmin
+            const { data: defaultStage } = await supabase
                 .from('pipeline_stages')
                 .select('id, win_probability')
-                .eq('organization_id', organizationId)
                 .order('position', { ascending: true })
                 .limit(1)
                 .single()
@@ -136,11 +132,10 @@ export async function POST(request: NextRequest) {
                 finalStageId = defaultStage.id
                 if (!finalProbability) finalProbability = defaultStage.win_probability
             } else {
-                // Crear stage por defecto
-                const { data: newStage, error: stageError } = await supabaseAdmin
+                // Crear stage por defecto (RLS protege)
+                const { data: newStage, error: stageError } = await supabase
                     .from('pipeline_stages')
                     .insert({
-                        organization_id: organizationId,
                         name: 'Prospección',
                         position: 1,
                         win_probability: 10,
@@ -157,13 +152,12 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Verificar que el contact_id sea válido si se proporciona
+        // Verificar que el contact_id sea válido (RLS protege)
         if (contact_id) {
-            const { data: contact } = await supabaseAdmin
+            const { data: contact } = await supabase
                 .from('contacts')
                 .select('id')
                 .eq('id', contact_id)
-                .eq('organization_id', organizationId)
                 .single()
 
             if (!contact) {
@@ -173,11 +167,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Debes seleccionar un contacto" }, { status: 400 })
         }
 
-        const { data, error } = await supabaseAdmin
+        // Insertar oportunidad (RLS protege organization_id y permisos)
+        const { data, error } = await supabase
             .from('opportunities')
             .insert({
-                organization_id: organizationId,
-                created_by: user.id,
                 name,
                 contact_id,
                 stage_id: finalStageId,

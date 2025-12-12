@@ -1,3 +1,8 @@
+/**
+ * API de Pagos con Idempotencia
+ * Resuelve: PAY-001 del reporte forense
+ */
+
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
@@ -65,7 +70,51 @@ export async function POST(request: NextRequest) {
             throw new ValidationError(`Gateway inválido. Permitidos: ${allowedGateways.join(', ')}`)
         }
 
-        // MULTI-TENANT: Insert with organization_id
+        // ====================================================================
+        // IDEMPOTENCIA: Prevenir pagos duplicados (Resuelve PAY-001)
+        // ====================================================================
+
+        // 1. Obtener o generar idempotency key
+        // El cliente puede enviar su propia key en el header, o generamos una
+        const idempotencyKey = request.headers.get('idempotency-key') ||
+                              request.headers.get('x-idempotency-key') ||
+                              `auto-${invoice_id}-${amount}-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`
+
+        console.log(`💳 Processing payment with idempotency key: ${idempotencyKey}`)
+
+        // 2. Verificar si ya existe un pago con esta idempotency key
+        const { data: existingPayment, error: existingError } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('idempotency_key', idempotencyKey)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+        if (existingPayment) {
+            // Pago ya procesado anteriormente, retornar el mismo resultado
+            console.log(`⚠️ Idempotent request detected. Returning cached payment: ${existingPayment.id}`)
+
+            // Obtener info de la factura para la respuesta
+            const { data: invoice } = await supabase
+                .from('invoices')
+                .select('total, status')
+                .eq('id', invoice_id)
+                .single()
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    payment_id: existingPayment.id,
+                    is_fully_paid: invoice?.status === 'paid',
+                    total_paid: existingPayment.amount
+                },
+                message: 'Pago ya procesado anteriormente',
+                cached: true,
+                idempotency_key: idempotencyKey
+            })
+        }
+
+        // 3. MULTI-TENANT: Insert with organization_id + idempotency_key
         const { data: payment, error: paymentError } = await supabase
             .from('payments')
             .insert({
@@ -77,14 +126,51 @@ export async function POST(request: NextRequest) {
                 gateway,
                 transaction_id,
                 status: 'completed',
-                paid_at: new Date().toISOString()
+                paid_at: new Date().toISOString(),
+                idempotency_key: idempotencyKey
             })
             .select()
             .single()
 
-        if (paymentError) throw paymentError
+        if (paymentError) {
+            // 4. Manejar race conditions en idempotency_key
+            if (paymentError.code === '23505' && paymentError.message?.includes('idempotency_key')) {
+                console.log('⚠️ Race condition detected on idempotency_key, fetching existing payment')
 
-        // Update invoice status if fully paid
+                // Intentar obtener el pago que ganó la race condition
+                const { data: racedPayment } = await supabase
+                    .from('payments')
+                    .select('*')
+                    .eq('idempotency_key', idempotencyKey)
+                    .eq('organization_id', organizationId)
+                    .single()
+
+                if (racedPayment) {
+                    const { data: invoice } = await supabase
+                        .from('invoices')
+                        .select('total, status')
+                        .eq('id', invoice_id)
+                        .single()
+
+                    return NextResponse.json({
+                        success: true,
+                        data: {
+                            payment_id: racedPayment.id,
+                            is_fully_paid: invoice?.status === 'paid',
+                            total_paid: racedPayment.amount
+                        },
+                        message: 'Pago procesado (race condition handled)',
+                        cached: true,
+                        idempotency_key: idempotencyKey
+                    })
+                }
+            }
+            throw paymentError
+        }
+
+        console.log(`✅ New payment created: ${payment.id}`)
+
+        // 5. Update invoice status if fully paid
         const { data: invoice } = await supabase
             .from('invoices')
             .select('total')
@@ -104,16 +190,26 @@ export async function POST(request: NextRequest) {
             await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoice_id)
         }
 
+        // 6. Emit event
         const { emitEvent } = await import('@/lib/events')
         await emitEvent({
             event_type: 'payment.completed', source: 'internal',
-            payload: { payment_id: payment.id, organization_id: organizationId, user_id: user.id, invoice_id, amount, gateway }
+            payload: {
+                payment_id: payment.id,
+                organization_id: organizationId,
+                user_id: user.id,
+                invoice_id,
+                amount,
+                gateway,
+                idempotency_key: idempotencyKey
+            }
         }, supabase as any)
 
         return NextResponse.json({
             success: true,
             data: { payment_id: payment.id, is_fully_paid: isFullyPaid, total_paid: totalPaidAmount },
-            message: isFullyPaid ? 'Pago completado - Factura pagada' : 'Pago registrado'
+            message: isFullyPaid ? 'Pago completado - Factura pagada' : 'Pago registrado',
+            idempotency_key: idempotencyKey
         })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/payments", method: "POST", error, requestBody })
