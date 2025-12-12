@@ -10,7 +10,8 @@
       "Bash(test:*)",
       "Bash(timeout:*)",
       "Bash(node test-rate-limit.js:*)",
-      "Bash(redis-cli:*)"
+      "Bash(redis-cli:*)",
+      "Bash(pnpm dev)"
     ]
   }
 }

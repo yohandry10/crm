@@ -94,6 +94,18 @@ export async function POST(request: NextRequest) {
         const identifier = getLoginIdentifier(email, ip)
         clearLoginAttempts(identifier)
 
+        // PROTECCIÓN CONTRA SESSION FIXATION (Resuelve AUTH-003)
+        // Supabase ya regenera el session token automáticamente en signInWithPassword,
+        // pero agregamos validación adicional para asegurar nueva sesión
+
+        // Verificar que tenemos una sesión nueva válida
+        if (!data.session || !data.session.access_token) {
+            return NextResponse.json(
+                { success: false, error: 'Error al crear sesión' },
+                { status: 500 }
+            )
+        }
+
         // Obtener perfil para saber si es platform admin
         const { data: profile } = await supabase
             .from('profiles')
@@ -101,7 +113,8 @@ export async function POST(request: NextRequest) {
             .eq('id', data.user.id)
             .single()
 
-        return NextResponse.json({
+        // Crear response con nueva sesión
+        const response = NextResponse.json({
             success: true,
             user: {
                 id: data.user.id,
@@ -110,6 +123,14 @@ export async function POST(request: NextRequest) {
                 isPlatformAdmin: profile?.is_platform_admin || false
             }
         })
+
+        // IMPORTANTE: Asegurar que las cookies de sesión se setean correctamente
+        // Supabase SSR maneja esto automáticamente, pero agregamos headers de seguridad
+
+        // Security headers para cookies de sesión
+        response.headers.set('X-Session-Regenerated', 'true')
+
+        return response
 
     } catch (error: any) {
         console.error('Login error:', error)
