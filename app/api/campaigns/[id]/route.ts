@@ -126,6 +126,18 @@ export async function DELETE(
             return NextResponse.json({ success: false, error: "Campaña no encontrada" }, { status: 404 })
         }
 
+        // Check for dependencies before deletion
+        const { checkDependencies } = await import('@/lib/dependency-checker')
+        const dependencyCheck = await checkDependencies(supabase, 'campaigns', id, organizationId)
+
+        if (dependencyCheck.hasDependencies) {
+            return NextResponse.json({
+                success: false,
+                error: "No se puede eliminar esta campaña porque tiene registros relacionados",
+                dependencies: dependencyCheck.dependencies
+            }, { status: 409 })
+        }
+
         const { error } = await supabase
             .from('campaigns')
             .delete()

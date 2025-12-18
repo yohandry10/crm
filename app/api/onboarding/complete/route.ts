@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedClientAndUser } from "@/lib/supabase-auth"
 import { createClient } from "@supabase/supabase-js"
+import { createRequestLogger } from "@/lib/logger"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     const { supabase, user } = await getAuthenticatedClientAndUser()
     const body = await request.json()
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Send team invitations
     if (teamMembers && teamMembers.length > 0) {
+      log.info("Creating onboarding invitations", { count: teamMembers.length, organizationId })
       for (const member of teamMembers) {
         const token = crypto.randomUUID().replace(/-/g, "")
         
@@ -78,8 +81,6 @@ export async function POST(request: NextRequest) {
             token,
             invited_by: user.id,
           })
-
-        console.log(`Invitation for ${member.email}: /signup?token=${token}`)
       }
     }
 
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       message: "Onboarding completado",
     })
   } catch (error: any) {
-    console.error("Onboarding error:", error)
+    log.error("Onboarding error", error)
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

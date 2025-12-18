@@ -1,0 +1,29 @@
+# Coverage Configuration
+# Este archivo define qué archivos se incluyen/excluyen del análisis de coverage
+
+[run]
+omit =
+    */node_modules/*
+    */tests/*
+    */.next/*
+    */.next-build/*
+    */coverage/*
+    *.config.js
+    *.config.ts
+    */dist/*
+    */build/*
+
+[report]
+exclude_lines =
+    # Líneas que no se cuentan en coverage
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    # Código de desarrollo/debug
+    console.log
+    console.warn
+    console.error

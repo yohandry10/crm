@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#workflows-templates--ux`.
+
 # ✅ Implementación Completa: Variables de Template en Workflows
 
 ## 🎉 RESUMEN

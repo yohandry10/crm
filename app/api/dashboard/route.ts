@@ -2,17 +2,23 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { formatDateOnlyInTimezone, getLastNDaysRangeInTimezone, getMonthRangeInTimezone, getOrganizationTimezone } from "@/lib/date-utils"
 import crypto from "crypto"
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const now = new Date()
-        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+        const timezone = await getOrganizationTimezone(supabase, organizationId)
+        const thisMonth = getMonthRangeInTimezone(timezone, now, 0)
+        const lastMonth = getMonthRangeInTimezone(timezone, now, -1)
+        const last30Days = getLastNDaysRangeInTimezone(timezone, now, 30)
 
         const [
             { count: contactsThisMonth },
@@ -25,16 +31,16 @@ export async function GET(_request: NextRequest) {
             { data: stages }
         ] = await Promise.all([
             supabase.from("contacts").select("*", { count: "exact", head: true })
-                .eq("organization_id", organizationId).gte("created_at", thisMonthStart.toISOString()),
+                .eq("organization_id", organizationId).gte("created_at", thisMonth.startUtc.toISOString()),
             supabase.from("invoices").select("total, status")
-                .eq("organization_id", organizationId).gte("issue_date", thisMonthStart.toISOString()).in("status", ["paid", "sent"]),
+                .eq("organization_id", organizationId).gte("issue_date", thisMonth.startDate).in("status", ["paid", "sent"]),
             supabase.from("products").select("*", { count: "exact", head: true })
                 .eq("organization_id", organizationId)
                 .eq("is_service", false),
             supabase.from("contacts").select("*", { count: "exact", head: true })
-                .eq("organization_id", organizationId).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
+                .eq("organization_id", organizationId).gte("created_at", lastMonth.startUtc.toISOString()).lte("created_at", lastMonth.endUtc.toISOString()),
             supabase.from("invoices").select("total")
-                .eq("organization_id", organizationId).gte("issue_date", lastMonthStart.toISOString()).lte("issue_date", lastMonthEnd.toISOString()).in("status", ["paid", "sent"]),
+                .eq("organization_id", organizationId).gte("issue_date", lastMonth.startDate).lte("issue_date", lastMonth.endDate).in("status", ["paid", "sent"]),
             // Fetch opportunities for Pipeline & Activity
             supabase.from("opportunities")
                 .select("id, created_at, expected_revenue, stage_id")
@@ -44,7 +50,7 @@ export async function GET(_request: NextRequest) {
                 .select("id, created_at")
                 .eq("organization_id", organizationId)
                 .not("lead_status", "is", null)
-                .gte("created_at", new Date(now.setDate(now.getDate() - 30)).toISOString()), // Last 30 days
+                .gte("created_at", last30Days.startUtc.toISOString()), // Last 30 days (org timezone)
             supabase.from("pipeline_stages")
                 .select("id, name, position")
                 .eq("organization_id", organizationId)
@@ -68,20 +74,19 @@ export async function GET(_request: NextRequest) {
 
         // --- Process Activity Overview (Last 30 days) ---
         const activityMap = new Map<string, { leads: number, deals: number }>()
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const thirtyDaysAgo = last30Days.startUtc
 
         // Init last 30 days with 0
         for (let i = 0; i <= 30; i++) {
             const d = new Date(thirtyDaysAgo)
-            d.setDate(d.getDate() + i)
-            const dateStr = d.toISOString().split('T')[0] // YYYY-MM-DD
+            d.setUTCDate(d.getUTCDate() + i)
+            const dateStr = formatDateOnlyInTimezone(d, timezone)
             activityMap.set(dateStr, { leads: 0, deals: 0 })
         }
 
         // Aggregate Leads
         leadsData?.forEach((lead: any) => {
-            const dateStr = new Date(lead.created_at).toISOString().split('T')[0]
+            const dateStr = formatDateOnlyInTimezone(new Date(lead.created_at), timezone)
             if (activityMap.has(dateStr)) {
                 const entry = activityMap.get(dateStr)!
                 entry.leads++
@@ -90,7 +95,7 @@ export async function GET(_request: NextRequest) {
 
         // Aggregate Deals (Opportunities) - Filter for Last 30 days
         opportunities?.forEach((opp: any) => {
-            const dateStr = new Date(opp.created_at).toISOString().split('T')[0]
+            const dateStr = formatDateOnlyInTimezone(new Date(opp.created_at), timezone)
             if (activityMap.has(dateStr)) {
                 const entry = activityMap.get(dateStr)!
                 entry.deals++
@@ -143,7 +148,20 @@ export async function GET(_request: NextRequest) {
             data: { stats, activityOverview, pipeline, recentInvoices: recentInvoices || [] },
             cachedAt: new Date().toISOString()
         })
-        response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=0')
+
+        // ✅ SECURITY: Prevent cache leaks between organizations
+        // Cache más agresivo: 2 min de cache fresco, 5 min stale permitido
+        response.headers.set('Cache-Control', 'private, max-age=120, stale-while-revalidate=300')
+
+        // Vary header ensures different cache entries for different auth contexts
+        response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
+
+        // Unique cache key per organization to prevent cross-org data leaks
+        const cacheKey = crypto.createHash('sha256')
+            .update(`dashboard:${organizationId}:${formatDateOnlyInTimezone(now, timezone)}`)
+            .digest('hex')
+        response.headers.set('X-Cache-Key', cacheKey)
+
         return response
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/dashboard", method: "GET", error })

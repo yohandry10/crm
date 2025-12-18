@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-service'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { createRequestLogger } from '@/lib/logger'
 
 /**
  * Webhook endpoint para recibir acciones de N8N
  * N8N puede enviar datos aquí para actualizar el CRM
  */
 export async function POST(request: NextRequest) {
-  console.log('[N8N Webhook] POST request received')
+  const log = createRequestLogger(request)
   
   try {
     const rate = await rateLimit(request, RATE_LIMITS.webhook)
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Validar secret (opcional pero recomendado)
     const authHeader = request.headers.get('x-n8n-secret')
-    console.log('[N8N Webhook] Auth check:', { hasSecret: !!N8N_WEBHOOK_SECRET, hasHeader: !!authHeader })
+    log.debug('[N8N Webhook] Auth check', { hasSecret: !!N8N_WEBHOOK_SECRET, hasHeader: !!authHeader })
     
     if (N8N_WEBHOOK_SECRET && authHeader !== N8N_WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { action, data, organization_id } = body
-    console.log('[N8N Webhook] Body:', { action, organization_id, data })
+    log.info('[N8N Webhook] Request', { action, organization_id })
 
     if (!action || !organization_id) {
       return NextResponse.json(
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('[N8N Webhook] Error:', error)
+    log.error('[N8N Webhook] Error', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

@@ -7,6 +7,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 
 const quoteItemSchema = z.object({
+    product_id: z.string().uuid("ID de producto inválido").optional().nullable(),
     description: z.string().min(1, "Descripción requerida"),
     quantity: z.number().positive("Cantidad debe ser positiva"),
     unit_price: z.number().min(0, "Precio no puede ser negativo")
@@ -92,7 +93,8 @@ export async function POST(request: NextRequest) {
 
         const itemsWithQuoteId = items.map((item: any) => ({
             quote_id: quote.id, description: item.description, quantity: item.quantity,
-            unit_price: item.unit_price, total: Number(item.quantity) * Number(item.unit_price)
+            unit_price: item.unit_price, total: Number(item.quantity) * Number(item.unit_price),
+            product_id: item.product_id || null,
         }))
 
         const { error: itemsError } = await supabase.from('quote_items').insert(itemsWithQuoteId)

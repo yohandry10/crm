@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe"
 import { createClient } from "@supabase/supabase-js"
+import { logger } from "@/lib/logger"
 import Stripe from "stripe"
 
 // Supabase admin client para webhooks
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET)
   } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message)
+    logger.warn("Stripe webhook signature verification failed", { message: err?.message })
     return NextResponse.json(
       { error: `Webhook Error: ${err.message}` },
       { status: 400 }
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (existingEvent) {
-    console.log(`Event ${event.id} already processed, skipping`)
+    logger.info("Stripe event already processed, skipping", { eventId: event.id, eventType: event.type })
     return NextResponse.json({ received: true, skipped: true })
   }
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     data: event.data,
   })
 
-  console.log(`Processing Stripe event: ${event.type}`)
+  logger.info("Processing Stripe event", { eventId: event.id, eventType: event.type })
 
   try {
     switch (event.type) {
@@ -89,12 +90,12 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        logger.info("Unhandled Stripe event type", { eventId: event.id, eventType: event.type })
     }
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
-    console.error(`Error processing ${event.type}:`, error)
+    logger.error("Error processing Stripe event", error, { eventId: event.id, eventType: event.type })
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -108,7 +109,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const billingPeriod = session.metadata?.billing_period
 
   if (!organizationId || !plan) {
-    console.error("Missing metadata in checkout session")
+    logger.error("Missing metadata in checkout session", undefined, { hasOrganizationId: !!organizationId, hasPlan: !!plan })
     return
   }
 
@@ -125,7 +126,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     p_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
   })
 
-  console.log(`Checkout completed for org ${organizationId}, plan: ${plan}`)
+  logger.info("Stripe checkout completed", { organizationId, plan })
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
@@ -143,7 +144,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     p_period_end: invoice.period_end ? new Date(invoice.period_end * 1000).toISOString() : null,
   })
 
-  console.log(`Invoice paid: ${invoice.id}`)
+  logger.info("Stripe invoice paid", { invoiceId: invoice.id })
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
@@ -151,7 +152,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     p_stripe_customer_id: invoice.customer as string,
   })
 
-  console.log(`Payment failed for customer: ${invoice.customer}`)
+  logger.info("Stripe payment failed", { customerId: invoice.customer })
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -175,7 +176,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     })
     .eq("id", org.id)
 
-  console.log(`Subscription updated: ${subscription.id}`)
+  logger.info("Stripe subscription updated", { subscriptionId: subscription.id })
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -183,5 +184,5 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     p_stripe_subscription_id: subscription.id,
   })
 
-  console.log(`Subscription cancelled: ${subscription.id}`)
+  logger.info("Stripe subscription cancelled", { subscriptionId: subscription.id })
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { createRequestLogger } from '@/lib/logger'
 
 // GET - Obtener formulario por ID
 export async function GET(
@@ -7,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const log = createRequestLogger(request)
     const { id } = await params
     const supabase = await createSupabaseRouteHandler()
     
@@ -28,7 +30,8 @@ export async function GET(
 
     return NextResponse.json(form)
   } catch (error: any) {
-    console.error('[Forms API] Error:', error)
+    const log = createRequestLogger(request)
+    log.error('[Forms API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
@@ -39,6 +42,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const log = createRequestLogger(request)
     const { id } = await params
     const supabase = await createSupabaseRouteHandler()
     
@@ -80,7 +84,8 @@ export async function PUT(
 
     return NextResponse.json(form)
   } catch (error: any) {
-    console.error('[Forms API] Error:', error)
+    const log = createRequestLogger(request)
+    log.error('[Forms API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
@@ -91,6 +96,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const log = createRequestLogger(request)
     const { id } = await params
     const supabase = await createSupabaseRouteHandler()
     
@@ -108,7 +114,8 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('[Forms API] Error:', error)
+    const log = createRequestLogger(request)
+    log.error('[Forms API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

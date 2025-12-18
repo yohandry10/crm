@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { logger } from "./logger"
 
 export interface PlanLimitResult {
   allowed: boolean
@@ -34,7 +35,7 @@ export async function checkPlanLimit(
     if (error) throw error
 
     if (!data || data.length === 0) {
-      console.warn("No plan limit data returned for org:", organizationId)
+      logger.warn("No plan limit data returned for org", { organizationId, resource })
       return {
         allowed: false,
         currentCount: 0,
@@ -51,7 +52,7 @@ export async function checkPlanLimit(
       ? result.allowed
       : currentCount < maxAllowed
 
-    console.log("Plan limit check result:", { organizationId, resource, currentCount, maxAllowed, planName, allowed })
+    logger.debug("Plan limit check result", { organizationId, resource, currentCount, maxAllowed, planName, allowed })
 
     return {
       allowed,
@@ -60,7 +61,7 @@ export async function checkPlanLimit(
       planName,
     }
   } catch (err) {
-    console.error("Exception checking plan limits:", err)
+    logger.error("Exception checking plan limits", err, { organizationId, resource })
     return {
       allowed: false,
       currentCount: 0,

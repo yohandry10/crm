@@ -11,6 +11,8 @@ import { createClient } from '@supabase/supabase-js'
 import { validateActionParams, sanitizeActionParams } from './workflow-validators'
 import { WORKFLOW_ACTIONS, WorkflowActionType } from './workflow-constants'
 import { replaceTemplateVariablesInObject } from './workflow-templates'
+import { webhookCircuitBreaker } from './circuit-breaker'
+import { logger } from './logger'
 
 // =====================================================
 // TYPES
@@ -337,32 +339,43 @@ async function executeWebhook(
     }
 
     try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 10000)
+        // Proteger webhook con Circuit Breaker
+        const result = await webhookCircuitBreaker(url, async () => {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 10000)
 
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'CRM-Workflow-Webhook/1.0',
-                ...headers
-            },
-            body: JSON.stringify(body || context.payload),
-            signal: controller.signal
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'CRM-Workflow-Webhook/1.0',
+                    ...headers
+                },
+                body: JSON.stringify(body || context.payload),
+                signal: controller.signal
+            })
+
+            clearTimeout(timeout)
+
+            // Si el response no es OK, lanzar error para que el circuit breaker lo detecte
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+
+            return response
         })
 
-        clearTimeout(timeout)
-
         return {
-            success: response.ok,
-            result: { status: response.status, url },
-            error: response.ok ? undefined : `HTTP ${response.status}`,
+            success: true,
+            result: { status: result.status, url },
             duration_ms: Date.now() - startTime
         }
     } catch (error: any) {
         return {
             success: false,
-            error: error.name === 'AbortError' ? 'Timeout después de 10 segundos' : error.message,
+            error: error.name === 'AbortError'
+                ? 'Timeout después de 10 segundos'
+                : error.message,
             duration_ms: Date.now() - startTime
         }
     }
@@ -459,7 +472,7 @@ export async function executeWorkflowAction(
     // Validate params
     const validation = validateActionParams(actionType, params)
     if (!validation.valid) {
-        console.warn(`[WorkflowExecutor] Validation warning for ${actionType}:`, validation.errors)
+        logger.warn('Workflow action params validation warning', { actionType, errors: validation.errors })
         // Continue with execution - validation is advisory for now
     }
 
@@ -527,7 +540,7 @@ export async function executeWorkflowActions(
                 errors.push(`${action.type}: ${result.error}`)
             }
         } catch (error: any) {
-            console.error(`[WorkflowExecutor] Unexpected error in ${action.type}:`, error)
+            logger.error('Unexpected error executing workflow action', error, { actionType: action.type })
             executedActions.push({
                 action: action.type,
                 success: false,
@@ -554,3 +567,8 @@ export function createWorkflowSupabaseClient() {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 }
+
+/**
+ * Alias de executeWorkflowAction para compatibilidad con BullMQ worker
+ */
+export const executeAction = executeWorkflowAction

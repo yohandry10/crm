@@ -33,6 +33,7 @@ export const contactSchema = createContactSchema
 // =====================================================
 
 export const invoiceItemSchema = z.object({
+    product_id: z.string().uuid("Invalid product ID").optional().nullable(), // ✅ FIX P1: Validate product_id format
     description: z.string().min(1, "Description is required"),
     quantity: z.number().positive("Quantity must be positive"),
     unit_price: z.number().nonnegative("Unit price must be non-negative"),
@@ -79,6 +80,25 @@ export const updatePaymentSchema = z.object({
 
 // Legacy export
 export const paymentSchema = createPaymentSchema
+
+// =====================================================
+// OPPORTUNITY SCHEMAS
+// =====================================================
+
+export const createOpportunitySchema = z.object({
+    name: z.string().min(1, "Nombre requerido").max(200),
+    contact_id: z.string().uuid("ID de contacto inválido"),
+    stage_id: z.string().optional().nullable(),
+    expected_revenue: z.number().min(0, "El valor debe ser positivo").optional().default(0),
+    expected_close_date: z.string().optional().nullable(),
+    description: z.string().max(1000, "Máximo 1000 caracteres").optional().nullable(),
+    probability: z.number().min(0, "Mínimo 0%").max(100, "Máximo 100%").optional().default(50)
+})
+
+export const updateOpportunitySchema = createOpportunitySchema.partial()
+
+// Legacy export
+export const opportunitySchema = createOpportunitySchema
 
 // =====================================================
 // WORKFLOW SCHEMAS
@@ -128,6 +148,79 @@ export const taskSchema = z.object({
     completed_at: z.string().optional().nullable(),
     assigned_to: z.string().uuid().optional().nullable(),
     metadata: z.record(z.any()).optional().default({})
+})
+
+// =====================================================
+// WEB FORMS (FORM BUILDER) SCHEMAS
+// =====================================================
+
+const hexColorSchema = z
+    .string()
+    .regex(/^#([0-9a-fA-F]{3}){1,2}$/, "Color inválido (usa formato #RRGGBB)")
+
+export const webFormFieldSchema = z.object({
+    id: z.string().min(1, "ID requerido"),
+    type: z.enum(['text', 'textarea', 'email', 'phone', 'number', 'select', 'date', 'checkbox']),
+    label: z.string().min(1, "Etiqueta requerida").max(100, "Máximo 100 caracteres"),
+    placeholder: z.string().max(200, "Máximo 200 caracteres").optional().nullable(),
+    required: z.boolean().default(false),
+    options: z.array(z.string().min(1)).optional().nullable()
+}).superRefine((field, ctx) => {
+    if (field.type === 'select') {
+        if (!field.options || field.options.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Opciones requeridas para campos tipo selección",
+                path: ["options"]
+            })
+        }
+    }
+})
+
+export const webFormDialogSchema = z.object({
+    name: z.string().min(1, "El nombre es requerido").max(100, "Máximo 100 caracteres"),
+    description: z.string().max(500, "Máximo 500 caracteres").optional().nullable().or(z.literal('')),
+    fields: z.array(webFormFieldSchema).min(1, "Agrega al menos un campo"),
+    success_message: z.string().max(300, "Máximo 300 caracteres").optional().nullable().or(z.literal('')),
+    redirect_url: z.string().url("URL inválida").optional().nullable().or(z.literal('')),
+    auto_create_contact: z.boolean().default(true),
+    default_lead_status: z.enum(['cold', 'warm', 'hot', 'converted', 'lost']).default('warm'),
+    default_lead_source: z.string().min(1, "La fuente es requerida").max(50, "Máximo 50 caracteres").default('web_form'),
+    notify_on_submit: z.boolean().default(true),
+    notify_emails: z.string().optional().default(''),
+    theme: z.object({
+        primaryColor: hexColorSchema.default('#3b82f6'),
+        backgroundColor: hexColorSchema.default('#ffffff')
+    }).default({ primaryColor: '#3b82f6', backgroundColor: '#ffffff' })
+}).superRefine((data, ctx) => {
+    if (!data.notify_on_submit) return
+
+    const emails = (data.notify_emails || '')
+        .split(',')
+        .map(e => e.trim())
+        .filter(Boolean)
+
+    if (emails.length === 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Ingresa al menos un email para notificaciones",
+            path: ["notify_emails"]
+        })
+        return
+    }
+
+    const emailSchema = z.string().email("Email inválido")
+    for (const email of emails) {
+        const res = emailSchema.safeParse(email)
+        if (!res.success) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Email inválido: ${email}`,
+                path: ["notify_emails"]
+            })
+            return
+        }
+    }
 })
 
 // =====================================================

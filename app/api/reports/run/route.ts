@@ -3,12 +3,14 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 30 }
 
 export async function POST(request: NextRequest) {
   try {
+    const log = createRequestLogger(request)
     const rateLimitResponse = await rateLimit(request, READ_LIMIT)
     if (rateLimitResponse) return rateLimitResponse
 
@@ -37,8 +39,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`🔍 Ejecutando reporte para entidad: ${entity}, Org: ${organizationId}`)
-    console.log(`🔍 Query filters:`, JSON.stringify(filters))
+    log.info("Running report query", { organizationId, entity, groupBy, dateRange, filters })
 
     // Log the generated SQL query (simulated)
     // console.log("Query builder state:", query) 
@@ -46,11 +47,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error("❌ Supabase Query Error:", JSON.stringify(error, null, 2))
+      log.error("Supabase query error in reports/run", error, { organizationId, entity })
       throw error
     }
 
-    console.log(`✅ Query exitosa. Filas encontradas: ${data?.length || 0}`)
+    log.info("Report query completed", { organizationId, entity, rows: data?.length || 0 })
 
     // Process data for report
     const result = processReportData(data || [], metrics, groupBy, entity)
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: result })
 
   } catch (error: any) {
-    console.error("❌ Error en /api/reports/run:", error)
-    console.error("❌ Detalles del error:", JSON.stringify(error, null, 2))
+    const log = createRequestLogger(request)
+    log.error("Error in /api/reports/run", error)
 
     await logError({
       errorId: crypto.randomUUID(),

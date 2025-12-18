@@ -3,7 +3,8 @@
  * Singleton pattern para reutilizar conexión
  */
 
-import Redis from 'ioredis'
+import Redis, { type RedisOptions } from 'ioredis'
+import { logger } from './logger'
 
 let redis: Redis | null = null
 
@@ -13,15 +14,35 @@ let redis: Redis | null = null
 export function getRedisClient(): Redis | null {
   // Si no hay configuración de Redis, retornar null (fallback a memoria)
   if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
-    console.warn('⚠️  Redis no configurado. Usando rate limiting en memoria (NO recomendado para producción)')
+    logger.warn('Redis not configured. Using in-memory fallback (not recommended for production)')
     return null
   }
 
+  // Si ya existe y está conectado, retornar la instancia
   if (redis) {
     return redis
   }
 
   try {
+    const options: RedisOptions = {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        // Reintentar con backoff exponencial
+        const delay = Math.min(times * 50, 2000)
+        return delay
+      },
+      lazyConnect: false, // ✅ Conectar inmediatamente una sola vez
+      enableReadyCheck: true,
+      keepAlive: 30000, // ✅ Mantener conexión viva
+      reconnectOnError: (err) => {
+        const targetError = 'READONLY'
+        if (err.message.includes(targetError)) {
+          return true
+        }
+        return false
+      },
+    }
+
     // Crear cliente con URL o con host/port separados
     const redisConfig = process.env.REDIS_URL
       ? process.env.REDIS_URL
@@ -31,47 +52,29 @@ export function getRedisClient(): Redis | null {
           password: process.env.REDIS_PASSWORD || undefined,
         }
 
-    redis = new Redis(redisConfig, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        // Reintentar con backoff exponencial
-        const delay = Math.min(times * 50, 2000)
-        return delay
-      },
-      lazyConnect: true, // Conectar bajo demanda
-      enableReadyCheck: true,
-      reconnectOnError: (err) => {
-        const targetError = 'READONLY'
-        if (err.message.includes(targetError)) {
-          // Reconectar si Redis está en modo readonly
-          return true
-        }
-        return false
-      },
-    })
+    redis =
+      typeof redisConfig === 'string'
+        ? new Redis(redisConfig, options)
+        : new Redis({ ...redisConfig, ...options })
 
-    // Eventos de conexión
+    // Eventos de conexión (solo para debugging)
     redis.on('connect', () => {
-      console.log('✅ Redis conectado')
+      logger.info('Redis connected (singleton)')
     })
 
     redis.on('error', (err) => {
-      console.error('❌ Redis error:', err.message)
+      logger.error('Redis error', err, { message: err.message })
     })
 
     redis.on('close', () => {
-      console.warn('⚠️  Redis desconectado')
-    })
-
-    // Conectar inmediatamente
-    redis.connect().catch((err) => {
-      console.error('❌ Error conectando a Redis:', err)
-      redis = null
+      logger.warn('Redis disconnected')
+      redis = null // ✅ Limpiar singleton si se cierra
     })
 
     return redis
   } catch (error) {
-    console.error('❌ Error creando cliente Redis:', error)
+    logger.error('Error creating Redis client', error)
+    redis = null
     return null
   }
 }

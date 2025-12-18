@@ -3,8 +3,10 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { generateAIResponse } from "@/lib/ai"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { createRequestLogger } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
     if (rateLimitResponse) return rateLimitResponse
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
         await supabase.rpc('add_ai_message', { p_conversation_id: activeConversationId, p_role: 'assistant', p_content: aiResult.response })
       }
     } catch (e) {
-      console.warn('Could not save chat history:', e)
+      log.warn("Could not save chat history", { error: e })
     }
 
     return NextResponse.json({

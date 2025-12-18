@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#idempotencia-pagos`.
+
 # 💳 Sistema de Idempotencia en Pagos
 
 Este documento describe el sistema de idempotencia implementado para prevenir pagos duplicados.

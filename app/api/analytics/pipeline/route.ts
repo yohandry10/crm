@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
             }, 0) / wonWithDates.length / (1000 * 60 * 60 * 24) // Convert to days
             : 0
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: {
                 summary: {
@@ -131,6 +131,21 @@ export async function GET(request: NextRequest) {
                 }
             }
         })
+
+        // ✅ SECURITY: Prevent cache leaks between organizations
+        // Cache for 3 minutes (pipeline data changes frequently)
+        response.headers.set('Cache-Control', 'private, max-age=180, stale-while-revalidate=60')
+
+        // Vary header ensures different cache entries for different auth contexts
+        response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
+
+        // Unique cache key per organization to prevent cross-org data leaks
+        const cacheKey = crypto.createHash('sha256')
+            .update(`analytics-pipeline:${organizationId}:${period}:${new Date().toISOString().split('T')[0]}`)
+            .digest('hex')
+        response.headers.set('X-Cache-Key', cacheKey)
+
+        return response
 
     } catch (error: any) {
         await logError({

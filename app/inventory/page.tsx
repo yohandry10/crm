@@ -11,8 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Plus, Search, Package, Loader2, Edit, Trash2 } from "lucide-react"
+import { Plus, Search, Package, Loader2, Edit, ExternalLink } from "lucide-react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { AddItemDialog } from "@/components/inventory/add-item-dialog"
 import { toast } from "sonner"
@@ -32,7 +31,6 @@ export default function InventoryPage() {
     const [search, setSearch] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
-    const [deleteId, setDeleteId] = useState<string | null>(null)
 
     const fetchInventory = async () => {
         try {
@@ -66,20 +64,6 @@ export default function InventoryPage() {
         setIsDialogOpen(true)
     }
 
-    const handleDelete = async (id: string) => {
-        try {
-            const res = await fetch(`/api/inventory/${id}`, { method: "DELETE" })
-            const json = await res.json()
-            if (!json.success) throw new Error(json.error || "Error")
-            toast.success("Producto eliminado del inventario")
-            fetchInventory()
-        } catch (error: any) {
-            toast.error(error.message || "Error al eliminar")
-        } finally {
-            setDeleteId(null)
-        }
-    }
-
     const handleDialogClose = (open: boolean) => {
         setIsDialogOpen(open)
         if (!open) setEditingItem(null)
@@ -92,13 +76,19 @@ export default function InventoryPage() {
                     <div className="space-y-1">
                         <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
                         <p className="text-muted-foreground">
-                            Gestiona tus productos y stock disponible
+                            Gestiona el stock de tus productos físicos
                         </p>
                     </div>
-                    <Button onClick={() => setIsDialogOpen(true)} className="gradient-neon border-0">
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => window.location.assign("/products")}>
+                            Ir a Productos
+                            <ExternalLink className="ml-2 h-4 w-4" />
+                        </Button>
+                        <Button onClick={() => setIsDialogOpen(true)} className="gradient-neon border-0">
                         <Plus className="mr-2 h-4 w-4" />
-                        Nuevo Producto
+                        Ajustar Stock
                     </Button>
+                    </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -163,9 +153,6 @@ export default function InventoryPage() {
                                             <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
                                                 <Edit className="w-4 h-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)}>
-                                                <Trash2 className="w-4 h-4 text-red-500" />
-                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -180,16 +167,6 @@ export default function InventoryPage() {
                 onOpenChange={handleDialogClose}
                 onSuccess={fetchInventory}
                 editingItem={editingItem}
-            />
-
-            <ConfirmDialog
-                open={!!deleteId}
-                onOpenChange={(open) => !open && setDeleteId(null)}
-                title="¿Eliminar del inventario?"
-                description="Esta acción no se puede deshacer."
-                onConfirm={() => deleteId && handleDelete(deleteId)}
-                confirmText="Eliminar"
-                cancelText="Cancelar"
             />
         </DashboardLayout>
     )

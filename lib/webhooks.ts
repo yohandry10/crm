@@ -1,4 +1,6 @@
 import crypto from "crypto"
+import { logger } from "./logger"
+import { decryptSecret } from "./encryption"
 
 export const WEBHOOK_EVENTS = [
   "contact.created",
@@ -51,9 +53,24 @@ export async function sendWebhook(
         data: payload,
       })
 
+      let webhookSecret: string | null = webhook.secret ?? null
+      if (!webhookSecret && webhook.secret_encrypted) {
+        try {
+          webhookSecret = decryptSecret(webhook.secret_encrypted)
+        } catch (error) {
+          logger.warn("Failed to decrypt webhook secret", { webhookId: webhook.id })
+          continue
+        }
+      }
+
+      if (!webhookSecret) {
+        logger.warn("Webhook secret missing, skipping delivery", { webhookId: webhook.id })
+        continue
+      }
+
       // Generate signature
       const signature = crypto
-        .createHmac("sha256", webhook.secret)
+        .createHmac("sha256", webhookSecret)
         .update(body)
         .digest("hex")
 
@@ -98,6 +115,6 @@ export async function sendWebhook(
       }
     }
   } catch (error) {
-    console.error("Error sending webhooks:", error)
+    logger.error("Error sending webhooks", error)
   }
 }

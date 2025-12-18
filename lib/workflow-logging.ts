@@ -3,6 +3,8 @@
  * ✅ FIX WF-009: Logging completo para errores de ejecución
  */
 
+import { logger } from "./logger"
+
 // =====================================================
 // TYPES
 // =====================================================
@@ -88,7 +90,7 @@ export const workflowLogger = {
             organizationId,
             contactId
         })
-        console.log(formatForConsole(entry))
+        logger.info(entry.message, entry.context)
         return entry
     },
 
@@ -110,7 +112,7 @@ export const workflowLogger = {
             actionsExecuted,
             durationMs
         }
-        console.log(formatForConsole(entry))
+        logger.info(entry.message, entry.context)
         return entry
     },
 
@@ -128,10 +130,7 @@ export const workflowLogger = {
             executionId,
             ...context
         }, error)
-        console.error(formatForConsole(entry))
-        if (process.env.NODE_ENV === 'development' && error.stack) {
-            console.error(error.stack)
-        }
+        logger.error(entry.message, process.env.NODE_ENV === "development" ? error : undefined, entry.context)
         return entry
     },
 
@@ -154,7 +153,7 @@ export const workflowLogger = {
         if (process.env.NODE_ENV === 'development') {
             entry.context = { ...entry.context, inputParams }
         }
-        console.log(formatForConsole(entry))
+        logger.debug(entry.message, entry.context)
         return entry
     },
 
@@ -184,7 +183,11 @@ export const workflowLogger = {
             durationMs,
             result: process.env.NODE_ENV === 'development' ? result : undefined
         }
-        console.log(formatForConsole(entry))
+        if (success) {
+            logger.info(entry.message, entry.context)
+        } else {
+            logger.warn(entry.message, entry.context)
+        }
         return entry
     },
 
@@ -212,7 +215,7 @@ export const workflowLogger = {
             entry.context = { ...entry.context, inputParams }
         }
 
-        console.error(formatForConsole(entry))
+        logger.error(entry.message, process.env.NODE_ENV === "development" ? errorObj : undefined, entry.context)
         return entry
     },
 
@@ -230,7 +233,7 @@ export const workflowLogger = {
             actionType
         })
         entry.context = { ...entry.context, validationErrors: errors }
-        console.warn(formatForConsole(entry))
+        logger.warn(entry.message, entry.context)
         return entry
     },
 
@@ -247,7 +250,7 @@ export const workflowLogger = {
             organizationId
         })
         entry.context = { ...entry.context, eventType, workflowCount }
-        console.log(formatForConsole(entry))
+        logger.info(entry.message, entry.context)
         return entry
     },
 
@@ -267,7 +270,7 @@ export const workflowLogger = {
         if (reason) {
             entry.context = { ...entry.context, reason }
         }
-        console.log(formatForConsole(entry))
+        logger.debug(entry.message, entry.context)
         return entry
     }
 }
@@ -304,7 +307,11 @@ export async function persistWorkflowError(
         // Por ahora solo actualizamos workflow_executions
 
     } catch (dbError) {
-        console.error('[WorkflowLogger] Failed to persist error to database:', dbError)
+        logger.error('[WorkflowLogger] Failed to persist error to database', dbError, {
+            organizationId,
+            workflowId,
+            executionId,
+        })
     }
 }
 
@@ -332,7 +339,7 @@ export async function persistExecutionMetrics(
             })
             .eq('id', executionId)
     } catch (error) {
-        console.error('[WorkflowLogger] Failed to persist metrics:', error)
+        logger.error('[WorkflowLogger] Failed to persist metrics', error, { executionId })
     }
 }
 

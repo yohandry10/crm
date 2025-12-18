@@ -1,13 +1,19 @@
 /**
  * Rate Limiting Global usando Redis
  *
- * MEJORA CRÍTICA: Ahora usa Redis en lugar de Map en memoria
+ * MEJORA CRÍTICA: Ahora REQUIERE Redis (no hay fallback)
  * Resuelve: AUTH-001 del reporte forense
+ *
+ * IMPORTANTE:
+ * - En producción, Redis es OBLIGATORIO
+ * - En desarrollo, se lanza error si no está configurado
+ * - Elimina el riesgo de rate limit por servidor (multi-instancia)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getRedisClient } from './redis'
+import { logger } from './logger'
 
 interface RateLimitConfig {
     interval: number // milliseconds
@@ -19,14 +25,13 @@ const DEFAULT_CONFIG: RateLimitConfig = {
     maxRequests: 100
 }
 
-// Fallback: In-memory store (solo si Redis no está disponible)
-const rateLimitStoreMemory = new Map<string, { count: number; resetTime: number }>()
-
 const REDIS_PREFIX = 'ratelimit:'
 
 /**
- * Rate limiting middleware con Redis
+ * Rate limiting middleware con Redis (OBLIGATORIO)
  * Returns null if request is allowed, or a NextResponse with 429 status if rate limited
+ *
+ * IMPORTANTE: Lanza error si Redis no está disponible en producción
  */
 export async function rateLimit(
     request: NextRequest,
@@ -36,84 +41,104 @@ export async function rateLimit(
     const now = Date.now()
     const redis = getRedisClient()
 
-    let entry: { count: number; resetTime: number } | null = null
+    // Redis es OBLIGATORIO en producción
+    if (!redis) {
+        const errorMessage = 'Redis is required for rate limiting. Configure REDIS_URL in environment variables.'
 
-    // Intentar usar Redis primero
-    if (redis) {
-        try {
-            const key = `${REDIS_PREFIX}${identifier}`
-            const data = await redis.get(key)
+        // En producción, fallar hard
+        if (process.env.NODE_ENV === 'production') {
+            logger.error('Rate limiting unavailable (Redis missing)', undefined, { errorMessage })
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Service temporarily unavailable',
+                    message: 'Rate limiting service is not configured. Please contact support.'
+                },
+                { status: 503 }
+            )
+        }
 
-            if (data) {
-                entry = JSON.parse(data)
-            }
+        // En desarrollo, solo advertir
+        logger.warn('Rate limiting disabled in development (Redis missing)', { errorMessage })
+        return null // Permitir request en desarrollo sin Redis
+    }
 
-            // Si no existe o expiró, crear nueva entrada
-            if (!entry || (entry && now > entry.resetTime)) {
+    // Usar Redis para rate limiting
+    try {
+        const key = `${REDIS_PREFIX}${identifier}`
+        const data = await redis.get(key)
+
+        let entry: { count: number; resetTime: number }
+
+        if (data) {
+            entry = JSON.parse(data)
+
+            // Si expiró, resetear
+            if (now > entry.resetTime) {
                 entry = {
                     count: 1,
                     resetTime: now + config.interval
                 }
-
-                const ttl = Math.ceil(config.interval / 1000)
-                await redis.set(key, JSON.stringify(entry), 'EX', ttl)
             } else {
                 // Incrementar contador
                 entry.count++
-                const ttl = Math.ceil((entry.resetTime - now) / 1000)
-                await redis.set(key, JSON.stringify(entry), 'EX', ttl)
             }
-        } catch (error) {
-            console.error('Error en Redis rate limit, usando fallback en memoria:', error)
-            // Continuar con fallback en memoria
-            entry = null
-        }
-    }
-
-    // Fallback: usar memoria si Redis falló o no está disponible
-    if (!redis || entry === null) {
-        entry = rateLimitStoreMemory.get(identifier) || null
-
-        if (!entry || now > entry.resetTime) {
+        } else {
+            // Primera request
             entry = {
                 count: 1,
                 resetTime: now + config.interval
             }
-            rateLimitStoreMemory.set(identifier, entry)
-        } else {
-            entry.count++
-            rateLimitStoreMemory.set(identifier, entry)
         }
-    }
 
-    // Check if limit exceeded
-    if (entry.count > config.maxRequests) {
-        const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
+        // Guardar en Redis con TTL
+        const ttl = Math.ceil((entry.resetTime - now) / 1000)
+        await redis.set(key, JSON.stringify(entry), 'EX', Math.max(ttl, 1))
 
-        return NextResponse.json(
-            {
-                success: false,
-                error: 'Too many requests',
-                message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`
-            },
-            {
-                status: 429,
-                headers: {
-                    'Retry-After': retryAfter.toString(),
-                    'X-RateLimit-Limit': config.maxRequests.toString(),
-                    'X-RateLimit-Remaining': '0',
-                    'X-RateLimit-Reset': entry.resetTime.toString()
+        // Check if limit exceeded
+        if (entry.count > config.maxRequests) {
+            const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
+
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Too many requests',
+                    message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`
+                },
+                {
+                    status: 429,
+                    headers: {
+                        'Retry-After': retryAfter.toString(),
+                        'X-RateLimit-Limit': config.maxRequests.toString(),
+                        'X-RateLimit-Remaining': '0',
+                        'X-RateLimit-Reset': entry.resetTime.toString()
+                    }
                 }
-            }
-        )
+            )
+        }
+
+        // Request is allowed
+        return null
+
+    } catch (error) {
+        logger.error('Redis rate limit error', error)
+
+        // En producción, fail closed (denegar request)
+        if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Service temporarily unavailable',
+                    message: 'Rate limiting service encountered an error. Please try again.'
+                },
+                { status: 503 }
+            )
+        }
+
+        // En desarrollo, permitir
+        logger.warn('Allowing request in development despite Redis rate limit error')
+        return null
     }
-
-    // Request is allowed - agregar headers informativos
-    const remaining = config.maxRequests - entry.count
-    // No podemos modificar headers de request, solo en response
-    // Esto se haría en el NextResponse del handler
-
-    return null
 }
 
 /**
@@ -149,27 +174,8 @@ async function getIdentifier(request: NextRequest): Promise<string> {
     return `ip:${ip}`
 }
 
-/**
- * Cleanup old entries (solo para fallback en memoria, Redis tiene TTL automático)
- */
-export function cleanupRateLimitStore(): void {
-    const redis = getRedisClient()
-
-    // Si Redis está disponible, no necesitamos limpiar memoria
-    if (redis) return
-
-    const now = Date.now()
-    for (const [key, entry] of rateLimitStoreMemory.entries()) {
-        if (now > entry.resetTime) {
-            rateLimitStoreMemory.delete(key)
-        }
-    }
-}
-
-// Cleanup every 5 minutes (solo para fallback)
-if (typeof setInterval !== 'undefined') {
-    setInterval(cleanupRateLimitStore, 5 * 60 * 1000)
-}
+// Cleanup automático: Redis maneja el TTL automáticamente
+// No necesitamos limpiar nada manualmente
 
 /**
  * Helper function to apply rate limiting to API routes

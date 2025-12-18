@@ -2,7 +2,7 @@
  * Tests para Error Handler
  * Verifica el manejo de errores y sanitización
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { 
   ValidationError, 
   UnauthorizedError, 
@@ -62,16 +62,16 @@ describe('Error Handler', () => {
     })
 
     it('should return generic message for unknown errors in production', () => {
-      const originalEnv = process.env.NODE_ENV
-      process.env.NODE_ENV = 'production'
-      
-      const unknownError = new Error('Database connection failed')
-      const result = sanitizeErrorForClient(unknownError)
-      
-      // En producción, mensajes cortos y seguros se permiten
-      expect(typeof result).toBe('string')
-      
-      process.env.NODE_ENV = originalEnv
+      vi.stubEnv('NODE_ENV', 'production')
+      try {
+        const unknownError = new Error('Database connection failed')
+        const result = sanitizeErrorForClient(unknownError)
+
+        // En producción, mensajes cortos y seguros se permiten
+        expect(typeof result).toBe('string')
+      } finally {
+        vi.unstubAllEnvs()
+      }
     })
 
     it('should handle non-Error objects', () => {

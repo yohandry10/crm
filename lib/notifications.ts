@@ -1,6 +1,7 @@
 import { logError } from "./error-logging"
 import { createSupabaseServiceClient } from "./supabase-service"
 import crypto from "crypto"
+import { logger } from "./logger"
 
 export interface NotificationPayload {
     userId: string
@@ -40,7 +41,7 @@ export async function sendNotification(payload: NotificationPayload) {
             .single()
 
         if (dbError) {
-            console.error('Error saving notification:', dbError)
+            logger.error('Error saving notification', dbError, { userId: payload.userId, type: payload.type })
         }
 
         // 2. Enviar email si Resend está configurado
@@ -53,7 +54,7 @@ export async function sendNotification(payload: NotificationPayload) {
                     html: `<p>${payload.body}</p>${payload.actionUrl ? `<p><a href="${payload.actionUrl}">Ver más</a></p>` : ''}`
                 })
             } catch (emailError) {
-                console.warn('Email notification failed:', emailError)
+                logger.warn('Email notification failed', { error: emailError, userId: payload.userId })
             }
         }
 

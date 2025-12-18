@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { z } from 'zod'
+import { createRequestLogger } from '@/lib/logger'
 import crypto from 'crypto'
 
 const pipelineStageSchema = z.object({
@@ -12,11 +13,12 @@ const pipelineStageSchema = z.object({
     win_probability: z.number().min(0).max(100).optional()
 })
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
     try {
         const { supabase, organizationId } = await getAuthenticatedContext()
+        const log = createRequestLogger(request, organizationId)
 
-        console.log("Fetching pipeline stages for org:", organizationId)
+        log.debug("Fetching pipeline stages")
 
         const { data, error } = await supabase
             .from('pipeline_stages')
@@ -26,15 +28,15 @@ export async function GET(_request: NextRequest) {
             .order('position', { ascending: true })
 
         if (error) {
-            console.error("Error fetching stages:", error)
+            log.error("Error fetching pipeline stages", error)
             throw error
         }
 
-        console.log("Stages found:", data?.length || 0)
+        log.debug("Pipeline stages found", { count: data?.length || 0 })
 
         // Si no hay stages para esta organización, crear los por defecto
         if (!data || data.length === 0) {
-            console.log("No stages found, creating defaults...")
+            log.info("No pipeline stages found, creating defaults")
 
             const { createSupabaseServiceClient } = await import("@/lib/supabase-service")
             const supabaseAdmin = createSupabaseServiceClient()
@@ -58,17 +60,16 @@ export async function GET(_request: NextRequest) {
                 .select()
 
             if (createError) {
-                console.error('Error creating default stages:', createError)
+                log.error("Error creating default pipeline stages", createError)
                 throw createError
             }
 
-            console.log("Created stages:", createdStages?.length)
+            log.info("Created default pipeline stages", { count: createdStages?.length || 0 })
             return NextResponse.json({ success: true, data: createdStages })
         }
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        console.error("Pipeline stages GET error:", error)
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/pipeline-stages", method: "GET", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }

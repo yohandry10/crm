@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
+import { logger } from './logger'
 
 export async function logAudit(params: {
     supabase: SupabaseClient
@@ -36,9 +37,9 @@ export async function logAudit(params: {
         })
 
         if (error) {
-            console.error('Error logging audit:', error)
+            logger.error('Error logging audit', error, { action: params.action, table: params.table })
         }
     } catch (err) {
-        console.error('Failed to log audit:', err)
+        logger.error('Failed to log audit', err, { action: params.action, table: params.table })
     }
 }

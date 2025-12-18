@@ -110,7 +110,7 @@ export async function GET(_request: NextRequest) {
             byType[type].push(c)
         })
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: {
                 summary: {
@@ -140,6 +140,21 @@ export async function GET(_request: NextRequest) {
                 }))
             }
         })
+
+        // ✅ SECURITY: Prevent cache leaks between organizations
+        // Cache for 5 minutes (campaign data changes moderately)
+        response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+
+        // Vary header ensures different cache entries for different auth contexts
+        response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
+
+        // Unique cache key per organization to prevent cross-org data leaks
+        const cacheKey = crypto.createHash('sha256')
+            .update(`analytics-campaigns:${organizationId}:${new Date().toISOString().split('T')[0]}`)
+            .digest('hex')
+        response.headers.set('X-Cache-Key', cacheKey)
+
+        return response
 
     } catch (error: any) {
         await logError({

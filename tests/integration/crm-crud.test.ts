@@ -98,7 +98,7 @@ describe("CRM CRUD APIs", () => {
 
   it("rechaza cuenta sin nombre", async () => {
     // Hacer que el mock devuelva error de validación
-    mockSupabase.from = vi.fn(() => {
+    mockSupabase.from = vi.fn((table: string) => {
       const chain = createQueryChain(null)
       chain.single = vi.fn(() => Promise.resolve({ data: null, error: { message: "Validation error" } }))
       return chain

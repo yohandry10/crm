@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createRequestLogger } from "@/lib/logger"
 
 // Cliente MCP para conectar con LLMs
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     const { message, context = {} } = await request.json()
 
@@ -16,8 +18,8 @@ export async function POST(request: NextRequest) {
       context: mcpResponse,
       timestamp: new Date().toISOString(),
     })
-  } catch {
-    console.error("AI Chat Error")
+  } catch (error) {
+    log.error("AI Chat Error", error)
     return NextResponse.json({ error: "Error procesando consulta IA" }, { status: 500 })
   }
 }

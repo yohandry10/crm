@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { processWebhookEvents } from "@/lib/events"
+import { createRequestLogger } from "@/lib/logger"
 
 /**
  * Cron job endpoint to process pending webhook events
  * Configure in vercel.json or call via external cron service
  */
 export async function GET(request: NextRequest) {
+    const log = createRequestLogger(request)
     try {
         // Verify cron secret to prevent unauthorized access
         const authHeader = request.headers.get('authorization')
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
         })
 
     } catch (error: any) {
-        console.error('Event processor error:', error)
+        log.error('Event processor error', error)
         return NextResponse.json(
             { success: false, error: error.message },
             { status: 500 }

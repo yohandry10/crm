@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#optimización-de-performance`.
+
 # 🚀 Resumen Ejecutivo: Optimizaciones del Sidebar y Navegación
 
 ## ✨ Resumen en 30 Segundos

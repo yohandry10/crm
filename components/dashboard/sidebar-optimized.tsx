@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react"
+import { useState, useEffect, useCallback, memo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/providers/auth-provider"
 
 interface SidebarProps {
   open: boolean
@@ -24,12 +25,6 @@ interface NavItem {
   icon: LucideIcon
 }
 
-interface UserProfile {
-  email: string
-  full_name?: string | null
-  role: string
-  initials: string
-}
 
 // Navigation data - memoized outside component
 const navigation: NavItem[] = [
@@ -89,23 +84,25 @@ const NavLink = memo(({
 
 NavLink.displayName = "NavLink"
 
-// Optimized UserCard component with React.memo
-const UserCard = memo(({ user, loading }: { user: UserProfile | null, loading: boolean }) => {
+// Optimized UserCard component with React.memo - uses AuthProvider
+const UserCard = memo(() => {
+  const { profile, loading } = useAuth()
+
   return (
     <div className="p-4 border-t border-gray-100">
       <div className="bg-gray-50 rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-bold text-white">
-              {loading ? '...' : (user?.initials || 'U')}
+              {loading ? '...' : (profile?.initials || 'U')}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {loading ? 'Cargando...' : (user?.full_name || user?.email || 'Usuario')}
+              {loading ? 'Cargando...' : (profile?.full_name || profile?.email || 'Usuario')}
             </p>
             <p className="text-xs text-gray-500 truncate capitalize">
-              {loading ? '...' : (user?.role || 'user')}
+              {loading ? '...' : (profile?.role || 'user')}
             </p>
           </div>
         </div>
@@ -118,8 +115,6 @@ UserCard.displayName = "UserCard"
 
 export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
-  const [user, setUser] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -130,73 +125,6 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
   const handleClose = useCallback(() => {
     onOpenChange(false)
   }, [onOpenChange])
-
-  // Load user data only once
-  useEffect(() => {
-    let isMounted = true
-
-    async function loadUser() {
-      try {
-        const { getSupabaseBrowserClient } = await import('@/lib/supabase-browser')
-        const supabase = getSupabaseBrowserClient()
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-
-        if (!isMounted) return
-
-        if (authUser) {
-          // Get profile data
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, current_organization_id')
-            .eq('id', authUser.id)
-            .single()
-
-          if (!isMounted) return
-
-          // Get role from organization_members
-          let role = 'member'
-          if (profile?.current_organization_id) {
-            const { data: membership } = await supabase
-              .from('organization_members')
-              .select('role')
-              .eq('user_id', authUser.id)
-              .eq('organization_id', profile.current_organization_id)
-              .single()
-            if (membership?.role) {
-              role = membership.role
-            }
-          }
-
-          if (!isMounted) return
-
-          // Create user profile with memoized data
-          const userProfile: UserProfile = {
-            email: authUser.email || '',
-            full_name: profile?.full_name,
-            role,
-            initials: authUser.email?.substring(0, 2).toUpperCase() || 'U'
-          }
-
-          setUser(userProfile)
-        }
-      } catch (error) {
-        console.error('Error loading user:', error)
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadUser()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  // Memoize user profile to prevent re-renders
-  const memoizedUser = useMemo(() => user, [user])
 
   return (
     <>
@@ -256,7 +184,7 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
         </nav>
 
         {/* User Card */}
-        <UserCard user={memoizedUser} loading={loading} />
+        <UserCard />
       </aside>
     </>
   )

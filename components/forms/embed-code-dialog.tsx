@@ -76,7 +76,7 @@ fetch('${baseUrl}/api/public/forms/${form.id}/submit', {
 .then(res => res.json())
 .then(data => {
   if (data.success) {
-    console.log('Enviado!', data.submission_id);
+    // Form submission created: data.submission_id
     if (data.redirect_url) {
       window.location.href = data.redirect_url;
     }

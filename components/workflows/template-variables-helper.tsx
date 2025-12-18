@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactElement } from "react"
 import { Info, Copy, Check } from "lucide-react"
 import { getAvailableVariables } from "@/lib/workflow-templates"
 import {
@@ -38,8 +38,8 @@ export function TemplateVariablesHelper({ triggerType }: TemplateVariablesHelper
     return String(value)
   }
 
-  const renderVariables = (obj: any, prefix = ''): JSX.Element[] => {
-    const elements: JSX.Element[] = []
+  const renderVariables = (obj: any, prefix = ''): ReactElement[] => {
+    const elements: ReactElement[] = []
 
     for (const [key, value] of Object.entries(obj)) {
       const fullPath = prefix ? `${prefix}.${key}` : key

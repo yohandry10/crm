@@ -109,11 +109,10 @@ export function RegisterPaymentModal({ open, onOpenChange, quote, onSuccess }: R
                 const convertRes = await fetch(`/api/quotes/${quote.id}/convert`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skipPaymentCheck: true })
                 })
                 const convertData = await convertRes.json()
                 if (!convertRes.ok) throw new Error(convertData.error || 'Error al crear factura')
-                invoiceId = convertData.data?.invoice?.id
+                invoiceId = convertData.data?.invoice_id
             }
 
             if (!invoiceId) {
@@ -126,13 +125,13 @@ export function RegisterPaymentModal({ open, onOpenChange, quote, onSuccess }: R
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invoice_id: invoiceId,
-                    contact_id: quote.contact?.id,
                     amount: Number(amount),
                     payment_method: paymentMethod,
-                    proof_url: proofUrl || null,
                     notes: notes || null,
-                    status: 'completed', // Mark as completed since vendor is registering
-                    paid_at: new Date().toISOString()
+                    proof_url: proofUrl || null,
+                    gateway: 'manual',
+                    status: proofUrl ? 'pending' : 'completed',
+                    transaction_id: proofUrl ? `proof:${quote.id}:${Date.now()}` : `manual:${quote.id}:${Date.now()}`,
                 })
             })
 

@@ -12,6 +12,7 @@ import {
     getLoginIdentifier 
 } from '@/lib/auth-rate-limit'
 import { z } from 'zod'
+import { createRequestLogger } from '@/lib/logger'
 
 const loginSchema = z.object({
     email: z.string().email('Email inválido'),
@@ -19,6 +20,7 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+    const log = createRequestLogger(request)
     try {
         // Obtener IP del cliente
         const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
         return response
 
     } catch (error: any) {
-        console.error('Login error:', error)
+        log.error('Login error', error)
         return NextResponse.json(
             { success: false, error: 'Error al procesar la solicitud' },
             { status: 500 }

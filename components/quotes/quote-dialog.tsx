@@ -30,10 +30,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 
 const itemSchema = z.object({
+    product_id: z.string().optional().nullable(),
     description: z.string().min(1, "Descripción requerida"),
     quantity: z.coerce.number().min(1, "Mínimo 1"),
     unit_price: z.coerce.number().min(0, "Precio requerido"),
@@ -63,6 +67,7 @@ export function QuoteDialog({
 }: QuoteDialogProps) {
     const [contacts, setContacts] = useState<any[]>([])
     const [opportunities, setOpportunities] = useState<any[]>([])
+    const [products, setProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -97,6 +102,13 @@ export function QuoteDialog({
             
             if (contactsRes.data) setContacts(contactsRes.data)
             if (oppsRes.data) setOpportunities(oppsRes.data)
+
+            const { data: productsData } = await supabase
+                .from('products')
+                .select('id, name, sku, unit_price, is_service')
+                .eq('is_active', true)
+                .order('name')
+            if (productsData) setProducts(productsData)
         }
         
         loadData().catch(console.error)
@@ -109,6 +121,7 @@ export function QuoteDialog({
                 notes: quote.notes || "",
                 terms: quote.terms || "",
                 items: quote.items?.map((i: any) => ({
+                    product_id: i.product_id || "",
                     description: i.description,
                     quantity: i.quantity,
                     unit_price: i.unit_price
@@ -121,7 +134,7 @@ export function QuoteDialog({
                 valid_until: "",
                 notes: "",
                 terms: "",
-                items: [{ description: "", quantity: 1, unit_price: 0 }],
+                items: [{ product_id: "", description: "", quantity: 1, unit_price: 0 }],
             })
         }
     }, [open, quote, form])
@@ -223,7 +236,7 @@ export function QuoteDialog({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => append({ description: "", quantity: 1, unit_price: 0 })}
+                                    onClick={() => append({ product_id: "", description: "", quantity: 1, unit_price: 0 })}
                                 >
                                     <Plus className="h-3 w-3 mr-1" /> Agregar Ítem
                                 </Button>
@@ -232,6 +245,58 @@ export function QuoteDialog({
                             <div className="space-y-2 max-h-[200px] overflow-y-auto p-1">
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex gap-2 items-end">
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.product_id`}
+                                            render={({ field }) => {
+                                                const selected = products.find((p) => p.id === field.value)
+                                                return (
+                                                    <FormItem className="w-44">
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                    {selected ? selected.name : "Producto..."}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-[320px] p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Buscar producto..." />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>No se encontraron productos.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            <CommandItem
+                                                                                value="item-libre"
+                                                                                onSelect={() => {
+                                                                                    form.setValue(`items.${index}.product_id`, "", { shouldValidate: true })
+                                                                                }}
+                                                                            >
+                                                                                <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
+                                                                                Item libre
+                                                                            </CommandItem>
+                                                                            {products.map((product) => (
+                                                                                <CommandItem
+                                                                                    key={product.id}
+                                                                                    value={`${product.name} ${product.sku || ""}`}
+                                                                                    onSelect={() => {
+                                                                                        form.setValue(`items.${index}.product_id`, product.id, { shouldValidate: true })
+                                                                                        form.setValue(`items.${index}.description`, product.name, { shouldValidate: true })
+                                                                                        form.setValue(`items.${index}.unit_price`, Number(product.unit_price || 0), { shouldValidate: true })
+                                                                                    }}
+                                                                                >
+                                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === product.id ? "opacity-100" : "opacity-0")} />
+                                                                                    {product.name}{product.sku ? ` (${product.sku})` : ""}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </FormItem>
+                                                )
+                                            }}
+                                        />
                                         <FormField
                                             control={form.control}
                                             name={`items.${index}.description`}

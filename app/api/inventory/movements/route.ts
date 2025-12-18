@@ -6,7 +6,7 @@ import { z } from "zod"
 import crypto from "crypto"
 
 const movementSchema = z.object({
-    inventory_id: z.string().uuid("ID de inventario inválido"),
+    product_id: z.string().uuid("ID de producto inválido"),
     type: z.enum(['in', 'out', 'adjustment'], { errorMap: () => ({ message: "Tipo debe ser 'in', 'out' o 'adjustment'" }) }),
     quantity: z.number().positive("Cantidad debe ser positiva"),
     reason: z.string().max(200).optional(),
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             .from("inventory_movements")
             .select(`
                 *,
-                inventory:inventory(id, name, sku),
+                product:products(id, name, sku),
                 performed_by_user:profiles!performed_by(id, email)
             `, { count: "exact" })
             .eq("organization_id", organizationId)
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
             .range(offset, offset + limit - 1)
 
         if (inventoryId) {
-            query = query.eq("inventory_id", inventoryId)
+            query = query.eq("product_id", inventoryId)
         }
 
         if (type) {
@@ -98,24 +98,25 @@ export async function POST(request: NextRequest) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
 
-        const { inventory_id, type, quantity, reason, notes, reference_type, reference_id } = validation.data
+        const { product_id, type, quantity, reason, notes, reference_type, reference_id } = validation.data
 
-        // Get current inventory to calculate new quantity
-        const { data: inventory, error: inventoryError } = await supabase
-            .from("inventory")
-            .select("quantity")
-            .eq("id", inventory_id)
+        // Get current product to calculate new quantity
+        const { data: product, error: productError } = await supabase
+            .from("products")
+            .select("stock_quantity, is_service")
+            .eq("id", product_id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .single()
 
-        if (inventoryError || !inventory) {
+        if (productError || !product) {
             return NextResponse.json({
                 success: false,
-                error: "Inventory item not found"
+                error: "Producto no encontrado o no es físico"
             }, { status: 404 })
         }
 
-        const currentQuantity = Number(inventory.quantity || 0)
+        const currentQuantity = Number(product.stock_quantity || 0)
         let newQuantity = currentQuantity
 
         // Calculate new quantity based on movement type
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
             .from("inventory_movements")
             .insert({
                 organization_id: organizationId,
-                inventory_id,
+                product_id,
                 type,
                 quantity: Math.abs(Number(quantity)),
                 previous_quantity: currentQuantity,
@@ -158,12 +159,13 @@ export async function POST(request: NextRequest) {
 
         if (movementError) throw movementError
 
-        // Update inventory quantity
+        // Update product stock_quantity
         const { error: updateError } = await supabase
-            .from("inventory")
-            .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-            .eq("id", inventory_id)
+            .from("products")
+            .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
+            .eq("id", product_id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
 
         if (updateError) {
             // Rollback movement if inventory update fails

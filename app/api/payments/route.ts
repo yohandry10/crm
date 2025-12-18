@@ -8,7 +8,15 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
+import { getPaginationParams } from "@/lib/pagination"
+
+function maskIdempotencyKey(value: string) {
+    if (!value) return undefined
+    if (value.length <= 8) return "[REDACTED]"
+    return `${value.slice(0, 4)}...${value.slice(-4)}`
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -20,9 +28,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const invoice_id = searchParams.get('invoice_id')
         const status = searchParams.get('status')
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '10')
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from('payments')
@@ -54,12 +60,13 @@ export async function POST(request: NextRequest) {
         if (rateLimitResponse) return rateLimitResponse
 
         const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const log = createRequestLogger(request, organizationId)
         requestBody = await request.json()
 
-        const { invoice_id, amount, payment_method, transaction_id, gateway } = requestBody
+        const { invoice_id, amount, payment_method, transaction_id, gateway, proof_url, notes, status } = requestBody
 
-        if (!invoice_id || !amount || !payment_method || !gateway) {
-            throw new ValidationError("Campos requeridos faltantes", { required: ['invoice_id', 'amount', 'payment_method', 'gateway'] })
+        if (!invoice_id || !amount || !gateway) {
+            throw new ValidationError("Campos requeridos faltantes", { required: ['invoice_id', 'amount', 'gateway'] })
         }
         if (typeof amount !== 'number' || amount <= 0) {
             throw new ValidationError("El monto debe ser un número positivo")
@@ -68,6 +75,44 @@ export async function POST(request: NextRequest) {
         const allowedGateways = ['stripe', 'bank_transfer', 'cash', 'yape', 'plin', 'mercadopago', 'manual']
         if (!allowedGateways.includes(gateway.toLowerCase())) {
             throw new ValidationError(`Gateway inválido. Permitidos: ${allowedGateways.join(', ')}`)
+        }
+
+        const allowedStatuses = ['pending', 'completed', 'failed', 'refunded']
+        if (status && !allowedStatuses.includes(status)) {
+            throw new ValidationError(`Estado inválido. Permitidos: ${allowedStatuses.join(', ')}`)
+        }
+
+        // ✅ FIX P1: Validate payment amount does not exceed invoice balance
+        const { data: invoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .select('total')
+            .eq('id', invoice_id)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (invoiceError || !invoice) {
+            throw new ValidationError("Factura no encontrada")
+        }
+
+        const { data: existingPayments } = await supabase
+            .from('payments')
+            .select('amount')
+            .eq('invoice_id', invoice_id)
+            .eq('status', 'completed')
+
+        const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
+        const remainingBalance = Number(invoice.total) - totalPaid
+
+        if (amount > remainingBalance) {
+            throw new ValidationError(
+                `El monto del pago (${amount}) excede el saldo pendiente de la factura (${remainingBalance})`,
+                {
+                    invoice_total: invoice.total,
+                    total_paid: totalPaid,
+                    remaining_balance: remainingBalance,
+                    payment_amount: amount
+                }
+            )
         }
 
         // ====================================================================
@@ -80,7 +125,7 @@ export async function POST(request: NextRequest) {
                               request.headers.get('x-idempotency-key') ||
                               `auto-${invoice_id}-${amount}-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`
 
-        console.log(`💳 Processing payment with idempotency key: ${idempotencyKey}`)
+        log.info("Processing payment", { idempotency_key: maskIdempotencyKey(idempotencyKey) })
 
         // 2. Verificar si ya existe un pago con esta idempotency key
         const { data: existingPayment, error: existingError } = await supabase
@@ -92,7 +137,10 @@ export async function POST(request: NextRequest) {
 
         if (existingPayment) {
             // Pago ya procesado anteriormente, retornar el mismo resultado
-            console.log(`⚠️ Idempotent request detected. Returning cached payment: ${existingPayment.id}`)
+            log.warn("Idempotent request detected. Returning cached payment", {
+                paymentId: existingPayment.id,
+                idempotency_key: maskIdempotencyKey(idempotencyKey),
+            })
 
             // Obtener info de la factura para la respuesta
             const { data: invoice } = await supabase
@@ -122,11 +170,13 @@ export async function POST(request: NextRequest) {
                 created_by: user.id,
                 invoice_id,
                 amount,
-                payment_method,
+                payment_method: payment_method || null,
                 gateway,
                 transaction_id,
-                status: 'completed',
-                paid_at: new Date().toISOString(),
+                status: status || (proof_url ? 'pending' : 'completed'),
+                paid_at: (status === 'completed' || (!status && !proof_url)) ? new Date().toISOString() : null,
+                proof_url: proof_url || null,
+                notes: notes || null,
                 idempotency_key: idempotencyKey
             })
             .select()
@@ -135,7 +185,9 @@ export async function POST(request: NextRequest) {
         if (paymentError) {
             // 4. Manejar race conditions en idempotency_key
             if (paymentError.code === '23505' && paymentError.message?.includes('idempotency_key')) {
-                console.log('⚠️ Race condition detected on idempotency_key, fetching existing payment')
+                log.warn("Race condition detected on idempotency_key, fetching existing payment", {
+                    idempotency_key: maskIdempotencyKey(idempotencyKey),
+                })
 
                 // Intentar obtener el pago que ganó la race condition
                 const { data: racedPayment } = await supabase
@@ -168,25 +220,13 @@ export async function POST(request: NextRequest) {
             throw paymentError
         }
 
-        console.log(`✅ New payment created: ${payment.id}`)
+        log.info("New payment created", { paymentId: payment.id, idempotency_key: maskIdempotencyKey(idempotencyKey) })
 
-        // 5. Update invoice status if fully paid
-        const { data: invoice } = await supabase
-            .from('invoices')
-            .select('total')
-            .eq('id', invoice_id)
-            .single()
+        // 5. Update invoice status if fully paid (reuse previously fetched invoice and totalPaid)
+        const totalPaidAmount = totalPaid + amount
+        const isFullyPaid = totalPaidAmount >= Number(invoice.total)
 
-        const { data: totalPaid } = await supabase
-            .from('payments')
-            .select('amount')
-            .eq('invoice_id', invoice_id)
-            .eq('status', 'completed')
-
-        const totalPaidAmount = totalPaid?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
-        const isFullyPaid = totalPaidAmount >= Number(invoice?.total || 0)
-
-        if (isFullyPaid) {
+        if (isFullyPaid && (payment.status === 'completed')) {
             await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoice_id)
         }
 

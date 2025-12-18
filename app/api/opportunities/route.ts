@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { createRequestLogger } from '@/lib/logger'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -18,30 +19,49 @@ const opportunitySchema = z.object({
 
 export async function GET(request: NextRequest) {
     try {
+        const log = createRequestLogger(request)
         const rate = await rateLimit(request, RATE_LIMITS.read)
         if (rate) return rate
 
         const { supabase, organizationId } = await getAuthenticatedContext()
+        log.debug("Opportunities list requested", { organizationId })
 
         const searchParams = request.nextUrl.searchParams
         const stage_id = searchParams.get('stage_id')
         const contact_id = searchParams.get('contact_id')
         const status = searchParams.get('status')
 
+        // ✅ FIX CRÍTICO-P1: Add pagination with safe limits
+        const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
+        const offset = (page - 1) * limit
+
         let query = supabase
             .from('opportunities')
-            .select(`*, contact:contacts(id, name, email, phone), stage:pipeline_stages(id, name, color)`)
+            .select(`*, contact:contacts(id, name, email, phone), stage:pipeline_stages(id, name, color)`, { count: 'exact' })
             .eq('organization_id', organizationId)
             .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1)
 
         if (stage_id) query = query.eq('stage_id', stage_id)
         if (contact_id) query = query.eq('contact_id', contact_id)
         if (status) query = query.eq('status', status)
 
-        const { data, error } = await query
+        const { data, error, count } = await query
         if (error) throw error
 
-        return NextResponse.json({ success: true, data })
+        return NextResponse.json({
+            success: true,
+            data,
+            pagination: {
+                page,
+                limit,
+                total: count || 0,
+                totalPages: Math.ceil((count || 0) / limit),
+                hasNext: page < Math.ceil((count || 0) / limit),
+                hasPrev: page > 1
+            }
+        })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/opportunities", method: "GET", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
@@ -50,17 +70,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const log = createRequestLogger(request)
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
-        console.log("Opportunity POST body:", body)
+        log.info("Opportunity create requested", { organizationId, userId: user.id })
 
         const validation = opportunitySchema.safeParse(body)
         if (!validation.success) {
-            console.log("Validation errors:", validation.error.errors)
+            log.warn("Opportunity validation failed", { organizationId, userId: user.id })
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.errors }, { status: 400 })
         }
 
@@ -113,7 +134,7 @@ export async function POST(request: NextRequest) {
                     .single()
 
                 if (stageError) {
-                    console.error("Error creating stage:", stageError)
+                    log.error("Error creating stage", stageError, { organizationId, userId: user.id })
                     throw stageError
                 }
                 finalStageId = newStage.id
@@ -184,7 +205,7 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (error) {
-            console.error("Error inserting opportunity:", error)
+            log.error("Error inserting opportunity", error, { organizationId, userId: user.id })
             throw error
         }
 
@@ -195,12 +216,13 @@ export async function POST(request: NextRequest) {
                 payload: { id: data.id, organization_id: organizationId, user_id: user.id, contact_id: data.contact_id, opportunity: data }
             })
         } catch (eventErr) {
-            console.error("Error emitting event:", eventErr)
+            log.error("Error emitting event", eventErr, { organizationId, userId: user.id })
         }
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        console.error("Opportunity POST error:", error)
+        const log = createRequestLogger(request)
+        log.error("Opportunity POST error", error)
         return NextResponse.json({ success: false, error: error.message || sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

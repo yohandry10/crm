@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { decryptJSON } from "@/lib/encryption"
 import crypto from "crypto"
 
 type RouteContext = {
@@ -17,6 +19,9 @@ export async function POST(
     context: RouteContext
 ) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+        if (rateLimitResponse) return rateLimitResponse
+
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id } = await context.params
@@ -36,23 +41,34 @@ export async function POST(
             }, { status: 404 })
         }
 
+        const provider = integration.provider ?? integration.type
+
+        let config = integration.config ?? {}
+        if (integration.config_encrypted) {
+            try {
+                config = decryptJSON(integration.config_encrypted)
+            } catch {
+                config = {}
+            }
+        }
+
         // Test connection based on integration type
         let testResult = { success: false, message: "", details: {} }
 
-        switch (integration.type) {
+        switch (provider) {
             case 'whatsapp':
-                testResult = await testWhatsAppConnection(integration.config)
+                testResult = await testWhatsAppConnection(config)
                 break
             case 'email':
-                testResult = await testEmailConnection(integration.config)
+                testResult = await testEmailConnection(config)
                 break
             case 'webhook':
-                testResult = await testWebhookConnection(integration.config)
+                testResult = await testWebhookConnection(config)
                 break
             default:
                 testResult = {
                     success: false,
-                    message: `Testing not implemented for type: ${integration.type}`,
+                    message: `Testing not implemented for type: ${provider}`,
                     details: {}
                 }
         }
@@ -66,11 +82,13 @@ export async function POST(
                     status: 'active'
                 })
                 .eq("id", id)
+                .eq("organization_id", organizationId)
         } else {
             await supabase
                 .from("integrations")
                 .update({ status: 'error' })
                 .eq("id", id)
+                .eq("organization_id", organizationId)
         }
 
         return NextResponse.json({

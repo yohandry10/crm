@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { WEBHOOK_EVENTS } from "@/lib/webhooks"
+import { encryptSecret } from "@/lib/encryption"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
     // Mask secrets
     const maskedData = data.map(webhook => ({
       ...webhook,
-      secret: webhook.secret ? "••••••••" : null
+      secret: (webhook.secret || webhook.secret_encrypted) ? "••••••••" : null,
+      secret_encrypted: undefined
     }))
 
     return NextResponse.json({
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
 
     // Generate secret if not provided
     const secret = validation.data.secret || crypto.randomBytes(32).toString("hex")
+    const secretEncrypted = encryptSecret(secret)
 
     const { data, error } = await supabase
       .from("webhooks")
@@ -91,7 +94,8 @@ export async function POST(request: NextRequest) {
         name: validation.data.name,
         url: validation.data.url,
         events: validation.data.events,
-        secret,
+        secret: null,
+        secret_encrypted: secretEncrypted,
         is_active: validation.data.is_active,
         headers: validation.data.headers,
       })
@@ -115,7 +119,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         ...data,
-        secret // Return secret only on creation
+        secret, // Return secret only on creation
+        secret_encrypted: undefined
       }
     })
 

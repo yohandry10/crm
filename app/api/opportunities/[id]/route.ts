@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 export async function GET(
@@ -9,6 +10,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
@@ -46,6 +50,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, user, organizationId } = await getAuthenticatedContext()
@@ -125,9 +132,36 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
+
+        // Verify the opportunity exists
+        const { data: existing, error: checkError } = await supabase
+            .from('opportunities')
+            .select('id')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (checkError || !existing) {
+            return NextResponse.json({ success: false, error: "Oportunidad no encontrada" }, { status: 404 })
+        }
+
+        // Check for dependencies before deletion
+        const { checkDependencies } = await import('@/lib/dependency-checker')
+        const dependencyCheck = await checkDependencies(supabase, 'opportunities', id, organizationId)
+
+        if (dependencyCheck.hasDependencies) {
+            return NextResponse.json({
+                success: false,
+                error: "No se puede eliminar esta oportunidad porque tiene registros relacionados",
+                dependencies: dependencyCheck.dependencies
+            }, { status: 409 })
+        }
 
         const { error } = await supabase
             .from('opportunities')
@@ -146,7 +180,7 @@ export async function DELETE(
             error,
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }

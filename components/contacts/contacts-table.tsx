@@ -1,30 +1,16 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Edit, Trash2, Search, Plus, Phone, Mail, Upload, Tag, Download } from "lucide-react"
-import { LeadScoreBadge } from "./lead-score-badge"
-import { WhatsAppButton } from "./whatsapp-button"
+import { Trash2, Tag, Download } from "lucide-react"
 import { ContactDialog } from "./contact-dialog"
-import { ExportButton } from "@/components/data/export-button"
 import { ImportModal } from "@/components/data/import-modal"
 import { BulkActionsBar, useBulkSelection } from "@/components/bulk/bulk-actions-bar"
 import { contactsExportColumns, exportToCSV } from "@/lib/export-utils"
 import { contactsImportColumns } from "@/lib/import-utils"
 import { PaginationControls } from "@/components/ui/pagination-controls"
-import { Loading } from "@/components/ui/loading"
 import { useToast } from "@/hooks/use-toast"
+import { ContactsTableToolbar } from "@/components/contacts/contacts-table/contacts-table-toolbar"
+import { ContactsTableGrid } from "@/components/contacts/contacts-table/contacts-table-grid"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -93,7 +79,10 @@ export function ContactsTable() {
                 throw new Error(data.error || "Failed to load contacts")
             }
         } catch (error: any) {
-            console.error("Error loading contacts:", error)
+            if (process.env.NODE_ENV !== "production") {
+                // eslint-disable-next-line no-console
+                console.error("Error loading contacts:", error)
+            }
             toast({
                 variant: "destructive",
                 title: "Error al cargar contactos",
@@ -147,7 +136,10 @@ export function ContactsTable() {
                 throw new Error(data.error || "Failed to delete contact")
             }
         } catch (error: any) {
-            console.error("Error deleting contact:", error)
+            if (process.env.NODE_ENV !== "production") {
+                // eslint-disable-next-line no-console
+                console.error("Error deleting contact:", error)
+            }
             toast({
                 variant: "destructive",
                 title: "Error al eliminar",
@@ -167,29 +159,24 @@ export function ContactsTable() {
 
             const method = selectedContact ? "PUT" : "POST"
 
-            console.log("=== FRONTEND: handleSave ===")
-            console.log("URL:", url)
-            console.log("Method:", method)
-            console.log("Data:", JSON.stringify(contactData))
-
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(contactData)
             })
 
-            console.log("Response status:", res.status)
-
             // Leer la respuesta como texto primero para debug
             const responseText = await res.text()
-            console.log("Response body:", responseText)
 
             // Parsear la respuesta
             let data
             try {
                 data = JSON.parse(responseText)
             } catch (e) {
-                console.error("Error parsing response:", e)
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-console
+                    console.error("Error parsing response:", e)
+                }
                 throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 200)}`)
             }
 
@@ -208,7 +195,10 @@ export function ContactsTable() {
                 throw new Error(data.error || "Failed to save contact")
             }
         } catch (error: any) {
-            console.error("Error saving contact:", error)
+            if (process.env.NODE_ENV !== "production") {
+                // eslint-disable-next-line no-console
+                console.error("Error saving contact:", error)
+            }
             toast({
                 variant: "destructive",
                 title: "Error al guardar",
@@ -311,146 +301,33 @@ export function ContactsTable() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-                <form onSubmit={handleSearch} className="flex-1 flex gap-2 max-w-sm">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar contactos..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-8"
-                        />
-                    </div>
-                    <Button type="submit" variant="secondary">Buscar</Button>
-                </form>
-                <div className="flex items-center gap-2">
-                    <ExportButton
-                        data={contacts}
-                        columns={contactsExportColumns}
-                        filename="contactos"
-                    />
-                    <Button variant="outline" onClick={() => setImportModalOpen(true)}>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Importar
-                    </Button>
-                    <Button onClick={handleCreate} className="gradient-neon border-0">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nuevo Contacto
-                    </Button>
-                </div>
-            </div>
+            <ContactsTableToolbar
+                contacts={contacts}
+                search={search}
+                onSearchChange={setSearch}
+                onSubmitSearch={handleSearch}
+                onOpenImport={() => setImportModalOpen(true)}
+                onCreate={handleCreate}
+            />
 
-            <div className="border rounded-xl overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-12">
-                                <Checkbox
-                                    checked={allSelected}
-                                    ref={(el) => {
-                                        if (el) (el as any).indeterminate = someSelected
-                                    }}
-                                    onCheckedChange={(checked) => {
-                                        if (checked) {
-                                            selectAll(contacts)
-                                        } else {
-                                            clearSelection()
-                                        }
-                                    }}
-                                    aria-label="Seleccionar todos"
-                                />
-                            </TableHead>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Empresa / Cargo</TableHead>
-                            <TableHead>Contacto</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Score</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8">
-                                    <Loading text="Cargando contactos..." />
-                                </TableCell>
-                            </TableRow>
-                        ) : contacts.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                    No se encontraron contactos
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            contacts.map((contact) => (
-                                <TableRow
-                                    key={contact.id}
-                                    className={isSelected(contact.id) ? "bg-primary/5" : ""}
-                                >
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={isSelected(contact.id)}
-                                            onCheckedChange={() => toggleSelection(contact.id)}
-                                            aria-label={`Seleccionar ${contact.name}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{contact.name}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span>{contact.company || "-"}</span>
-                                            <span className="text-xs text-muted-foreground">{contact.position}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1 text-sm">
-                                            {contact.email && (
-                                                <div className="flex items-center gap-1">
-                                                    <Mail className="w-3 h-3 text-muted-foreground" />
-                                                    {contact.email}
-                                                </div>
-                                            )}
-                                            {contact.phone && (
-                                                <div className="flex items-center gap-1">
-                                                    <Phone className="w-3 h-3 text-muted-foreground" />
-                                                    {contact.phone}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge className={`${getStatusColor(contact.lead_status)} text-white border-0`}>
-                                            {contact.lead_status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <LeadScoreBadge score={contact.lead_score || 0} />
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
-                                            {contact.phone && (
-                                                <WhatsAppButton
-                                                    phone={contact.phone}
-                                                    contactName={contact.name}
-                                                    contactId={contact.id}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                />
-                                            )}
-                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(contact)}>
-                                                <Edit className="w-4 h-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(contact.id)}>
-                                                <Trash2 className="w-4 h-4 text-red-500" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+            <ContactsTableGrid
+                contacts={contacts}
+                loading={loading}
+                allSelected={allSelected}
+                someSelected={someSelected}
+                onToggleAll={(checked) => {
+                    if (checked) {
+                        selectAll(contacts)
+                    } else {
+                        clearSelection()
+                    }
+                }}
+                isSelected={isSelected}
+                onToggleOne={toggleSelection}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+                getStatusColor={getStatusColor}
+            />
 
             <PaginationControls
                 currentPage={page}

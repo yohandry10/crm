@@ -4,10 +4,14 @@ import { workflowSchema } from "@/lib/schemas"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 
 export async function GET(request: NextRequest) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const page = parseInt(request.nextUrl.searchParams.get("page") || "1")
@@ -40,6 +44,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 

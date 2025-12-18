@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       const user_id = session.metadata?.user_id
       const payment_intent = session.payment_intent?.toString()
       const amount = session.amount_total ? session.amount_total / 100 : null
+      const organization_id = session.metadata?.organization_id
 
       if (invoice_id && user_id && amount) {
         const supabase = createSupabaseServiceClient()
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest) {
           p_amount: amount,
           p_payment_method: "card",
           p_gateway: "stripe",
-          p_transaction_id: payment_intent || session.id
+          p_transaction_id: payment_intent || session.id,
+          p_organization_id: organization_id || null
         })
       }
     }

@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { createEmailClient } from "@/lib/email-sync"
+import { decryptSecret } from "@/lib/encryption"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -19,6 +20,18 @@ const sendEmailSchema = z.object({
   contactId: z.string().uuid().optional(),
   replyToMessageId: z.string().optional(),
 })
+
+function getEmailAccessToken(emailAccount: any): string | null {
+  if (emailAccount?.access_token) return emailAccount.access_token
+  if (emailAccount?.access_token_encrypted) {
+    try {
+      return decryptSecret(emailAccount.access_token_encrypted)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
 
 // GET: List synced emails or get emails for a contact
 export async function GET(request: NextRequest) {
@@ -50,8 +63,17 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const accessToken = getEmailAccessToken(emailAccount)
+    if (!accessToken) {
+      return NextResponse.json({
+        success: false,
+        error: "Token inválido o no disponible, reconecta tu cuenta",
+        needsReconnection: true
+      }, { status: 401 })
+    }
+
     // Check if token is expired and refresh if needed
-    if (new Date(emailAccount.expires_at) <= new Date()) {
+    if (emailAccount.expires_at && new Date(emailAccount.expires_at) <= new Date()) {
       // TODO: Implement token refresh
       return NextResponse.json({
         success: false,
@@ -62,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // If contact email provided, fetch from API
     if (contactEmail) {
-      const client = createEmailClient(emailAccount.provider, emailAccount.access_token)
+      const client = createEmailClient(emailAccount.provider, accessToken)
       const emails = await client.getEmailsByContact(contactEmail)
 
       // Store in local cache - batch upsert to avoid N+1
@@ -167,7 +189,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const client = createEmailClient(emailAccount.provider, emailAccount.access_token)
+    const accessToken = getEmailAccessToken(emailAccount)
+    if (!accessToken) {
+      return NextResponse.json({
+        success: false,
+        error: "Token inválido o no disponible, reconecta tu cuenta",
+        needsReconnection: true
+      }, { status: 401 })
+    }
+
+    const client = createEmailClient(emailAccount.provider, accessToken)
     const result = await client.sendEmail({
       to: validation.data.to,
       cc: validation.data.cc,

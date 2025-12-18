@@ -3,12 +3,16 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function GET(request: NextRequest, context: RouteContext) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id } = await context.params
 
@@ -33,6 +37,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const { id } = await context.params
         const body = await request.json()
@@ -85,6 +92,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const { id } = await context.params
         const body = await request.json()
@@ -183,6 +193,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const { id } = await context.params
 

@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { decryptSecret, encryptSecret } from "@/lib/encryption"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -62,7 +63,8 @@ export async function GET(
       success: true,
       data: {
         ...data,
-        secret: data.secret ? "••••••••" : null,
+        secret: (data.secret || data.secret_encrypted) ? "••••••••" : null,
+        secret_encrypted: undefined,
         deliveries
       }
     })
@@ -112,13 +114,17 @@ export async function PUT(
     }
 
     const updateData: any = {}
+    let regeneratedSecret: string | null = null
     if (validation.data.name) updateData.name = validation.data.name
     if (validation.data.url) updateData.url = validation.data.url
     if (validation.data.events) updateData.events = validation.data.events
     if (validation.data.is_active !== undefined) updateData.is_active = validation.data.is_active
     if (validation.data.headers) updateData.headers = validation.data.headers
     if (validation.data.regenerate_secret) {
-      updateData.secret = crypto.randomBytes(32).toString("hex")
+      const newSecret = crypto.randomBytes(32).toString("hex")
+      regeneratedSecret = newSecret
+      updateData.secret = null
+      updateData.secret_encrypted = encryptSecret(newSecret)
     }
 
     const { data, error } = await supabase
@@ -139,15 +145,16 @@ export async function PUT(
       action: "UPDATE_WEBHOOK",
       table: "webhooks",
       recordId: id,
-      oldData: { ...existing, secret: "***" },
-      newData: { ...data, secret: "***" },
+      oldData: { ...existing, secret: "***", secret_encrypted: "***" },
+      newData: { ...data, secret: "***", secret_encrypted: "***" },
     })
 
     return NextResponse.json({
       success: true,
       data: {
         ...data,
-        secret: validation.data.regenerate_secret ? data.secret : "••••••••"
+        secret: validation.data.regenerate_secret ? regeneratedSecret : "••••••••",
+        secret_encrypted: undefined
       }
     })
 
@@ -206,7 +213,7 @@ export async function DELETE(
       action: "DELETE_WEBHOOK",
       table: "webhooks",
       recordId: id,
-      oldData: { ...existing, secret: "***" },
+      oldData: { ...existing, secret: "***", secret_encrypted: "***" },
     })
 
     return NextResponse.json({ success: true })
@@ -262,8 +269,25 @@ export async function POST(
     }
 
     const body = JSON.stringify(testPayload)
+
+    let webhookSecret: string | null = webhook.secret ?? null
+    if (!webhookSecret && webhook.secret_encrypted) {
+      try {
+        webhookSecret = decryptSecret(webhook.secret_encrypted)
+      } catch {
+        webhookSecret = null
+      }
+    }
+
+    if (!webhookSecret) {
+      return NextResponse.json(
+        { success: false, error: "Webhook secret no configurado" },
+        { status: 400 }
+      )
+    }
+
     const signature = crypto
-      .createHmac("sha256", webhook.secret)
+      .createHmac("sha256", webhookSecret)
       .update(body)
       .digest("hex")
 

@@ -3,6 +3,8 @@
  * Conecta con OpenAI para respuestas inteligentes del chatbot
  */
 
+import { logger } from "./logger"
+
 export interface AIMessage {
     role: 'system' | 'user' | 'assistant'
     content: string
@@ -117,7 +119,7 @@ export async function generateAIResponse(
             usage: data.usage
         }
     } catch (error: any) {
-        console.error('OpenAI API error:', error)
+        logger.error("OpenAI API error", error)
         // Fallback a respuesta local si falla OpenAI
         return generateFallbackResponse(userMessage, context)
     }

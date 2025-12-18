@@ -6,6 +6,8 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { contactSchema } from "@/lib/schemas"
 import { rateLimit } from "@/lib/rate-limit"
 import { requirePlanLimit } from "@/lib/plan-limits"
+import { validatePagination } from "@/lib/auth-helpers"
+import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 100 }
@@ -23,25 +25,31 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get("search")
         const status = searchParams.get("status")
         const tag = searchParams.get("tag")
-        const page = parseInt(searchParams.get("page") || "1")
-        const limit = parseInt(searchParams.get("limit") || "10")
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = validatePagination(searchParams)
 
         // Search with organization filter
         if (search && search.trim().length > 0) {
+            const rpcLimit = Math.min(100, offset + limit)
             const { data, error } = await supabase
                 .rpc('search_contacts', {
                     p_org_id: organizationId,
                     p_query: search.trim(),
-                    p_limit: limit
+                    p_limit: rpcLimit
                 })
 
             if (error) throw error
 
+            const pagedData = (data || []).slice(offset, offset + limit)
             return NextResponse.json({
                 success: true,
-                data,
-                pagination: { page, limit, total: data.length }
+                data: pagedData,
+                pagination: {
+                    page,
+                    limit,
+                    total: pagedData.length,
+                    hasPrev: page > 1,
+                    hasNext: (data || []).length > offset + limit
+                }
             })
         }
 
@@ -91,6 +99,7 @@ export async function POST(request: NextRequest) {
         if (rateLimitResponse) return rateLimitResponse
 
         const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const log = createRequestLogger(request, organizationId)
         const body = await request.json()
 
         // VERIFICACIÓN DE LÍMITES DEL PLAN
@@ -140,7 +149,7 @@ export async function POST(request: NextRequest) {
                 newData: validation.data,
             })
         } catch (auditError) {
-            console.error("Error en audit (no bloqueante):", auditError)
+            log.warn("Audit logging failed (non-blocking)", { error: auditError })
         }
 
         // Event emission (non-blocking)
@@ -159,7 +168,7 @@ export async function POST(request: NextRequest) {
                 }
             }, supabase as any)
         } catch (eventError) {
-            console.error("Error en evento (no bloqueante):", eventError)
+            log.warn("Event emission failed (non-blocking)", { error: eventError })
         }
 
         return NextResponse.json({ success: true, data })

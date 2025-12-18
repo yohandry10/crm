@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { getPaginationParams } from "@/lib/pagination"
 
 const campaignSchema = z.object({
     name: z.string().min(1, "Nombre requerido"),
@@ -28,9 +29,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const status = searchParams.get('status')
         const type = searchParams.get('type')
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '10')
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from('campaigns')

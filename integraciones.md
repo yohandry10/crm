@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#plan-de-integraciones`.
+
 # Plan de Integraciones CRM
 
 ## Estado Actual del CRM

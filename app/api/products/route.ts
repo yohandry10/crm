@@ -2,8 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 import crypto from "crypto"
+import { getPaginationParams } from "@/lib/pagination"
 
 const productSchema = z.object({
     sku: z.string().optional().nullable(),
@@ -23,6 +25,9 @@ const productSchema = z.object({
 
 export async function GET(request: NextRequest) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const searchParams = request.nextUrl.searchParams
@@ -30,9 +35,7 @@ export async function GET(request: NextRequest) {
         const is_active = searchParams.get('is_active')
         const is_service = searchParams.get('is_service')
         const search = searchParams.get('search')
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '20')
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from('products')
@@ -61,6 +64,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 

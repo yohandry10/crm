@@ -3,6 +3,8 @@
  * Resolves ERROR-LOGIC-005: Workflow trigger_conditions evaluation
  */
 
+import { logger } from "./logger"
+
 export type ConditionOperator =
     | "=="  // Equal
     | "!="  // Not equal
@@ -73,7 +75,7 @@ export function evaluateCondition(
             return true
 
         default:
-            console.warn(`Unknown operator: ${operator}`)
+            logger.warn("Unknown workflow condition operator", { operator })
             return false
     }
 }
@@ -125,7 +127,7 @@ export function evaluateWorkflowConditions(
         return evaluateConditionsGroup(triggerConditions, eventData)
     }
 
-    console.warn("Invalid trigger_conditions format:", triggerConditions)
+    logger.warn("Invalid trigger_conditions format", { triggerConditions })
     return false
 }
 

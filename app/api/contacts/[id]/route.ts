@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { contactSchema } from "@/lib/schemas"
 import crypto from "crypto"
 
@@ -11,6 +12,9 @@ type RouteContext = { params: Promise<{ id: string }> }
 export async function GET(request: NextRequest, context: RouteContext) {
     const { id } = await context.params
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const { data, error } = await supabase
@@ -35,6 +39,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
@@ -76,10 +83,25 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
     const { id } = await context.params
     try {
+        const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
+        if (rateLimitResponse) return rateLimitResponse
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
 
         const { data: oldData } = await supabase.from("contacts").select("*").eq("id", id).eq("organization_id", organizationId).single()
         if (!oldData) return NextResponse.json({ success: false, error: "Contact not found" }, { status: 404 })
+
+        // Check for dependencies before deletion
+        const { checkDependencies } = await import('@/lib/dependency-checker')
+        const dependencyCheck = await checkDependencies(supabase, 'contacts', id, organizationId)
+
+        if (dependencyCheck.hasDependencies) {
+            return NextResponse.json({
+                success: false,
+                error: "No se puede eliminar este contacto porque tiene registros relacionados",
+                dependencies: dependencyCheck.dependencies
+            }, { status: 409 })
+        }
 
         const { error } = await supabase.from("contacts").delete().eq("id", id).eq("organization_id", organizationId)
         if (error) throw error

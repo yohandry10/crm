@@ -21,6 +21,12 @@ import {
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { DEFAULT_STAGES } from "./kanban-board"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { createOpportunitySchema, updateOpportunitySchema } from "@/lib/schemas"
+import type { z } from "zod"
+
+type OpportunityFormData = z.infer<typeof createOpportunitySchema>
 
 interface OpportunityDialogProps {
   open: boolean
@@ -37,42 +43,55 @@ export function OpportunityDialog({
 }: OpportunityDialogProps) {
   const [loading, setLoading] = useState(false)
   const [contacts, setContacts] = useState<any[]>([])
-  const [formData, setFormData] = useState({
-    name: "",
-    value: "",
-    stage_id: "",
-    probability: "10",
-    contact_id: "",
-    expected_close_date: "",
-    notes: "",
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors }
+  } = useForm<OpportunityFormData>({
+    resolver: zodResolver(opportunity ? updateOpportunitySchema : createOpportunitySchema),
+    defaultValues: {
+      name: "",
+      expected_revenue: 0,
+      stage_id: "",
+      probability: 50,
+      contact_id: "",
+      expected_close_date: "",
+      description: "",
+    }
   })
+
+  const watchedStageId = watch("stage_id")
 
   useEffect(() => {
     if (open) {
       fetchContacts()
       if (opportunity) {
-        setFormData({
+        reset({
           name: opportunity.name || "",
-          value: opportunity.value?.toString() || "",
+          expected_revenue: opportunity.expected_revenue || 0,
           stage_id: opportunity.stage_id || "",
-          probability: opportunity.probability?.toString() || "10",
+          probability: opportunity.probability || 50,
           contact_id: opportunity.contact_id || "",
           expected_close_date: opportunity.expected_close_date?.split("T")[0] || "",
-          notes: opportunity.notes || "",
+          description: opportunity.description || "",
         })
       } else {
-        setFormData({
+        reset({
           name: "",
-          value: "",
+          expected_revenue: 0,
           stage_id: "",
-          probability: "10",
+          probability: 50,
           contact_id: "",
           expected_close_date: "",
-          notes: "",
+          description: "",
         })
       }
     }
-  }, [open, opportunity])
+  }, [open, opportunity, reset])
 
   const fetchContacts = async () => {
     try {
@@ -86,8 +105,7 @@ export function OpportunityDialog({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: OpportunityFormData) => {
     setLoading(true)
 
     try {
@@ -100,23 +118,26 @@ export function OpportunityDialog({
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: formData.name,
-          expected_revenue: parseFloat(formData.value) || 0,
-          stage_id: formData.stage_id || null,
-          probability: parseInt(formData.probability) || 10,
-          contact_id: formData.contact_id || null,
-          expected_close_date: formData.expected_close_date || null,
-          description: formData.notes || null,
+          name: data.name,
+          expected_revenue: data.expected_revenue || 0,
+          stage_id: data.stage_id || null,
+          probability: data.probability || 50,
+          contact_id: data.contact_id || null,
+          expected_close_date: data.expected_close_date || null,
+          description: data.description || null,
         }),
       })
 
-      if (!res.ok) throw new Error("Failed to save")
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || "Failed to save")
+      }
 
       toast.success(opportunity ? "Oportunidad actualizada" : "Oportunidad creada")
       onOpenChange(false)
       onSuccess()
-    } catch (error) {
-      toast.error("Error al guardar")
+    } catch (error: any) {
+      toast.error(error.message || "Error al guardar")
     } finally {
       setLoading(false)
     }
@@ -124,11 +145,10 @@ export function OpportunityDialog({
 
   const handleStageChange = (stage_id: string) => {
     const stageData = DEFAULT_STAGES.find(s => s.id === stage_id)
-    setFormData({
-      ...formData,
-      stage_id,
-      probability: stageData?.probability.toString() || formData.probability,
-    })
+    setValue("stage_id", stage_id)
+    if (stageData) {
+      setValue("probability", stageData.probability)
+    }
   }
 
   return (
@@ -139,28 +159,32 @@ export function OpportunityDialog({
             {opportunity ? "Editar Oportunidad" : "Nueva Oportunidad"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nombre *</Label>
             <Input
               id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              {...register("name")}
               placeholder="Ej: Proyecto Website Empresa X"
-              required
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="value">Valor (S/)</Label>
+              <Label htmlFor="expected_revenue">Valor (S/)</Label>
               <Input
-                id="value"
+                id="expected_revenue"
                 type="number"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                step="0.01"
+                {...register("expected_revenue", { valueAsNumber: true })}
                 placeholder="0.00"
               />
+              {errors.expected_revenue && (
+                <p className="text-sm text-red-500">{errors.expected_revenue.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="probability">Probabilidad (%)</Label>
@@ -169,18 +193,20 @@ export function OpportunityDialog({
                 type="number"
                 min="0"
                 max="100"
-                value={formData.probability}
-                onChange={(e) => setFormData({ ...formData, probability: e.target.value })}
+                {...register("probability", { valueAsNumber: true })}
               />
+              {errors.probability && (
+                <p className="text-sm text-red-500">{errors.probability.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Etapa</Label>
-              <Select value={formData.stage_id} onValueChange={handleStageChange}>
+              <Select value={watchedStageId || ""} onValueChange={handleStageChange}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccionar etapa" />
                 </SelectTrigger>
                 <SelectContent>
                   {DEFAULT_STAGES.map((stage) => (
@@ -190,23 +216,28 @@ export function OpportunityDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.stage_id && (
+                <p className="text-sm text-red-500">{errors.stage_id.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="expected_close_date">Fecha cierre esperada</Label>
               <Input
                 id="expected_close_date"
                 type="date"
-                value={formData.expected_close_date}
-                onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
+                {...register("expected_close_date")}
               />
+              {errors.expected_close_date && (
+                <p className="text-sm text-red-500">{errors.expected_close_date.message}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Contacto</Label>
+            <Label>Contacto *</Label>
             <Select
-              value={formData.contact_id}
-              onValueChange={(v) => setFormData({ ...formData, contact_id: v })}
+              value={watch("contact_id") || ""}
+              onValueChange={(v) => setValue("contact_id", v)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar contacto" />
@@ -219,16 +250,21 @@ export function OpportunityDialog({
                 ))}
               </SelectContent>
             </Select>
+            {errors.contact_id && (
+              <p className="text-sm text-red-500">{errors.contact_id.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notas</Label>
+            <Label htmlFor="description">Notas</Label>
             <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              id="description"
+              {...register("description")}
               rows={3}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500">{errors.description.message}</p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

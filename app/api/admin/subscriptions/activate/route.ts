@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAuthenticatedClient } from "@/lib/supabase-auth"
 import { createClient } from "@supabase/supabase-js"
+import { createRequestLogger } from "@/lib/logger"
 
 async function requirePlatformAdmin() {
   const { supabase } = await createAuthenticatedClient()
@@ -24,6 +25,7 @@ async function requirePlatformAdmin() {
 }
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     const { user } = await requirePlatformAdmin()
     const body = await request.json()
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
-    console.error("Error activating subscription:", error)
+    log.error("Error activating subscription", error)
     const status = error.message === "Unauthorized" ? 401 : 
                    error.message.includes("Forbidden") ? 403 : 500
     return NextResponse.json({ success: false, error: error.message }, { status })

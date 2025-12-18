@@ -100,13 +100,18 @@ export function useUserProfile(supabase: SupabaseClient | null) {
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
+    const supabaseClient = supabase
 
     let isMounted = true
 
     async function loadUser() {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
+        const { data: { user: authUser } } = await supabaseClient.auth.getUser()
 
         if (!isMounted || !authUser) {
           if (isMounted) setLoading(false)
@@ -122,7 +127,7 @@ export function useUserProfile(supabase: SupabaseClient | null) {
         }
 
         // Si no está en caché, obtener de la base de datos
-        const { data: profile } = await supabase
+        const { data: profile } = await supabaseClient
           .from('profiles')
           .select('full_name, current_organization_id')
           .eq('id', authUser.id)
@@ -132,7 +137,7 @@ export function useUserProfile(supabase: SupabaseClient | null) {
 
         let role = 'member'
         if (profile?.current_organization_id) {
-          const { data: membership } = await supabase
+          const { data: membership } = await supabaseClient
             .from('organization_members')
             .select('role')
             .eq('user_id', authUser.id)

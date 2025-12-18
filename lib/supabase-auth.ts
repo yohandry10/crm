@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import type { OrgRole } from '@/lib/types/organization'
+import { logger } from './logger'
 
 /**
  * Crea cliente de Supabase para rutas de API usando SSR
@@ -122,7 +123,7 @@ export async function getAuthenticatedContext() {
             role: membership.role as OrgRole,
         }
     } catch (error) {
-        console.error("❌ Error en getAuthenticatedContext:", error)
+        logger.error("Error in getAuthenticatedContext", error)
         throw error
     }
 }

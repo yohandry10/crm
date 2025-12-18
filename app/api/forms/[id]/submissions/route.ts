@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { createRequestLogger } from '@/lib/logger'
+import { PAGINATION } from '@/lib/pagination'
 
 // GET - Listar envíos de un formulario
 export async function GET(
@@ -7,6 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const log = createRequestLogger(request)
     const { id } = await params
     const supabase = await createSupabaseRouteHandler()
     
@@ -17,8 +20,15 @@ export async function GET(
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+
+    const rawLimit = parseInt(searchParams.get('limit') || '50')
+    const rawOffset = parseInt(searchParams.get('offset') || '0')
+
+    const limit = Math.min(
+      PAGINATION.MAX_PAGE_SIZE,
+      Math.max(1, Number.isNaN(rawLimit) ? 50 : rawLimit)
+    )
+    const offset = Math.max(0, Number.isNaN(rawOffset) ? 0 : rawOffset)
 
     let query = supabase
       .from('form_submissions')
@@ -40,12 +50,13 @@ export async function GET(
 
     return NextResponse.json({
       submissions,
-      total: count,
+      total: count || 0,
       limit,
       offset
     })
   } catch (error: any) {
-    console.error('[Form Submissions API] Error:', error)
+    const log = createRequestLogger(request)
+    log.error('[Form Submissions API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

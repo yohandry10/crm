@@ -10,11 +10,10 @@ interface RouteParams {
 
 /**
  * POST /api/quotes/[id]/convert
- * Convert a paid quote into an invoice
+ * Convert a quote into an invoice (draft) and link it back to the quote.
  * 
  * Requirements:
  * - Quote must exist and belong to the organization
- * - Quote must have a confirmed payment (or be marked as paid)
  * - Quote must not already be converted
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
 
         // 2. Check if quote is already converted
-        if (quote.status === 'converted') {
+        if (quote.status === 'converted' || quote.invoice_id) {
             throw new ValidationError("Esta cotización ya fue convertida a factura")
         }
 
@@ -53,106 +52,40 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             throw new ValidationError(`La cotización debe estar aceptada o pagada para convertir. Estado actual: ${quote.status}`)
         }
 
-        // 4. Check for payment (optional - can be bypassed with manual confirmation)
-        const body = await request.json().catch(() => ({}))
-        const skipPaymentCheck = body.skipPaymentCheck === true
+        // Create invoice via atomic RPC (keeps numbering consistent and can decrement stock when product_id is present)
+        const invoiceItems = (quote.items || []).map((item: any) => ({
+            product_id: item.product_id || null,
+            description: item.description,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+        }))
 
-        if (!skipPaymentCheck) {
-            // Check if there's a completed payment for this quote
-            const { data: payments } = await supabase
-                .from('payments')
-                .select('id, amount, status')
-                .eq('organization_id', organizationId)
-                .in('status', ['completed', 'pending'])
-                // Payment might be linked via metadata or we check by amount
-                .limit(1)
-
-            // For now, we allow conversion if quote is in valid status
-            // In production, you'd want stricter payment validation
+        if (!invoiceItems.length) {
+            throw new ValidationError("La cotización no tiene items")
         }
 
-        // 5. Get organization settings for invoice series
-        const { data: org } = await supabase
-            .from('organizations')
-            .select('serie_factura, serie_boleta, default_tax_rate, currency')
-            .eq('id', organizationId)
-            .single()
-
-        // 6. Get next invoice number
-        const serie = org?.serie_factura || 'F001'
-        const { data: lastInvoice } = await supabase
-            .from('invoices')
-            .select('invoice_number')
-            .eq('organization_id', organizationId)
-            .like('invoice_number', `${serie}-%`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-
-        let nextNumber = 1
-        if (lastInvoice?.invoice_number) {
-            const match = lastInvoice.invoice_number.match(/-(\d+)$/)
-            if (match) {
-                nextNumber = parseInt(match[1], 10) + 1
-            }
-        }
-
-        const invoiceNumber = `${serie}-${String(nextNumber).padStart(8, '0')}`
-
-        // 7. Calculate totals from quote items
-        const taxRate = org?.default_tax_rate || 18
-        const subtotal = quote.items.reduce((sum: number, item: any) =>
-            sum + (Number(item.quantity) * Number(item.unit_price)), 0
-        )
-        const tax = subtotal * (taxRate / 100)
-        const total = subtotal + tax
-
-        // 8. Create the invoice
-        const { data: invoice, error: invoiceError } = await supabase
-            .from('invoices')
-            .insert({
-                organization_id: organizationId,
-                created_by: user.id,
-                contact_id: quote.contact_id,
-                quote_id: quoteId, // Link to original quote
-                invoice_number: invoiceNumber,
-                status: 'paid', // Already paid since we're converting
-                issue_date: new Date().toISOString().split('T')[0],
-                due_date: new Date().toISOString().split('T')[0], // Same day since paid
-                currency: org?.currency || 'PEN',
-                subtotal: Number(subtotal.toFixed(2)),
-                tax: Number(tax.toFixed(2)),
-                total: Number(total.toFixed(2)),
-                notes: `Generada desde cotización #${quote.quote_number || quoteId.slice(0, 8)}`
+        const { data: invoiceData, error: invoiceError } = await supabase
+            .rpc('create_invoice_with_items_atomic', {
+                p_org_id: organizationId,
+                p_user_id: user.id,
+                p_contact_id: quote.contact_id,
+                p_items: invoiceItems,
+                p_due_date: null,
+                p_notes: `Creado desde cotización: ${quote.quote_number || quoteId}`,
             })
-            .select()
             .single()
 
         if (invoiceError) throw invoiceError
 
-        // 9. Copy quote items to invoice items
-        const invoiceItems = quote.items.map((item: any) => ({
-            invoice_id: invoice.id,
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total: Number(item.quantity) * Number(item.unit_price)
-        }))
+        const newInvoiceId = (invoiceData as any)?.invoice_id
+        if (!newInvoiceId) throw new Error("No se pudo crear la factura")
 
-        const { error: itemsError } = await supabase
-            .from('invoice_items')
-            .insert(invoiceItems)
-
-        if (itemsError) throw itemsError
-
-        // 10. Update quote status to converted
+        // Update quote status to converted + link invoice_id
         const { error: updateError } = await supabase
             .from('quotes')
-            .update({
-                status: 'converted',
-                updated_at: new Date().toISOString()
-            })
+            .update({ status: 'converted', invoice_id: newInvoiceId, updated_at: new Date().toISOString() })
             .eq('id', quoteId)
+            .eq('organization_id', organizationId)
 
         if (updateError) throw updateError
 
@@ -162,7 +95,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             event_type: 'invoice.created_from_quote',
             source: 'api/quotes/convert',
             payload: {
-                invoice_id: invoice.id,
+                invoice_id: newInvoiceId,
                 quote_id: quoteId,
                 user_id: user.id,
                 organization_id: organizationId
@@ -172,8 +105,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json({
             success: true,
             data: {
-                invoice,
-                message: `Factura ${invoiceNumber} creada exitosamente`
+                invoice_id: newInvoiceId,
+                invoice_number: (invoiceData as any)?.invoice_number,
+                message: `Factura ${(invoiceData as any)?.invoice_number || ''} creada exitosamente`
             }
         })
 

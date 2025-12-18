@@ -29,8 +29,6 @@ export function getSupabaseBrowserClient(): SupabaseClient {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey) {
-        console.error('Supabase URL:', supabaseUrl ? 'SET' : 'MISSING')
-        console.error('Supabase Anon Key:', supabaseAnonKey ? 'SET' : 'MISSING')
         throw new Error(
             'Faltan variables de entorno de Supabase. ' +
             'Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en .env.local'

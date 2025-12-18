@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAuthenticatedClient } from "@/lib/supabase-auth"
 import { sendEmail, invitationEmailTemplate, isEmailConfigured } from "@/lib/email"
+import { createRequestLogger } from "@/lib/logger"
+import { maskEmail } from "@/lib/auth-helpers"
 
 async function requirePlatformAdmin() {
   const { supabase } = await createAuthenticatedClient()
@@ -24,6 +26,7 @@ async function requirePlatformAdmin() {
 }
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     const { supabase, adminName } = await requirePlatformAdmin()
     const body = await request.json()
@@ -69,7 +72,11 @@ export async function POST(request: NextRequest) {
       emailSent = result.success
     }
 
-    console.log(`Invitation ${emailSent ? "sent" : "generated"} for ${email}: ${inviteLink}`)
+    log.info("Organization invitation processed", {
+      emailSent,
+      email: maskEmail(email),
+      organizationId,
+    })
 
     return NextResponse.json({
       success: true,
@@ -79,6 +86,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const status = error.message === "Unauthorized" ? 401 : 
                    error.message.includes("Forbidden") ? 403 : 500
+    log.error("Error sending/generating organization invitation", error)
     return NextResponse.json({ success: false, error: error.message }, { status })
   }
 }

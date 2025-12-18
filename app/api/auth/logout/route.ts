@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { createRequestLogger } from '@/lib/logger'
 
-export async function POST() {
+export async function POST(request: Request) {
+    const log = createRequestLogger(request)
     try {
         const supabase = await createSupabaseRouteHandler()
         await supabase.auth.signOut()
@@ -14,7 +16,7 @@ export async function POST() {
         
         return response
     } catch (error) {
-        console.error('Logout error:', error)
+        log.error('Logout error', error)
         return NextResponse.json({ success: false }, { status: 500 })
     }
 }

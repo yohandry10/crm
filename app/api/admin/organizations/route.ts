@@ -1,30 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseRouteHandler } from "@/lib/supabase-server"
 import { createClient } from "@supabase/supabase-js"
-
-async function requirePlatformAdmin() {
-  const supabase = await createSupabaseRouteHandler()
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || !user) {
-    throw new Error("Unauthorized")
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_platform_admin")
-    .eq("id", user.id)
-    .single()
-
-  if (!profile?.is_platform_admin) {
-    throw new Error("Forbidden: Platform admin required")
-  }
-
-  return { supabase, user }
-}
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { requirePlatformAdmin, maskRUC, validatePagination } from "@/lib/auth-helpers"
+import { logAdminAction, logSensitiveDataAccess } from "@/lib/audit-logger"
+import { createRequestLogger } from "@/lib/logger"
 
 function getAdminClient() {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -38,25 +17,99 @@ function getAdminClient() {
 }
 
 // GET - List all organizations
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
-    await requirePlatformAdmin()
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { supabase, user } = await requirePlatformAdmin()
+    const { searchParams } = new URL(request.url)
+
+    // Validar paginación (obligatoria)
+    const { page, limit, offset } = validatePagination(searchParams)
+
+    // Filtros opcionales
+    const search = searchParams.get('search') || ''
+    const subscriptionStatus = searchParams.get('subscription_status') || ''
+    const subscriptionPlan = searchParams.get('subscription_plan') || ''
 
     const supabaseAdmin = getAdminClient()
 
-    const { data, error } = await supabaseAdmin
+    // Construir query
+    let query = supabaseAdmin
       .from("organizations")
       .select(
         `id, name, slug, ruc, subscription_status, subscription_plan,
-        trial_ends_at, subscription_ends_at, onboarding_completed, created_at`
+        trial_ends_at, subscription_ends_at, onboarding_completed, created_at`,
+        { count: 'exact' }
       )
+
+    // Aplicar filtros
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,slug.ilike.%${search}%`)
+    }
+
+    if (subscriptionStatus) {
+      query = query.eq('subscription_status', subscriptionStatus)
+    }
+
+    if (subscriptionPlan) {
+      query = query.eq('subscription_plan', subscriptionPlan)
+    }
+
+    // Orden y paginación
+    query = query
       .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    const { data: organizations, error, count } = await query
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data: data || [] })
+    // Enmascarar RUCs y remover datos sensibles
+    const safeOrganizations = (organizations || []).map(org => ({
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      ruc: maskRUC(org.ruc),
+      subscription_status: org.subscription_status,
+      subscription_plan: org.subscription_plan,
+      trial_ends_at: org.trial_ends_at,
+      subscription_ends_at: org.subscription_ends_at,
+      onboarding_completed: org.onboarding_completed,
+      created_at: org.created_at,
+      // stripe_customer_id removido - ya no usamos Stripe
+    }))
+
+    // Auditar acceso a datos sensibles
+    await logSensitiveDataAccess({
+      supabase,
+      request,
+      userId: user.id,
+      dataType: 'organizations',
+      recordCount: safeOrganizations.length,
+      filters: {
+        search,
+        subscription_status: subscriptionStatus,
+        subscription_plan: subscriptionPlan,
+        page,
+        limit,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: safeOrganizations,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    })
   } catch (error: any) {
-    console.error("GET /api/admin/organizations error:", error)
+    log.error("GET /api/admin/organizations error", error)
     const status =
       error.message === "Unauthorized"
         ? 401
@@ -69,8 +122,12 @@ export async function GET() {
 
 // POST - Create new organization with trial
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
-    const { user } = await requirePlatformAdmin()
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { supabase, user } = await requirePlatformAdmin()
     const body = await request.json()
 
     const { name, slug, ruc, ownerEmail, trialDays = 2 } = body
@@ -78,6 +135,13 @@ export async function POST(request: NextRequest) {
     if (!name || !ownerEmail) {
       return NextResponse.json(
         { success: false, error: "Nombre y email del owner son requeridos" },
+        { status: 400 }
+      )
+    }
+
+    if (!slug) {
+      return NextResponse.json(
+        { success: false, error: "Slug es requerido" },
         { status: 400 }
       )
     }
@@ -115,6 +179,24 @@ export async function POST(request: NextRequest) {
       throw new Error("Error al crear organización")
     }
 
+    // Auditar creación
+    await logAdminAction({
+      supabase,
+      request,
+      userId: user.id,
+      action: 'CREATE_ORGANIZATION',
+      resource: 'organizations',
+      resourceId: result.organization_id,
+      details: {
+        name,
+        slug,
+        ownerEmail,
+        hasRuc: !!ruc,
+        trialDays,
+      },
+      success: true,
+    })
+
     return NextResponse.json({
       success: true,
       data: {
@@ -123,7 +205,24 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error("Error creating organization:", error)
+    log.error("Error creating organization", error)
+
+    // Auditar fallo
+    try {
+      const { supabase, user } = await requirePlatformAdmin()
+      await logAdminAction({
+        supabase,
+        request,
+        userId: user.id,
+        action: 'CREATE_ORGANIZATION',
+        resource: 'organizations',
+        details: { error: error.message },
+        success: false,
+      })
+    } catch {
+      // Ignorar errores de auditoría
+    }
+
     const status =
       error.message === "Unauthorized"
         ? 401

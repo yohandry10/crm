@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import ReactFlow, {
     ReactFlowProvider,
     addEdge,
@@ -12,13 +12,14 @@ import ReactFlow, {
     Edge,
     Node,
     Panel,
-    MarkerType
+    MarkerType,
+    MiniMap
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Save, Play, MonitorPlay } from 'lucide-react';
+import { Plus, Save, Play, MonitorPlay, Loader2, Check } from 'lucide-react';
 import { toast } from "sonner";
 import { TriggerNode } from './nodes/trigger-node';
 import { ActionNode } from './nodes/action-node';
@@ -38,6 +39,8 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+    const [saving, setSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
     const nodeTypes = useMemo(() => ({
         trigger: TriggerNode,
@@ -88,7 +91,17 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
             toast.error("El workflow está vacío");
             return;
         }
-        await onSave(nodes, edges);
+        setSaving(true);
+        try {
+            await onSave(nodes, edges);
+            setLastSaved(new Date());
+            toast.success("Workflow guardado correctamente");
+        } catch (error) {
+            console.error('Error saving:', error);
+            toast.error("Error al guardar el workflow");
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (
@@ -216,10 +229,34 @@ const WorkflowBuilderContent = ({ initialNodes = [], initialEdges = [], onSave }
                 >
                     <Background color="#aaa" gap={16} />
                     <Controls />
-                    <Panel position="top-right" className='flex gap-2'>
-                        <Button onClick={handleSave} className="gradient-neon border-0 shadow-lg">
-                            <Save className="w-4 h-4 mr-2" />
-                            Guardar Flujo
+                    <MiniMap
+                        nodeColor={(node) => {
+                            if (node.type === 'trigger') return '#3b82f6';
+                            return '#8b5cf6';
+                        }}
+                        maskColor="rgb(240, 240, 240, 0.6)"
+                        className="!bg-background !border !border-border !rounded-lg"
+                    />
+                    <Panel position="top-right" className='flex gap-2 items-center'>
+                        {/* Save status indicator */}
+                        {lastSaved && !saving && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-700">
+                                <Check className="w-4 h-4" />
+                                <span>Guardado {lastSaved.toLocaleTimeString()}</span>
+                            </div>
+                        )}
+                        <Button onClick={handleSave} disabled={saving} className="gradient-neon border-0 shadow-lg">
+                            {saving ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Guardando...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Guardar
+                                </>
+                            )}
                         </Button>
                     </Panel>
                 </ReactFlow>

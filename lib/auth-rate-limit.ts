@@ -7,6 +7,7 @@
  */
 
 import { getRedisClient } from './redis'
+import { logger } from './logger'
 
 interface AuthAttempt {
     count: number
@@ -45,7 +46,7 @@ async function getAttempt(identifier: string): Promise<AuthAttempt | null> {
             }
             return null
         } catch (error) {
-            console.error('Error obteniendo attempt de Redis:', error)
+            logger.error('Error obteniendo attempt de Redis', error, { identifier })
             // Fallback a memoria
             return loginAttemptsMemory.get(identifier) || null
         }
@@ -72,7 +73,7 @@ async function setAttempt(identifier: string, attempt: AuthAttempt): Promise<voi
             )
             return
         } catch (error) {
-            console.error('Error guardando attempt en Redis:', error)
+            logger.error('Error guardando attempt en Redis', error, { identifier })
             // Fallback a memoria
         }
     }
@@ -93,7 +94,7 @@ async function deleteAttempt(identifier: string): Promise<void> {
             await redis.del(key)
             return
         } catch (error) {
-            console.error('Error eliminando attempt de Redis:', error)
+            logger.error('Error eliminando attempt de Redis', error, { identifier })
             // Fallback a memoria
         }
     }

@@ -1,21 +1,10 @@
 {
   "/api/notifications/route": "app/api/notifications/route.js",
-  "/api/dashboard/route": "app/api/dashboard/route.js",
-  "/api/activity/route": "app/api/activity/route.js",
-  "/api/campaigns/route": "app/api/campaigns/route.js",
-  "/api/contacts/route": "app/api/contacts/route.js",
-  "/api/lead-sources/route": "app/api/lead-sources/route.js",
-  "/api/opportunities/route": "app/api/opportunities/route.js",
-  "/api/team/route": "app/api/team/route.js",
-  "/products/page": "app/products/page.js",
-  "/campaigns/page": "app/campaigns/page.js",
-  "/forms/page": "app/forms/page.js",
-  "/page": "app/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/reports/builder/page": "app/reports/builder/page.js",
-  "/workflows/page": "app/workflows/page.js",
-  "/contacts/page": "app/contacts/page.js",
+  "/api/payments/route": "app/api/payments/route.js",
+  "/api/invoices/route": "app/api/invoices/route.js",
   "/leads/page": "app/leads/page.js",
   "/pipeline/page": "app/pipeline/page.js",
-  "/sales/page": "app/sales/page.js"
+  "/sales/page": "app/sales/page.js",
+  "/quotes/page": "app/quotes/page.js",
+  "/invoicing/page": "app/invoicing/page.js"
 }

@@ -6,6 +6,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
+import { getPaginationParams } from "@/lib/pagination"
 
 const READ_LIMIT = RATE_LIMITS.read
 const WRITE_LIMIT = RATE_LIMITS.sensitive
@@ -21,9 +22,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const status = searchParams.get("status")
         const contact_id = searchParams.get("contact_id")
-        const page = parseInt(searchParams.get("page") || "1")
-        const limit = parseInt(searchParams.get("limit") || "10")
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from("invoices")

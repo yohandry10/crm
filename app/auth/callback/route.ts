@@ -1,8 +1,10 @@
 import { createSupabaseRouteHandler } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createRequestLogger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
+    const log = createRequestLogger(request)
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
     const redirect = requestUrl.searchParams.get('redirect') || '/dashboard'
@@ -11,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Manejar errores de OAuth
     if (error) {
-        console.error('OAuth error:', error, errorDescription)
+        log.warn('OAuth error in callback', { error, errorDescription })
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('error', error)
         if (errorDescription) {
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!code) {
-        console.error('No code provided in callback')
+        log.warn('No code provided in auth callback')
         return NextResponse.redirect(new URL('/login?error=no_code', request.url))
     }
 
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
         const { data: { session }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
         
         if (exchangeError) {
-            console.error('Auth callback error:', exchangeError)
+            log.error('Auth callback exchange error', exchangeError)
             return NextResponse.redirect(new URL('/login?error=auth_failed', request.url))
         }
 
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
                 })
 
                 if (profileError) {
-                    console.error('Error creating profile:', profileError)
+                    log.error('Error creating profile for OAuth user', profileError)
                     // No fallar, el usuario puede continuar
                 }
 
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
                 })
 
                 if (settingsError) {
-                    console.error('Error creating user settings:', settingsError)
+                    log.error('Error creating user settings for OAuth user', settingsError)
                 }
             }
         }
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
         // Redirigir al dashboard o a la página solicitada
         return NextResponse.redirect(new URL(redirect, request.url))
     } catch (err) {
-        console.error('Unexpected error in auth callback:', err)
+        log.error('Unexpected error in auth callback', err)
         return NextResponse.redirect(new URL('/login?error=unexpected', request.url))
     }
 }

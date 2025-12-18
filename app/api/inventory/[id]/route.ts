@@ -6,13 +6,8 @@ import { z } from "zod"
 import crypto from "crypto"
 
 const inventoryUpdateSchema = z.object({
-    product_name: z.string().min(1, "Nombre de producto requerido").max(200).optional(),
-    sku: z.string().max(50).optional().nullable(),
     quantity: z.number().int().min(0, "Cantidad no puede ser negativa").optional(),
     price: z.number().min(0, "Precio no puede ser negativo").optional(),
-    min_stock: z.number().int().min(0).optional(),
-    category: z.string().max(100).optional().nullable(),
-    description: z.string().max(500).optional().nullable()
 })
 
 export async function GET(
@@ -24,10 +19,18 @@ export async function GET(
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const { data, error } = await supabase
-            .from("inventory")
-            .select("*")
+            .from("products")
+            .select(`
+                id,
+                product_name:name,
+                sku,
+                quantity:stock_quantity,
+                price:unit_price,
+                updated_at
+            `)
             .eq("id", id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .single()
 
         if (error) throw error
@@ -56,23 +59,29 @@ export async function PUT(
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.errors }, { status: 400 })
         }
 
-        // Verificar que el item pertenece a la organización
+        // Verificar que el producto pertenece a la organización (y es físico)
         const { data: existing, error: checkError } = await supabase
-            .from("inventory")
+            .from("products")
             .select("id")
             .eq("id", id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .single()
 
         if (checkError || !existing) {
             return NextResponse.json({ success: false, error: "Item no encontrado" }, { status: 404 })
         }
 
+        const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() }
+        if (typeof validation.data.quantity === "number") updatePayload.stock_quantity = validation.data.quantity
+        if (typeof validation.data.price === "number") updatePayload.unit_price = validation.data.price
+
         const { data, error } = await supabase
-            .from("inventory")
-            .update({ ...validation.data, updated_at: new Date().toISOString() })
+            .from("products")
+            .update(updatePayload)
             .eq("id", id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .select()
             .single()
 
@@ -93,27 +102,20 @@ export async function DELETE(
         const { id } = await params
         const { supabase, organizationId } = await getAuthenticatedContext()
 
-        // Verificar que el item pertenece a la organización
+        // In inventory module we don't delete products; that's handled in Products with dependency checks.
         const { data: existing, error: checkError } = await supabase
-            .from("inventory")
+            .from("products")
             .select("id")
             .eq("id", id)
             .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .single()
 
         if (checkError || !existing) {
             return NextResponse.json({ success: false, error: "Item no encontrado" }, { status: 404 })
         }
 
-        const { error } = await supabase
-            .from("inventory")
-            .delete()
-            .eq("id", id)
-            .eq("organization_id", organizationId)
-
-        if (error) throw error
-
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ success: false, error: "No se puede eliminar desde Inventario. Ve a Productos." }, { status: 400 })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/inventory/[id]", method: "DELETE", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })

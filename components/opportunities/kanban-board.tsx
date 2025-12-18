@@ -72,14 +72,8 @@ export function KanbanBoard({
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = useState<string | null>(null)
 
-  // Debug logs
-  console.log("=== KANBAN DEBUG ===")
-  console.log("Stages:", stages.map(s => ({ id: s.id, name: s.name })))
-  console.log("Opportunities:", opportunities.map(o => ({ id: o.id, name: o.name, stage_id: o.stage_id })))
-
   const getOpportunitiesByStage = useCallback((stageId: string) => {
     const filtered = opportunities.filter(opp => opp.stage_id === stageId)
-    console.log(`Stage ${stageId}: ${filtered.length} opportunities`)
     return filtered
   }, [opportunities])
 

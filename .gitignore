@@ -6,6 +6,7 @@
 # next.js
 /.next/
 /out/
+/.next-build/
 
 # production
 /build
@@ -25,5 +26,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test coverage
+/coverage
+/.nyc_output
+*.lcov
+
 # Sentry Config File
 .env.sentry-build-plugin

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { createRequestLogger } from '@/lib/logger'
 
 // GET - Listar formularios de la organización
 export async function GET(_request: NextRequest) {
@@ -32,7 +33,8 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json(forms)
   } catch (error: any) {
-    console.error('[Forms API] Error:', error)
+    const log = createRequestLogger(_request)
+    log.error('[Forms API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
@@ -40,6 +42,7 @@ export async function GET(_request: NextRequest) {
 // POST - Crear nuevo formulario
 export async function POST(request: NextRequest) {
   try {
+    const log = createRequestLogger(request)
     const supabase = await createSupabaseRouteHandler()
     
     const { data: { user } } = await supabase.auth.getUser()
@@ -111,7 +114,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(form, { status: 201 })
   } catch (error: any) {
-    console.error('[Forms API] Error:', error)
+    const log = createRequestLogger(request)
+    log.error('[Forms API] Error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

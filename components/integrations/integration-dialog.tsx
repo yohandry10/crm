@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -11,10 +11,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
 interface IntegrationDialogProps {
     open: boolean
@@ -24,34 +27,83 @@ interface IntegrationDialogProps {
 }
 
 export function IntegrationDialog({ open, onOpenChange, integration, onSave }: IntegrationDialogProps) {
-    const [formData, setFormData] = useState<any>({})
-    const [loading, setLoading] = useState(false)
+    const jsonObjectStringSchema = z.string().refine((value) => {
+        try {
+            const parsed = JSON.parse(value || "{}")
+            return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+        } catch {
+            return false
+        }
+    }, "JSON inválido (se espera un objeto)")
+
+    const integrationDialogSchema = z.object({
+        name: z.string().min(1, "Nombre requerido").max(100),
+        provider: z.string().min(1, "Proveedor requerido").max(50),
+        description: z.string().max(200).optional().or(z.literal('')),
+        category: z.string().min(1, "Categoría requerida").max(50),
+        status: z.enum(["connected", "disconnected", "error"]).default("disconnected"),
+        is_active: z.boolean().default(true),
+        config_json: jsonObjectStringSchema.default("{}"),
+    })
+
+    type IntegrationDialogFormData = z.infer<typeof integrationDialogSchema>
+
+    const defaultValues = useMemo<IntegrationDialogFormData>(() => {
+        const base: IntegrationDialogFormData = {
+            name: "",
+            provider: "whatsapp",
+            description: "",
+            category: "communication",
+            status: "disconnected",
+            is_active: true,
+            config_json: "{}",
+        }
+
+        if (!integration) return base
+
+        let config_json = "{}"
+        try {
+            const cfg = (integration as any).config ?? {}
+            config_json = JSON.stringify(cfg, null, 2)
+        } catch {
+            config_json = "{}"
+        }
+
+        return {
+            ...base,
+            name: integration.name ?? "",
+            provider: integration.provider ?? "whatsapp",
+            description: integration.description ?? "",
+            category: integration.category ?? "communication",
+            status: (integration.status as any) ?? "disconnected",
+            is_active: integration.is_active ?? true,
+            config_json,
+        }
+    }, [integration])
+
+    const form = useForm<IntegrationDialogFormData>({
+        resolver: zodResolver(integrationDialogSchema),
+        defaultValues,
+        mode: "onChange",
+    })
+
+    const { handleSubmit, reset, formState: { isSubmitting } } = form
 
     useEffect(() => {
-        if (integration) {
-            setFormData({
-                ...integration,
-                config: JSON.stringify(integration.config, null, 2)
-            })
-        } else {
-            setFormData({
-                name: "",
-                provider: "whatsapp",
-                description: "",
-                category: "communication",
-                status: "disconnected",
-                config: "{}"
-            })
-        }
-    }, [integration, open])
+        reset(defaultValues)
+    }, [defaultValues, open, reset])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
+    const onSubmit = async (data: IntegrationDialogFormData) => {
         try {
             const payload = {
-                ...formData,
-                config: JSON.parse(formData.config)
+                ...integration,
+                name: data.name,
+                provider: data.provider,
+                description: data.description || null,
+                category: data.category,
+                status: data.status,
+                is_active: data.is_active,
+                config: JSON.parse(data.config_json || "{}"),
             }
             const result = await onSave(payload)
 
@@ -67,118 +119,159 @@ export function IntegrationDialog({ open, onOpenChange, integration, onSave }: I
         } catch (error) {
             console.error("Error saving integration:", error)
             toast.error("Error: JSON inválido en configuración")
-        } finally {
-            setLoading(false)
         }
     }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>{integration ? "Configurar Integración" : "Nueva Integración"}</DialogTitle>
-                        <DialogDescription>
-                            Conecta servicios externos a tu CRM.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Nombre</Label>
-                                <Input
-                                    id="name"
-                                    value={formData.name || ""}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required
+                <DialogHeader>
+                    <DialogTitle>{integration ? "Configurar Integración" : "Nueva Integración"}</DialogTitle>
+                    <DialogDescription>
+                        Conecta servicios externos a tu CRM.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <Form {...form}>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid gap-4 py-2">
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Nombre</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="provider"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Proveedor</FormLabel>
+                                            <Select value={field.value} onValueChange={field.onChange}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seleccionar proveedor" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="whatsapp">WhatsApp Business</SelectItem>
+                                                    <SelectItem value="lms">LMS (Canvas/Moodle)</SelectItem>
+                                                    <SelectItem value="concar">Concar (Contabilidad)</SelectItem>
+                                                    <SelectItem value="google">Google Workspace</SelectItem>
+                                                    <SelectItem value="other">Otro API</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="provider">Proveedor</Label>
-                                <Select
-                                    value={formData.provider || "whatsapp"}
-                                    onValueChange={(value) => setFormData({ ...formData, provider: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar proveedor" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="whatsapp">WhatsApp Business</SelectItem>
-                                        <SelectItem value="lms">LMS (Canvas/Moodle)</SelectItem>
-                                        <SelectItem value="concar">Concar (Contabilidad)</SelectItem>
-                                        <SelectItem value="google">Google Workspace</SelectItem>
-                                        <SelectItem value="other">Otro API</SelectItem>
-                                    </SelectContent>
-                                </Select>
+
+                            <FormField
+                                control={form.control}
+                                name="description"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Descripción</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} value={field.value ?? ""} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="category"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Categoría</FormLabel>
+                                            <Select value={field.value} onValueChange={field.onChange}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seleccionar categoría" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="communication">Comunicación</SelectItem>
+                                                    <SelectItem value="finance">Finanzas</SelectItem>
+                                                    <SelectItem value="analytics">Analítica</SelectItem>
+                                                    <SelectItem value="education">Educación</SelectItem>
+                                                    <SelectItem value="other">Otros</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="status"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Estado Inicial</FormLabel>
+                                            <Select value={field.value} onValueChange={field.onChange}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seleccionar estado" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="connected">Conectado</SelectItem>
+                                                    <SelectItem value="disconnected">Desconectado</SelectItem>
+                                                    <SelectItem value="error">Error</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Descripción</Label>
-                            <Input
-                                id="description"
-                                value={formData.description || ""}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+
+                            <FormField
+                                control={form.control}
+                                name="config_json"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Configuración (JSON)</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                className="font-mono text-xs"
+                                                rows={6}
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        <p className="text-xs text-muted-foreground">
+                                            Ingresa las credenciales o API keys en formato JSON.
+                                        </p>
+                                    </FormItem>
+                                )}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="category">Categoría</Label>
-                                <Select
-                                    value={formData.category || "communication"}
-                                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar categoría" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="communication">Comunicación</SelectItem>
-                                        <SelectItem value="finance">Finanzas</SelectItem>
-                                        <SelectItem value="analytics">Analítica</SelectItem>
-                                        <SelectItem value="education">Educación</SelectItem>
-                                        <SelectItem value="other">Otros</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="status">Estado Inicial</Label>
-                                <Select
-                                    value={formData.status || "disconnected"}
-                                    onValueChange={(value) => setFormData({ ...formData, status: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar estado" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="connected">Conectado</SelectItem>
-                                        <SelectItem value="disconnected">Desconectado</SelectItem>
-                                        <SelectItem value="error">Error</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="config">Configuración (JSON)</Label>
-                            <Textarea
-                                id="config"
-                                className="font-mono text-xs"
-                                rows={6}
-                                value={formData.config || "{}"}
-                                onChange={(e) => setFormData({ ...formData, config: e.target.value })}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Ingresa las credenciales o API keys en formato JSON.
-                            </p>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Guardando..." : "Guardar"}
-                        </Button>
-                    </DialogFooter>
-                </form>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                Cancelar
+                            </Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? "Guardando..." : "Guardar"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
             </DialogContent>
         </Dialog>
     )

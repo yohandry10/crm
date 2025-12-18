@@ -4,6 +4,8 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { encryptSecret, decryptSecret, decryptIfNeeded } from "@/lib/encryption"
+import { createRequestLogger } from "@/lib/logger"
 
 const settingsSchema = z.object({
     // Company info - accept both formats (company_* and direct)
@@ -49,6 +51,7 @@ const settingsSchema = z.object({
 
 export async function GET(_request: NextRequest) {
     try {
+        const log = createRequestLogger(_request)
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         // Get all organization data (now includes settings)
@@ -60,6 +63,36 @@ export async function GET(_request: NextRequest) {
 
         if (error) throw error
 
+        // Decrypt sensitive fields if they are encrypted
+        let sunatUsuarioSol = org.sunat_usuario_sol
+        let sunatClaveSol = org.sunat_clave_sol
+        let oseApiKey = org.ose_api_key
+
+        // Check encrypted columns first
+        if (org.sunat_usuario_sol_encrypted) {
+            try {
+                sunatUsuarioSol = decryptSecret(org.sunat_usuario_sol_encrypted)
+            } catch (err) {
+                log.error("Failed to decrypt SUNAT usuario", err, { organizationId })
+            }
+        }
+
+        if (org.sunat_clave_sol_encrypted) {
+            try {
+                sunatClaveSol = decryptSecret(org.sunat_clave_sol_encrypted)
+            } catch (err) {
+                log.error("Failed to decrypt SUNAT clave", err, { organizationId })
+            }
+        }
+
+        if (org.ose_api_key_encrypted) {
+            try {
+                oseApiKey = decryptSecret(org.ose_api_key_encrypted)
+            } catch (err) {
+                log.error("Failed to decrypt OSE API key", err, { organizationId })
+            }
+        }
+
         // Map to frontend expected format for backwards compatibility
         const data = {
             ...org,
@@ -69,6 +102,13 @@ export async function GET(_request: NextRequest) {
             company_phone: org.phone,
             company_email: org.email,
             default_currency: org.currency,
+            sunat_usuario_sol: sunatUsuarioSol,
+            sunat_clave_sol: sunatClaveSol,
+            ose_api_key: oseApiKey,
+            // Don't expose encrypted columns to client
+            sunat_usuario_sol_encrypted: undefined,
+            sunat_clave_sol_encrypted: undefined,
+            ose_api_key_encrypted: undefined,
         }
 
         return NextResponse.json({ success: true, data })
@@ -80,6 +120,7 @@ export async function GET(_request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     try {
+        const log = createRequestLogger(request)
         const { supabase, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
@@ -105,9 +146,36 @@ export async function PUT(request: NextRequest) {
         if (validData.legal_name) updateData.legal_name = validData.legal_name
         if (validData.timezone) updateData.timezone = validData.timezone
 
-        // SUNAT
-        if (validData.sunat_usuario_sol !== undefined) updateData.sunat_usuario_sol = validData.sunat_usuario_sol
-        if (validData.sunat_clave_sol !== undefined) updateData.sunat_clave_sol = validData.sunat_clave_sol
+        // SUNAT - encrypt sensitive credentials
+        if (validData.sunat_usuario_sol !== undefined) {
+            if (validData.sunat_usuario_sol) {
+                try {
+                    updateData.sunat_usuario_sol_encrypted = encryptSecret(validData.sunat_usuario_sol)
+                    updateData.sunat_usuario_sol = null // Clear plaintext
+                } catch (err) {
+                    log.error("Failed to encrypt SUNAT usuario", err, { organizationId })
+                    throw new Error('Error al encriptar credenciales SUNAT')
+                }
+            } else {
+                updateData.sunat_usuario_sol_encrypted = null
+                updateData.sunat_usuario_sol = null
+            }
+        }
+
+        if (validData.sunat_clave_sol !== undefined) {
+            if (validData.sunat_clave_sol) {
+                try {
+                    updateData.sunat_clave_sol_encrypted = encryptSecret(validData.sunat_clave_sol)
+                    updateData.sunat_clave_sol = null // Clear plaintext
+                } catch (err) {
+                    log.error("Failed to encrypt SUNAT clave", err, { organizationId })
+                    throw new Error('Error al encriptar credenciales SUNAT')
+                }
+            } else {
+                updateData.sunat_clave_sol_encrypted = null
+                updateData.sunat_clave_sol = null
+            }
+        }
 
         // Billing series
         if (validData.serie_factura) updateData.serie_factura = validData.serie_factura
@@ -148,7 +216,8 @@ export async function PUT(request: NextRequest) {
             'serie_factura', 'serie_boleta', 'serie_nota_credito', 'default_tax_rate',
             'notify_new_lead', 'notify_task_due', 'notify_payment_received', 'notify_invoice_overdue',
             'logo_url', 'yape_phone', 'yape_qr_url', 'plin_phone', 'plin_qr_url',
-            'bank_name', 'bank_account', 'bank_cci', 'bank_holder']
+            'bank_name', 'bank_account', 'bank_cci', 'bank_holder',
+            'sunat_usuario_sol_encrypted', 'sunat_clave_sol_encrypted']
 
         const hasRealChanges = fieldsToCompare.some(field => {
             if (!(field in updateData)) return false
@@ -174,6 +243,26 @@ export async function PUT(request: NextRequest) {
 
         if (error) throw error
 
+        // Decrypt sensitive fields for response
+        let sunatUsuarioSol = null
+        let sunatClaveSol = null
+
+        if (data.sunat_usuario_sol_encrypted) {
+            try {
+                sunatUsuarioSol = decryptSecret(data.sunat_usuario_sol_encrypted)
+            } catch (err) {
+                log.error("Failed to decrypt SUNAT usuario in response", err, { organizationId })
+            }
+        }
+
+        if (data.sunat_clave_sol_encrypted) {
+            try {
+                sunatClaveSol = decryptSecret(data.sunat_clave_sol_encrypted)
+            } catch (err) {
+                log.error("Failed to decrypt SUNAT clave in response", err, { organizationId })
+            }
+        }
+
         // Return with backwards compatible field names
         const responseData = {
             ...data,
@@ -183,6 +272,12 @@ export async function PUT(request: NextRequest) {
             company_phone: data.phone,
             company_email: data.email,
             default_currency: data.currency,
+            sunat_usuario_sol: sunatUsuarioSol,
+            sunat_clave_sol: sunatClaveSol,
+            // Don't expose encrypted columns
+            sunat_usuario_sol_encrypted: undefined,
+            sunat_clave_sol_encrypted: undefined,
+            ose_api_key_encrypted: undefined,
         }
 
         return NextResponse.json({ success: true, data: responseData })

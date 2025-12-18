@@ -15,6 +15,8 @@ interface EmailResult {
   error?: string
 }
 
+import { logger } from "./logger"
+
 // Read at runtime to ensure Next.js loads .env.local properly
 function getResendApiKey() {
   return process.env.RESEND_API_KEY
@@ -28,17 +30,11 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
   const RESEND_API_KEY = getResendApiKey()
   const DEFAULT_FROM = getDefaultFrom()
 
-  // Debug logs
-  console.log("--- DEBUG EMAIL SENDING ---")
-  console.log("Process ID:", process.pid)
-  console.log("RESEND_API_KEY configured:", !!RESEND_API_KEY)
-  console.log("RESEND_API_KEY length:", RESEND_API_KEY?.length || 0)
-  console.log("First 3 chars:", RESEND_API_KEY?.substring(0, 3) || "N/A")
-  console.log("NODE_ENV:", process.env.NODE_ENV)
-  console.log("---------------------------")
-
   if (!RESEND_API_KEY) {
-    console.log("❌ Email not sent (Resend not configured):", params.subject, "to:", params.to)
+    logger.warn("Email not sent (Resend not configured)", {
+      subject: params.subject,
+      toCount: Array.isArray(params.to) ? params.to.length : 1,
+    })
     return { success: false, error: "Email service not configured (Key missing)" }
   }
 
@@ -66,7 +62,10 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
 
     return { success: true, id: data.id }
   } catch (error: any) {
-    console.error("Email send error:", error)
+    logger.error("Email send error", error, {
+      subject: params.subject,
+      toCount: Array.isArray(params.to) ? params.to.length : 1,
+    })
     return { success: false, error: error.message }
   }
 }

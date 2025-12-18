@@ -15,6 +15,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DuplicateDetector } from "./duplicate-detector"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { createContactSchema, updateContactSchema } from "@/lib/schemas"
+import type { z } from "zod"
+
+type ContactFormData = z.infer<typeof createContactSchema>
 
 interface ContactDialogProps {
     open: boolean
@@ -24,33 +30,77 @@ interface ContactDialogProps {
 }
 
 export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDialogProps) {
-    const [formData, setFormData] = useState<any>({})
     const [loading, setLoading] = useState(false)
+
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        reset,
+        formState: { errors }
+    } = useForm<ContactFormData>({
+        resolver: zodResolver(contact ? updateContactSchema : createContactSchema),
+        defaultValues: {
+            name: "",
+            email: "",
+            phone: "",
+            company: "",
+            position: "",
+            ruc: "",
+            address: "",
+            city: "Lima",
+            country: "Perú",
+            lead_status: "cold",
+            lead_score: 0,
+            source: "website",
+            tags: [],
+            notes: ""
+        }
+    })
 
     useEffect(() => {
         if (contact) {
-            setFormData(contact)
+            reset({
+                name: contact.name || "",
+                email: contact.email || "",
+                phone: contact.phone || "",
+                company: contact.company || "",
+                position: contact.position || "",
+                ruc: contact.ruc || "",
+                address: contact.address || "",
+                city: contact.city || "Lima",
+                country: contact.country || "Perú",
+                lead_status: contact.lead_status || "cold",
+                lead_score: contact.lead_score || 0,
+                source: contact.source || "website",
+                tags: contact.tags || [],
+                notes: contact.notes || ""
+            })
         } else {
-            setFormData({
+            reset({
                 name: "",
                 email: "",
                 phone: "",
                 company: "",
                 position: "",
                 ruc: "",
+                address: "",
+                city: "Lima",
+                country: "Perú",
                 lead_status: "cold",
+                lead_score: 0,
                 source: "website",
                 tags: [],
                 notes: ""
             })
         }
-    }, [contact, open])
+    }, [contact, open, reset])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const onSubmit = async (data: ContactFormData) => {
         setLoading(true)
         try {
-            await onSave(formData)
+            await onSave(data)
             onOpenChange(false)
         } catch (error) {
             console.error("Error saving contact:", error)
@@ -62,7 +112,7 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit(onSubmit)}>
                     <DialogHeader>
                         <DialogTitle>{contact ? "Editar Contacto" : "Nuevo Contacto"}</DialogTitle>
                         <DialogDescription>
@@ -73,48 +123,55 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                         {/* Duplicate detector */}
                         {!contact && (
                             <DuplicateDetector
-                                email={formData.email}
-                                phone={formData.phone}
-                                name={formData.name}
+                                email={watch("email") || ""}
+                                phone={watch("phone") || ""}
+                                name={watch("name") || ""}
                             />
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Nombre Completo</Label>
+                                <Label htmlFor="name">Nombre Completo *</Label>
                                 <Input
                                     id="name"
-                                    value={formData.name || ""}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required
+                                    {...register("name")}
                                 />
+                                {errors.name && (
+                                    <p className="text-sm text-red-500">{errors.name.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
-                                    value={formData.email || ""}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    {...register("email")}
                                 />
+                                {errors.email && (
+                                    <p className="text-sm text-red-500">{errors.email.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Teléfono</Label>
+                                <Label htmlFor="phone">Teléfono *</Label>
                                 <Input
                                     id="phone"
-                                    value={formData.phone || ""}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    {...register("phone")}
                                 />
+                                {errors.phone && (
+                                    <p className="text-sm text-red-500">{errors.phone.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="ruc">RUC / DNI</Label>
                                 <Input
                                     id="ruc"
-                                    value={formData.ruc || ""}
-                                    onChange={(e) => setFormData({ ...formData, ruc: e.target.value })}
+                                    {...register("ruc")}
                                 />
+                                {errors.ruc && (
+                                    <p className="text-sm text-red-500">{errors.ruc.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -122,17 +179,21 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                                 <Label htmlFor="company">Empresa</Label>
                                 <Input
                                     id="company"
-                                    value={formData.company || ""}
-                                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                                    {...register("company")}
                                 />
+                                {errors.company && (
+                                    <p className="text-sm text-red-500">{errors.company.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="position">Cargo</Label>
                                 <Input
                                     id="position"
-                                    value={formData.position || ""}
-                                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                                    {...register("position")}
                                 />
+                                {errors.position && (
+                                    <p className="text-sm text-red-500">{errors.position.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
@@ -140,47 +201,54 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                                 <Label htmlFor="address">Dirección</Label>
                                 <Input
                                     id="address"
-                                    value={formData.address || ""}
-                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    {...register("address")}
                                     placeholder="Av. Principal 123"
                                 />
+                                {errors.address && (
+                                    <p className="text-sm text-red-500">{errors.address.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="city">Ciudad</Label>
                                 <Input
                                     id="city"
-                                    value={formData.city || ""}
-                                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                    {...register("city")}
                                     placeholder="Lima"
                                 />
+                                {errors.city && (
+                                    <p className="text-sm text-red-500">{errors.city.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="country">País</Label>
                                 <Select
-                                    value={formData.country || "PE"}
-                                    onValueChange={(value) => setFormData({ ...formData, country: value })}
+                                    value={watch("country") || "Perú"}
+                                    onValueChange={(value) => setValue("country", value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="País" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="PE">Perú</SelectItem>
-                                        <SelectItem value="CO">Colombia</SelectItem>
-                                        <SelectItem value="MX">México</SelectItem>
-                                        <SelectItem value="CL">Chile</SelectItem>
-                                        <SelectItem value="AR">Argentina</SelectItem>
-                                        <SelectItem value="EC">Ecuador</SelectItem>
-                                        <SelectItem value="US">Estados Unidos</SelectItem>
+                                        <SelectItem value="Perú">Perú</SelectItem>
+                                        <SelectItem value="Colombia">Colombia</SelectItem>
+                                        <SelectItem value="México">México</SelectItem>
+                                        <SelectItem value="Chile">Chile</SelectItem>
+                                        <SelectItem value="Argentina">Argentina</SelectItem>
+                                        <SelectItem value="Ecuador">Ecuador</SelectItem>
+                                        <SelectItem value="Estados Unidos">Estados Unidos</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {errors.country && (
+                                    <p className="text-sm text-red-500">{errors.country.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="lead_status">Estado</Label>
                                 <Select
-                                    value={formData.lead_status || "cold"}
-                                    onValueChange={(value) => setFormData({ ...formData, lead_status: value })}
+                                    value={watch("lead_status") || "cold"}
+                                    onValueChange={(value: any) => setValue("lead_status", value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar estado" />
@@ -193,12 +261,15 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                                         <SelectItem value="lost">Perdido</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {errors.lead_status && (
+                                    <p className="text-sm text-red-500">{errors.lead_status.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="source">Fuente</Label>
                                 <Select
-                                    value={formData.source || "website"}
-                                    onValueChange={(value) => setFormData({ ...formData, source: value })}
+                                    value={watch("source") || "website"}
+                                    onValueChange={(value) => setValue("source", value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar fuente" />
@@ -213,6 +284,9 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                                         <SelectItem value="other">Otro</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {errors.source && (
+                                    <p className="text-sm text-red-500">{errors.source.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="lead_score">Lead Score (0-100)</Label>
@@ -221,31 +295,35 @@ export function ContactDialog({ open, onOpenChange, contact, onSave }: ContactDi
                                     type="number"
                                     min={0}
                                     max={100}
-                                    value={formData.lead_score || 0}
-                                    onChange={(e) => setFormData({ ...formData, lead_score: Number(e.target.value) })}
+                                    {...register("lead_score", { valueAsNumber: true })}
                                 />
+                                {errors.lead_score && (
+                                    <p className="text-sm text-red-500">{errors.lead_score.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="tags">Etiquetas (separadas por coma)</Label>
                             <Input
                                 id="tags"
-                                value={Array.isArray(formData.tags) ? formData.tags.join(", ") : (formData.tags || "")}
-                                onChange={(e) => setFormData({ 
-                                    ...formData, 
-                                    tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean)
-                                })}
+                                value={Array.isArray(watch("tags")) ? watch("tags")?.join(", ") : ""}
+                                onChange={(e) => setValue("tags", e.target.value.split(",").map(t => t.trim()).filter(Boolean))}
                                 placeholder="cliente, vip, interesado"
                             />
+                            {errors.tags && (
+                                <p className="text-sm text-red-500">{errors.tags.message}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="notes">Notas</Label>
                             <Textarea
                                 id="notes"
-                                value={formData.notes || ""}
-                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                {...register("notes")}
                                 placeholder="Información adicional sobre el contacto..."
                             />
+                            {errors.notes && (
+                                <p className="text-sm text-red-500">{errors.notes.message}</p>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

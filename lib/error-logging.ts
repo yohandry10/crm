@@ -1,5 +1,6 @@
 // import { v4 as uuidv4 } from 'uuid' - Removed to avoid dependency
 
+import { logger } from "./logger"
 
 export async function logError(params: {
     errorId?: string
@@ -21,11 +22,10 @@ export async function logError(params: {
         method: params.method,
         userId: params.userId || 'anonymous',
         message: params.error?.message || 'Unknown error',
-        stack: params.error?.stack,
-        requestBody: params.requestBody ? JSON.stringify(params.requestBody) : undefined
+        requestBody: params.requestBody,
     }
 
-    console.error(JSON.stringify(logPayload, null, 2))
+    logger.error("Request error", params.error, logPayload)
 
     return errorId
 }

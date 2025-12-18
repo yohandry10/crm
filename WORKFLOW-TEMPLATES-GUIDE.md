@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#workflows-templates--ux`.
+
 # 📝 Guía de Variables de Template en Workflows
 
 ## 🎯 ¿Qué son las Variables de Template?

@@ -56,14 +56,6 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => {
 
 StatCard.displayName = "StatCard"
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url, { credentials: "include" })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  const json = await response.json()
-  if (!json.success) throw new Error(json.error || "Error al obtener métricas")
-  return json
-}
-
 export function DashboardOverviewSkeleton() {
   return (
     <div className="space-y-8" suppressHydrationWarning>
@@ -88,10 +80,8 @@ export function DashboardOverviewSkeleton() {
 }
 
 export const DashboardOverview = memo(() => {
-  const { data, isLoading } = useSWR('/api/dashboard', fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 5 * 60 * 1000,
-    shouldRetryOnError: false,
+  // ✅ Usar configuración global de SWR, solo override onError
+  const { data, isLoading } = useSWR('/api/dashboard', {
     onError: (error) => {
       console.error("Error fetching dashboard:", error)
       toast.error("Error al cargar el dashboard")

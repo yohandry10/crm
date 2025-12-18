@@ -5,22 +5,18 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { z } from "zod"
 import crypto from "crypto"
 
-// Mapped schema to products table
+// Inventory in this app represents "stock management" for physical products.
+// Product creation belongs to /api/products (catalog management).
 const inventorySchema = z.object({
-    product_name: z.string().min(1, "Nombre de producto requerido").max(200),
-    sku: z.string().max(50).optional(),
+    product_id: z.string().uuid("Producto inválido"),
     quantity: z.number().int().min(0, "Cantidad no puede ser negativa"),
-    price: z.number().min(0, "Precio no puede ser negativo"),
-    min_stock: z.number().int().min(0).optional(),
-    description: z.string().max(500).optional()
 })
 
 export async function GET(_request: NextRequest) {
     try {
         const { supabase, organizationId } = await getAuthenticatedContext()
 
-        // Fetch from PRODUCTS table instead of legacy inventory table
-        // Map columns to match the InvoiceItem interface expected by frontend
+        // Fetch from PRODUCTS table (canonical stock source used across orders/invoicing)
         const { data, error } = await supabase
             .from("products")
             .select(`
@@ -46,7 +42,7 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
         const validation = inventorySchema.safeParse(body)
@@ -54,23 +50,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.errors }, { status: 400 })
         }
 
-        const { product_name, sku, quantity, price, min_stock, description } = validation.data
+        const { product_id, quantity } = validation.data
 
-        // Insert into PRODUCTS table
+        // Update stock on an existing product (do not create products from Inventory)
         const { data, error } = await supabase
             .from("products")
-            .insert({
-                name: product_name,
-                sku,
+            .update({
                 stock_quantity: quantity,
-                unit_price: price,
-                min_stock: min_stock || 0,
-                description,
-                is_service: false,
-                is_active: true,
-                organization_id: organizationId,
-                created_by: user.id
+                updated_at: new Date().toISOString(),
             })
+            .eq("id", product_id)
+            .eq("organization_id", organizationId)
+            .eq("is_service", false)
             .select(`
                 id,
                 product_name:name,
@@ -81,13 +72,8 @@ export async function POST(request: NextRequest) {
             `)
             .single()
 
-        if (error) {
-            // Check for unique SKU error
-            if (error.code === '23505' && error.message?.includes('sku')) {
-                return NextResponse.json({ success: false, error: "Ya existe un producto con este SKU" }, { status: 400 })
-            }
-            throw error
-        }
+        if (error) throw error
+        if (!data) return NextResponse.json({ success: false, error: "Producto no encontrado" }, { status: 404 })
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {

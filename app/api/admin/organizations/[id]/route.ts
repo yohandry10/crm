@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseRouteHandler } from "@/lib/supabase-server"
 import { createClient } from "@supabase/supabase-js"
-
-async function requirePlatformAdmin() {
-  const supabase = await createSupabaseRouteHandler()
-
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) {
-    throw new Error("Unauthorized")
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_platform_admin")
-    .eq("id", user.id)
-    .single()
-
-  if (!profile?.is_platform_admin) {
-    throw new Error("Forbidden: Platform admin required")
-  }
-
-  return { supabase, user }
-}
+import { requirePlatformAdmin, maskEmail, maskRUC } from "@/lib/auth-helpers"
+import { logAdminAction, logSensitiveDataAccess } from "@/lib/audit-logger"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { createRequestLogger } from "@/lib/logger"
 
 function getAdminClient() {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -38,8 +20,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const log = createRequestLogger(request)
   try {
-    await requirePlatformAdmin()
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { supabase, user } = await requirePlatformAdmin()
     const { id } = await params
     const supabaseAdmin = getAdminClient()
 
@@ -69,17 +55,43 @@ export async function GET(
       .eq("organization_id", id)
       .order("started_at", { ascending: false })
 
+    // Enmascarar datos sensibles
+    const safeOrganization = {
+      ...organization,
+      ruc: maskRUC(organization.ruc),
+      // Remover stripe_customer_id si existe
+      stripe_customer_id: undefined,
+    }
+
+    const safeMembers = (members || []).map((m: any) => ({
+      ...m,
+      profiles: {
+        ...m.profiles,
+        email: maskEmail(m.profiles?.email),
+      },
+    }))
+
+    // Auditar acceso
+    await logSensitiveDataAccess({
+      supabase,
+      request,
+      userId: user.id,
+      dataType: 'organization_detail',
+      recordCount: 1,
+      filters: { organizationId: id },
+    })
+
     return NextResponse.json({
       success: true,
       data: {
-        organization,
-        members: members || [],
+        organization: safeOrganization,
+        members: safeMembers,
         subscriptionHistory: subscriptionHistory || [],
       },
     })
   } catch (error: any) {
-    console.error("GET /api/admin/organizations/[id] error:", error)
-    const status = error.message === "Unauthorized" ? 401 : 
+    log.error("GET /api/admin/organizations/[id] error", error)
+    const status = error.message === "Unauthorized" ? 401 :
                    error.message.includes("Forbidden") ? 403 : 500
     return NextResponse.json({ success: false, error: error.message }, { status })
   }
@@ -89,11 +101,22 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const log = createRequestLogger(request)
   try {
-    await requirePlatformAdmin()
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { supabase, user } = await requirePlatformAdmin()
     const { id } = await params
     const body = await request.json()
     const supabaseAdmin = getAdminClient()
+
+    // Obtener datos anteriores para auditoría
+    const { data: oldData } = await supabaseAdmin
+      .from("organizations")
+      .select("name, ruc, max_users, max_contacts")
+      .eq("id", id)
+      .single()
 
     const { data, error } = await supabaseAdmin
       .from("organizations")
@@ -110,10 +133,35 @@ export async function PUT(
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data })
+    // Auditar actualización
+    await logAdminAction({
+      supabase,
+      request,
+      userId: user.id,
+      action: 'UPDATE_ORGANIZATION',
+      resource: 'organizations',
+      resourceId: id,
+      details: {
+        changes: {
+          name: { old: oldData?.name, new: body.name },
+          ruc: { old: maskRUC(oldData?.ruc), new: maskRUC(body.ruc) },
+          max_users: { old: oldData?.max_users, new: body.max_users },
+          max_contacts: { old: oldData?.max_contacts, new: body.max_contacts },
+        },
+      },
+      success: true,
+    })
+
+    // Enmascarar RUC en la respuesta
+    const safeData = {
+      ...data,
+      ruc: maskRUC(data.ruc),
+    }
+
+    return NextResponse.json({ success: true, data: safeData })
   } catch (error: any) {
-    console.error("PUT /api/admin/organizations/[id] error:", error)
-    const status = error.message === "Unauthorized" ? 401 : 
+    log.error("PUT /api/admin/organizations/[id] error", error)
+    const status = error.message === "Unauthorized" ? 401 :
                    error.message.includes("Forbidden") ? 403 : 500
     return NextResponse.json({ success: false, error: error.message }, { status })
   }

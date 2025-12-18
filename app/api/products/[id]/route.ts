@@ -111,6 +111,18 @@ export async function DELETE(
             return NextResponse.json({ success: false, error: "Producto no encontrado" }, { status: 404 })
         }
 
+        // Check for dependencies before deletion
+        const { checkDependencies } = await import('@/lib/dependency-checker')
+        const dependencyCheck = await checkDependencies(supabase, 'products', id, organizationId)
+
+        if (dependencyCheck.hasDependencies) {
+            return NextResponse.json({
+                success: false,
+                error: "No se puede eliminar este producto porque tiene registros relacionados",
+                dependencies: dependencyCheck.dependencies
+            }, { status: 409 })
+        }
+
         const { error } = await supabase
             .from('products')
             .delete()

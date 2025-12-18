@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#redis-rate-limiting`.
+
 # 🚀 Redis Setup para Rate Limiting
 
 Este proyecto usa Redis para rate limiting persistente y caché. Redis resuelve el problema crítico **AUTH-001** del reporte forense.

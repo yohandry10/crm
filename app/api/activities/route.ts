@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { getPaginationParams } from "@/lib/pagination"
 
 const activitySchema = z.object({
     activity_type: z.enum(['call', 'email', 'meeting', 'whatsapp', 'note', 'task_completed', 'deal_won', 'deal_lost']),
@@ -27,9 +28,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const contact_id = searchParams.get('contact_id')
         const activity_type = searchParams.get('activity_type')
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '20')
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from('activities')

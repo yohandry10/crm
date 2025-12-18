@@ -155,7 +155,6 @@ export default function QuotesPage() {
             const res = await fetch(`/api/quotes/${quoteId}/convert`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ skipPaymentCheck: true })
             })
             const data = await res.json()
 

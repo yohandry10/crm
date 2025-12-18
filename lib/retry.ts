@@ -3,6 +3,8 @@
  * ERROR-025: Integrations - Retry logic ausente
  */
 
+import { logger } from "./logger"
+
 export interface RetryOptions {
     maxAttempts?: number
     initialDelay?: number
@@ -161,6 +163,6 @@ export async function trackRetryAttempt(
             })
             .eq('id', recordId)
     } catch (dbError) {
-        console.error('Failed to track retry attempt:', dbError)
+        logger.error('Failed to track retry attempt', dbError, { tableName, recordId })
     }
 }

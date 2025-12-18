@@ -1,3 +1,5 @@
+import { logger } from './logger'
+
 export interface PerformanceMetric {
     endpoint: string
     method: string
@@ -20,10 +22,12 @@ const alerts: AlertConfig[] = []
  */
 export async function logPerformance(metric: PerformanceMetric): Promise<void> {
     try {
-        // Log to console in development
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`[Performance] ${metric.method} ${metric.endpoint} - ${metric.duration_ms}ms - ${metric.status_code}`)
-        }
+        logger.debug('Performance metric', {
+            endpoint: metric.endpoint,
+            method: metric.method,
+            duration_ms: metric.duration_ms,
+            status_code: metric.status_code
+        })
 
         // Check alerts
         for (const alert of alerts) {
@@ -36,7 +40,12 @@ export async function logPerformance(metric: PerformanceMetric): Promise<void> {
         await sendToMonitoringService(metric)
 
     } catch (error) {
-        console.error('Failed to log performance:', error)
+        logger.error('Failed to log performance', error as Error, {
+            endpoint: metric.endpoint,
+            method: metric.method,
+            duration_ms: metric.duration_ms,
+            status_code: metric.status_code
+        })
     }
 }
 
@@ -91,7 +100,12 @@ registerAlert({
     name: 'Slow Endpoint',
     condition: (metric) => metric.duration_ms > 2000,
     action: async (metric) => {
-        console.warn(`[ALERT] Slow endpoint detected: ${metric.method} ${metric.endpoint} took ${metric.duration_ms}ms`)
+        logger.warn('Slow endpoint detected', {
+            endpoint: metric.endpoint,
+            method: metric.method,
+            duration_ms: metric.duration_ms,
+            status_code: metric.status_code
+        })
         await sendAlert('slow_endpoint', metric)
     }
 })
@@ -118,7 +132,11 @@ registerAlert({
         return false
     },
     action: async (metric) => {
-        console.error('[ALERT] High error rate detected (>10%)')
+        logger.error('High error rate detected (>10%)', undefined, {
+            endpoint: metric.endpoint,
+            method: metric.method,
+            status_code: metric.status_code
+        })
         await sendAlert('high_error_rate', metric)
     }
 })
@@ -137,13 +155,13 @@ export async function trackQuery<T>(
         const duration = Date.now() - start
 
         if (duration > 1000) {
-            console.warn(`[Query Performance] ${queryName} took ${duration}ms`)
+            logger.warn('Slow query detected', { queryName, duration_ms: duration })
         }
 
         return result
     } catch (error) {
         const duration = Date.now() - start
-        console.error(`[Query Error] ${queryName} failed after ${duration}ms:`, error)
+        logger.error('Query failed', error as Error, { queryName, duration_ms: duration })
         throw error
     }
 }

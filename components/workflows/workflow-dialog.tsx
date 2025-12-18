@@ -16,9 +16,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 // ✅ FIX WF-006: Importar constantes centralizadas
-import { WORKFLOW_TRIGGER_OPTIONS } from "@/lib/workflow-constants"
+import { WORKFLOW_TRIGGERS, WORKFLOW_TRIGGER_OPTIONS } from "@/lib/workflow-constants"
 // ✅ FEATURE: Template variables helper
 import { TemplateVariablesHelper } from "./template-variables-helper"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { createWorkflowSchema } from "@/lib/schemas"
 
 interface WorkflowDialogProps {
     open: boolean
@@ -28,37 +32,97 @@ interface WorkflowDialogProps {
 }
 
 export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: WorkflowDialogProps) {
-    const [formData, setFormData] = useState<any>({})
     const [loading, setLoading] = useState(false)
+
+    const jsonObjectStringSchema = z.string().refine((value) => {
+        try {
+            const parsed = JSON.parse(value || "{}")
+            return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+        } catch {
+            return false
+        }
+    }, "JSON inválido (se espera un objeto)")
+
+    const jsonArrayStringSchema = z.string().refine((value) => {
+        try {
+            const parsed = JSON.parse(value || "[]")
+            return Array.isArray(parsed)
+        } catch {
+            return false
+        }
+    }, "JSON inválido (se espera un array)")
+
+    const workflowDialogSchema = z.object({
+        name: z.string().min(1, "Nombre requerido").max(200),
+        description: z.string().optional().nullable().or(z.literal('')),
+        trigger_type: z.enum(WORKFLOW_TRIGGERS).default("contact.created"),
+        is_active: z.boolean().default(true),
+        trigger_conditions_json: jsonObjectStringSchema.default("{}"),
+        actions_json: jsonArrayStringSchema.default("[]"),
+    })
+
+    type WorkflowDialogFormData = z.infer<typeof workflowDialogSchema>
+
+    const {
+        register,
+        handleSubmit,
+        watch,
+        reset,
+        setValue,
+        formState: { errors },
+    } = useForm<WorkflowDialogFormData>({
+        resolver: zodResolver(workflowDialogSchema),
+        defaultValues: {
+            name: "",
+            description: "",
+            trigger_type: "contact.created",
+            is_active: true,
+            trigger_conditions_json: "{}",
+            actions_json: "[]",
+        },
+    })
+
+    const watchedTriggerType = watch("trigger_type")
 
     useEffect(() => {
         if (workflow) {
-            setFormData({
-                ...workflow,
-                trigger_conditions: JSON.stringify(workflow.trigger_conditions, null, 2),
-                actions: JSON.stringify(workflow.actions, null, 2)
+            reset({
+                name: workflow.name || "",
+                description: workflow.description || "",
+                trigger_type: workflow.trigger_type || "contact.created",
+                is_active: workflow.is_active ?? true,
+                trigger_conditions_json: JSON.stringify(workflow.trigger_conditions ?? {}, null, 2),
+                actions_json: JSON.stringify(workflow.actions ?? [], null, 2),
             })
         } else {
-            setFormData({
+            reset({
                 name: "",
                 description: "",
                 trigger_type: "contact.created", // ✅ FIX: Valor válido según schema
-                trigger_conditions: "{}",
-                actions: "[]",
-                is_active: true
+                trigger_conditions_json: "{}",
+                actions_json: "[]",
+                is_active: true,
             })
         }
     }, [workflow, open])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const onSubmit = async (data: WorkflowDialogFormData) => {
         setLoading(true)
         try {
             // Parse JSON fields
             const payload = {
-                ...formData,
-                trigger_conditions: JSON.parse(formData.trigger_conditions),
-                actions: JSON.parse(formData.actions)
+                name: data.name,
+                description: data.description || null,
+                trigger_type: data.trigger_type,
+                trigger_conditions: JSON.parse(data.trigger_conditions_json || "{}"),
+                actions: JSON.parse(data.actions_json || "[]"),
+                is_active: data.is_active,
+            }
+
+            const validation = createWorkflowSchema.safeParse(payload)
+            if (!validation.success) {
+                window.alert("Error: workflow inválido (acciones/trigger/params)")
+                return
             }
             await onSave(payload)
             onOpenChange(false)
@@ -75,7 +139,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit(onSubmit)}>
                     <DialogHeader>
                         <DialogTitle>{workflow ? "Editar Workflow" : "Nuevo Workflow"}</DialogTitle>
                         <DialogDescription>
@@ -87,26 +151,29 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                             <Label htmlFor="name">Nombre</Label>
                             <Input
                                 id="name"
-                                value={formData.name || ""}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
+                                {...register("name")}
                             />
+                            {errors.name && (
+                                <p className="text-sm text-destructive">{errors.name.message}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="description">Descripción</Label>
                             <Input
                                 id="description"
-                                value={formData.description || ""}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                {...register("description")}
                             />
+                            {errors.description && (
+                                <p className="text-sm text-destructive">{errors.description.message}</p>
+                            )}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="trigger_type">Tipo de Disparador</Label>
                                 {/* ✅ FIX WF-006: Usar opciones centralizadas */}
                                 <Select
-                                    value={formData.trigger_type || "contact.created"}
-                                    onValueChange={(value) => setFormData({ ...formData, trigger_type: value })}
+                                    value={watchedTriggerType || "contact.created"}
+                                    onValueChange={(value) => setValue("trigger_type", value as any, { shouldValidate: true })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar tipo" />
@@ -119,12 +186,15 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {errors.trigger_type && (
+                                    <p className="text-sm text-destructive">{errors.trigger_type.message}</p>
+                                )}
                             </div>
                             <div className="flex items-center space-x-2 pt-8">
                                 <Switch
                                     id="is_active"
-                                    checked={formData.is_active}
-                                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                                    checked={!!watch("is_active")}
+                                    onCheckedChange={(checked) => setValue("is_active", checked, { shouldValidate: true })}
                                 />
                                 <Label htmlFor="is_active">Activo</Label>
                             </div>
@@ -140,7 +210,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                         Personaliza tus acciones con datos del evento usando <code className="bg-blue-100 px-1 py-0.5 rounded">{`{{variable}}`}</code>
                                     </p>
                                 </div>
-                                <TemplateVariablesHelper triggerType={formData.trigger_type || "contact.created"} />
+                                <TemplateVariablesHelper triggerType={watchedTriggerType || "contact.created"} />
                             </div>
                         </div>
                         {/* Advanced fields hidden for visual builder simplicity */}
@@ -150,9 +220,11 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                 id="trigger_conditions"
                                 className="font-mono text-xs"
                                 rows={4}
-                                value={formData.trigger_conditions || "{}"}
-                                onChange={(e) => setFormData({ ...formData, trigger_conditions: e.target.value })}
+                                {...register("trigger_conditions_json")}
                             />
+                            {errors.trigger_conditions_json && (
+                                <p className="text-sm text-destructive">{errors.trigger_conditions_json.message}</p>
+                            )}
                         </div>
                         <div className="hidden">
                             <Label htmlFor="actions">Acciones (JSON)</Label>
@@ -160,9 +232,11 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                                 id="actions"
                                 className="font-mono text-xs"
                                 rows={4}
-                                value={formData.actions || "[]"}
-                                onChange={(e) => setFormData({ ...formData, actions: e.target.value })}
+                                {...register("actions_json")}
                             />
+                            {errors.actions_json && (
+                                <p className="text-sm text-destructive">{errors.actions_json.message}</p>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

@@ -2,234 +2,293 @@
   "pages": {
     "/global-error": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/global-error.js"
     ],
-    "/not-found": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/not-found.js"
-    ],
-    "/_not-found/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
-    ],
     "/layout": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
     "/error": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
       "static/chunks/app/error.js"
     ],
     "/loading": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/loading.js"
     ],
-    "/login/page": [
+    "/not-found": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/login/page.js"
+      "static/chunks/lucide.js",
+      "static/chunks/app/not-found.js"
     ],
-    "/api/auth/login/route": [
+    "/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/login/route.js"
+      "static/chunks/app/page.js"
+    ],
+    "/dashboard/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/dashboard/loading.js"
     ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
       "static/chunks/app/dashboard/page.js"
     ],
     "/api/notifications/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/notifications/route.js"
     ],
     "/api/dashboard/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/dashboard/route.js"
     ],
     "/api/activity/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/activity/route.js"
     ],
+    "/inventory/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_form_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_command_tsx-_app-pages-browser_components_ui_popover_tsx-_ap-084758.js",
+      "static/chunks/app/inventory/page.js"
+    ],
+    "/contacts/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/contacts/loading.js"
+    ],
     "/contacts/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_tutorials_tutorial-button_tsx-_app-pages-browser_components_tut-ef7050.js",
+      "static/chunks/_app-pages-browser_components_ui_dropdown-menu_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_alert-dialog_tsx.js",
+      "static/chunks/_app-pages-browser_components_bulk_bulk-actions-bar_tsx-_app-pages-browser_components_ui_chec-e193a8.js",
+      "static/chunks/_app-pages-browser_components_ui_label_tsx-_app-pages-browser_components_ui_textarea_tsx-_app-de5640.js",
+      "static/chunks/_app-pages-browser_components_data_export-button_tsx-_app-pages-browser_components_ui_paginat-1b7a67.js",
       "static/chunks/app/contacts/page.js"
     ],
     "/api/contacts/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/contacts/route.js"
     ],
+    "/leads/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/leads/loading.js"
+    ],
+    "/leads/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_tutorials_tutorial-button_tsx-_app-pages-browser_components_tut-ef7050.js",
+      "static/chunks/_app-pages-browser_components_ui_form_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_dropdown-menu_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_alert-dialog_tsx.js",
+      "static/chunks/_app-pages-browser_components_bulk_bulk-actions-bar_tsx-_app-pages-browser_components_ui_chec-e193a8.js",
+      "static/chunks/app/leads/page.js"
+    ],
+    "/api/campaigns/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/campaigns/route.js"
+    ],
+    "/api/lead-sources/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/lead-sources/route.js"
+    ],
+    "/pipeline/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/pipeline/loading.js"
+    ],
     "/pipeline/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_tutorials_tutorial-button_tsx-_app-pages-browser_components_tut-ef7050.js",
+      "static/chunks/_app-pages-browser_components_ui_alert-dialog_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_label_tsx-_app-pages-browser_components_ui_textarea_tsx-_app-de5640.js",
       "static/chunks/app/pipeline/page.js"
     ],
     "/api/opportunities/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/opportunities/route.js"
     ],
-    "/api/team/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/team/route.js"
-    ],
     "/api/pipeline-stages/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/pipeline-stages/route.js"
     ],
+    "/api/team/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/team/route.js"
+    ],
+    "/sales/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/sales/loading.js"
+    ],
     "/sales/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_tutorials_tutorial-button_tsx-_app-pages-browser_components_tut-ef7050.js",
+      "static/chunks/_app-pages-browser_components_ui_form_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_dropdown-menu_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_avatar_tsx-_app-pages-browser_components_ui_scroll-area_tsx.js",
       "static/chunks/app/sales/page.js"
     ],
     "/quotes/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_form_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_command_tsx-_app-pages-browser_components_ui_popover_tsx-_ap-084758.js",
       "static/chunks/app/quotes/page.js"
     ],
     "/api/quotes/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/quotes/route.js"
     ],
+    "/invoicing/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_module-skeleton_tsx.js",
+      "static/chunks/app/invoicing/loading.js"
+    ],
     "/invoicing/page": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/lucide.js",
+      "static/chunks/supabase.js",
+      "static/chunks/framer.js",
+      "static/chunks/_app-pages-browser_components_ui_card_tsx.js",
+      "static/chunks/_app-pages-browser_components_providers_auth-provider_tsx.js",
+      "static/chunks/_app-pages-browser_components_layout_dashboard-layout_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_button_tsx-_app-pages-browser_components_ui_select_tsx.js",
+      "static/chunks/_app-pages-browser_components_tutorials_tutorial-button_tsx-_app-pages-browser_components_tut-ef7050.js",
+      "static/chunks/_app-pages-browser_components_ui_dropdown-menu_tsx.js",
+      "static/chunks/_app-pages-browser_components_ui_alert-dialog_tsx.js",
+      "static/chunks/_app-pages-browser_components_bulk_bulk-actions-bar_tsx-_app-pages-browser_components_ui_chec-e193a8.js",
+      "static/chunks/_app-pages-browser_components_data_export-button_tsx-_app-pages-browser_components_ui_paginat-1b7a67.js",
       "static/chunks/app/invoicing/page.js"
-    ],
-    "/api/payments/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/payments/route.js"
     ],
     "/api/invoices/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/invoices/route.js"
     ],
-    "/products/page": [
+    "/api/payments/route": [
       "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/products/page.js"
-    ],
-    "/api/products/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/products/route.js"
-    ],
-    "/campaigns/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/campaigns/page.js"
-    ],
-    "/api/campaigns/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/campaigns/route.js"
-    ],
-    "/forms/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/forms/page.js"
-    ],
-    "/api/forms/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/forms/route.js"
-    ],
-    "/tasks/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/tasks/page.js"
-    ],
-    "/api/tasks/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/tasks/route.js"
-    ],
-    "/calendar/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/calendar/page.js"
-    ],
-    "/api/events/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/events/route.js"
-    ],
-    "/api/calendar/booking/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/calendar/booking/route.js"
-    ],
-    "/inventory/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/inventory/page.js"
-    ],
-    "/api/inventory/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/inventory/route.js"
-    ],
-    "/analytics/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/analytics/loading.js"
-    ],
-    "/analytics/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/analytics/page.js"
-    ],
-    "/api/analytics/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/analytics/route.js"
-    ],
-    "/reports/builder/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/reports/builder/page.js"
-    ],
-    "/api/reports/saved/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/reports/saved/route.js"
-    ],
-    "/leads/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/leads/page.js"
-    ],
-    "/api/lead-sources/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/lead-sources/route.js"
-    ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
-    "/workflows/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/workflows/page.js"
+      "static/chunks/app/api/payments/route.js"
     ]
   }
 }

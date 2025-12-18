@@ -1,124 +1,190 @@
-/**
- * Date formatting utilities for Peru locale
- * ERROR-034: Dates - Formato inconsistente (US vs PE)
- */
+import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+type ZonedParts = {
+  year: number
+  month: number // 1-12
+  day: number // 1-31
+  hour: number
+  minute: number
+  second: number
+}
 
-/**
- * Format date to Peru format: DD/MM/YYYY
- */
-export function formatDatePE(date: Date | string | null | undefined): string {
-    if (!date) return '-'
+const DEFAULT_TIMEZONE = "America/Lima"
 
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        return format(dateObj, 'dd/MM/yyyy', { locale: es })
-    } catch (error) {
-        console.error('Error formatting date:', error)
-        return '-'
-    }
+function pad2(n: number) {
+  return String(n).padStart(2, "0")
+}
+
+function dateOnlyFromParts(parts: Pick<ZonedParts, "year" | "month" | "day">) {
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`
+}
+
+function getZonedParts(date: Date, timeZone: string): ZonedParts {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+
+  const parts = dtf.formatToParts(date)
+  const map: Record<string, string> = {}
+  for (const p of parts) {
+    if (p.type !== "literal") map[p.type] = p.value
+  }
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour),
+    minute: Number(map.minute),
+    second: Number(map.second),
+  }
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string) {
+  const parts = getZonedParts(date, timeZone)
+  const asUTC = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
+  return asUTC - date.getTime()
+}
+
+function zonedPartsToUtcDate(parts: ZonedParts, timeZone: string): Date {
+  const utcGuess = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second))
+  const offset = getTimeZoneOffsetMs(utcGuess, timeZone)
+  return new Date(utcGuess.getTime() - offset)
+}
+
+function addMonthsToYearMonth(year: number, month: number, deltaMonths: number) {
+  const m0 = (month - 1) + deltaMonths
+  const year2 = year + Math.floor(m0 / 12)
+  const month2 = ((m0 % 12) + 12) % 12
+  return { year: year2, month: month2 + 1 }
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+
+function shiftDatePartsByDays(year: number, month: number, day: number, deltaDays: number) {
+  const base = new Date(Date.UTC(year, month - 1, day))
+  base.setUTCDate(base.getUTCDate() + deltaDays)
+  return {
+    year: base.getUTCFullYear(),
+    month: base.getUTCMonth() + 1,
+    day: base.getUTCDate(),
+  }
+}
+
+export async function getOrganizationTimezone(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<string> {
+  try {
+    const { data } = await supabase
+      .from("organizations")
+      .select("timezone")
+      .eq("id", organizationId)
+      .single()
+
+    const tz = data?.timezone || DEFAULT_TIMEZONE
+    if (!tz || typeof tz !== "string") return DEFAULT_TIMEZONE
+    return tz
+  } catch {
+    return DEFAULT_TIMEZONE
+  }
+}
+
+export function formatDateOnlyInTimezone(date: Date, timeZone: string): string {
+  const parts = getZonedParts(date, timeZone)
+  return dateOnlyFromParts(parts)
+}
+
+export function getMonthRangeInTimezone(
+  timeZone: string,
+  now: Date,
+  offsetMonths: number = 0
+): { startUtc: Date; endUtc: Date; startDate: string; endDate: string } {
+  const zonedNow = getZonedParts(now, timeZone)
+  const { year, month } = addMonthsToYearMonth(zonedNow.year, zonedNow.month, offsetMonths)
+  const lastDay = daysInMonth(year, month)
+
+  const startParts: ZonedParts = { year, month, day: 1, hour: 0, minute: 0, second: 0 }
+  const endParts: ZonedParts = { year, month, day: lastDay, hour: 23, minute: 59, second: 59 }
+
+  return {
+    startUtc: zonedPartsToUtcDate(startParts, timeZone),
+    endUtc: zonedPartsToUtcDate(endParts, timeZone),
+    startDate: dateOnlyFromParts(startParts),
+    endDate: dateOnlyFromParts(endParts),
+  }
+}
+
+export function getLastNDaysRangeInTimezone(
+  timeZone: string,
+  now: Date,
+  days: number
+): { startUtc: Date; endUtc: Date; startDate: string; endDate: string } {
+  const zonedNow = getZonedParts(now, timeZone)
+  const endParts: ZonedParts = {
+    year: zonedNow.year,
+    month: zonedNow.month,
+    day: zonedNow.day,
+    hour: 23,
+    minute: 59,
+    second: 59,
+  }
+
+  const startDayParts = shiftDatePartsByDays(zonedNow.year, zonedNow.month, zonedNow.day, -days)
+  const startParts: ZonedParts = { ...startDayParts, hour: 0, minute: 0, second: 0 }
+
+  return {
+    startUtc: zonedPartsToUtcDate(startParts, timeZone),
+    endUtc: zonedPartsToUtcDate(endParts, timeZone),
+    startDate: dateOnlyFromParts(startParts),
+    endDate: dateOnlyFromParts(endParts),
+  }
+}
+
+export function getRangeStartInTimezone(
+  timeZone: string,
+  now: Date,
+  range: "week" | "month" | "quarter" | "year"
+): { startUtc: Date; startDate: string } {
+  const zonedNow = getZonedParts(now, timeZone)
+
+  if (range === "week") {
+    const startDayParts = shiftDatePartsByDays(zonedNow.year, zonedNow.month, zonedNow.day, -7)
+    const startParts: ZonedParts = { ...startDayParts, hour: 0, minute: 0, second: 0 }
+    return { startUtc: zonedPartsToUtcDate(startParts, timeZone), startDate: dateOnlyFromParts(startParts) }
+  }
+
+  const deltaMonths = range === "month" ? -1 : range === "quarter" ? -3 : -12
+  const { year: targetYear, month: targetMonth } = addMonthsToYearMonth(zonedNow.year, zonedNow.month, deltaMonths)
+  const maxDay = daysInMonth(targetYear, targetMonth)
+  const targetDay = Math.min(zonedNow.day, maxDay)
+  const startParts: ZonedParts = { year: targetYear, month: targetMonth, day: targetDay, hour: 0, minute: 0, second: 0 }
+
+  return { startUtc: zonedPartsToUtcDate(startParts, timeZone), startDate: dateOnlyFromParts(startParts) }
 }
 
 /**
- * Format datetime to Peru format: DD/MM/YYYY HH:mm
+ * Formatea una fecha para Perú (dd/mm/yyyy) en timezone America/Lima.
+ * Acepta ISO string o Date; retorna "—" si la fecha es inválida.
  */
-export function formatDateTimePE(date: Date | string | null | undefined): string {
-    if (!date) return '-'
+export function formatDatePE(input: string | Date | null | undefined): string {
+  if (!input) return "—"
+  const date = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(date.getTime())) return "—"
 
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        return format(dateObj, 'dd/MM/yyyy HH:mm', { locale: es })
-    } catch (error) {
-        console.error('Error formatting datetime:', error)
-        return '-'
-    }
-}
-
-/**
- * Format time to Peru format: HH:mm:ss
- */
-export function formatTimePE(date: Date | string | null | undefined): string {
-    if (!date) return '-'
-
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        return format(dateObj, 'HH:mm:ss', { locale: es })
-    } catch (error) {
-        console.error('Error formatting time:', error)
-        return '-'
-    }
-}
-
-/**
- * Format date to relative format (hace 2 días, hace 1 hora, etc.)
- */
-export function formatRelativePE(date: Date | string | null | undefined): string {
-    if (!date) return '-'
-
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        const now = new Date()
-        const diffMs = now.getTime() - dateObj.getTime()
-        const diffSecs = Math.floor(diffMs / 1000)
-        const diffMins = Math.floor(diffSecs / 60)
-        const diffHours = Math.floor(diffMins / 60)
-        const diffDays = Math.floor(diffHours / 24)
-
-        if (diffSecs < 60) return 'Hace un momento'
-        if (diffMins < 60) return `Hace ${diffMins} ${diffMins === 1 ? 'minuto' : 'minutos'}`
-        if (diffHours < 24) return `Hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`
-        if (diffDays < 30) return `Hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`
-
-        return formatDatePE(dateObj)
-    } catch (error) {
-        console.error('Error formatting relative date:', error)
-        return '-'
-    }
-}
-
-/**
- * Format date to long format: Lunes 21 de Noviembre de 2024
- */
-export function formatDateLongPE(date: Date | string | null | undefined): string {
-    if (!date) return '-'
-
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        return format(dateObj, "EEEE d 'de' MMMM 'de' yyyy", { locale: es })
-    } catch (error) {
-        console.error('Error formatting long date:', error)
-        return '-'
-    }
-}
-
-/**
- * Format date for input fields (YYYY-MM-DD)
- */
-export function formatDateForInput(date: Date | string | null | undefined): string {
-    if (!date) return ''
-
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date
-        return format(dateObj, 'yyyy-MM-dd')
-    } catch (error) {
-        console.error('Error formatting input date:', error)
-        return ''
-    }
-}
-
-/**
- * Parse Peru format date (DD/MM/YYYY) to Date object
- */
-export function parseDatePE(dateString: string): Date | null {
-    if (!dateString) return null
-
-    try {
-        const [day, month, year] = dateString.split('/')
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-    } catch (error) {
-        console.error('Error parsing date:', error)
-        return null
-    }
+  return new Intl.DateTimeFormat("es-PE", {
+    timeZone: DEFAULT_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date)
 }

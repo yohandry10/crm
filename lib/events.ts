@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { logger } from './logger'
 
 export type EventType =
     | 'contact.created'
@@ -54,13 +55,13 @@ export async function emitEvent(
             } as any)
 
         if (error) {
-            console.error('Failed to emit event:', error)
+            logger.error('Failed to emit event', error, { event_type: event.event_type, source: event.source })
             throw error
         }
 
-        console.log(`Event emitted: ${event.event_type}`)
+        logger.debug('Event emitted', { event_type: event.event_type, source: event.source })
     } catch (error) {
-        console.error('Error in emitEvent:', error)
+        logger.error('Error in emitEvent', error, { event_type: event.event_type, source: event.source })
         // Don't throw - event emission should not break primary operations
     }
 }
@@ -85,7 +86,7 @@ export async function processWebhookEvents(): Promise<void> {
         .limit(100)
 
     if (error || !events) {
-        console.error('Failed to fetch webhook events:', error)
+        logger.error('Failed to fetch webhook events', error)
         return
     }
 
@@ -103,7 +104,7 @@ export async function processWebhookEvents(): Promise<void> {
                 .eq('id', event.id)
 
         } catch (error: any) {
-            console.error(`Failed to process event ${event.id}:`, error)
+            logger.error('Failed to process event', error, { eventId: event.id, event_type: event.event_type })
 
             // Update retry count and error message
             await supabase
@@ -118,7 +119,7 @@ export async function processWebhookEvents(): Promise<void> {
 }
 
 async function processEvent(event: any, supabase: any): Promise<void> {
-    console.log(`Processing event: ${event.event_type}`)
+    logger.info('Processing event', { event_type: event.event_type, eventId: event.id })
 
     switch (event.event_type) {
         case 'contact.created':
@@ -174,17 +175,17 @@ async function processEvent(event: any, supabase: any): Promise<void> {
             break
 
         default:
-            console.log(`No handler for event type: ${event.event_type}`)
+            logger.warn('No handler for event type', { event_type: event.event_type, eventId: event.id })
     }
 }
 
 async function handleContactCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling contact.created for contact ${payload.id}`)
+    logger.info('Handling contact.created', { contactId: payload?.id, organizationId: payload?.organization_id || payload?.organizationId })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('contact.created event missing organization_id in payload')
+        logger.warn('contact.created event missing organization_id in payload')
         return
     }
 
@@ -198,7 +199,7 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
 
     for (const workflow of workflows || []) {
         try {
-            console.log(`Triggering workflow ${workflow.id} for new contact ${payload.id}`)
+            logger.info('Triggering workflow for new contact', { workflowId: workflow.id, contactId: payload.id, organizationId })
 
             // Execute workflow actions
             const actions = workflow.actions || []
@@ -216,7 +217,7 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, { workflowId: workflow.id, contactId: payload.id, organizationId })
             await supabase.from('workflow_executions').insert({
                 organization_id: organizationId,
                 workflow_id: workflow.id,
@@ -230,12 +231,12 @@ async function handleContactCreated(payload: any, supabase: any): Promise<void> 
 }
 
 async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling invoice.paid for invoice ${payload.id}`)
+    logger.info('Handling invoice.paid', { invoiceId: payload?.id, organizationId: payload?.organization_id || payload?.organizationId })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('invoice.paid event missing organization_id in payload')
+        logger.warn('invoice.paid event missing organization_id in payload')
         return
     }
 
@@ -264,7 +265,11 @@ async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'invoice.paid',
+                organizationId,
+            })
         }
     }
 
@@ -280,9 +285,17 @@ async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
             .eq('id', payload.opportunity_id)
 
         if (error) {
-            console.error(`Failed to update opportunity ${payload.opportunity_id}:`, error)
+            logger.error('Failed to update opportunity', error, {
+                opportunityId: payload.opportunity_id,
+                event_type: 'invoice.paid',
+                organizationId,
+            })
         } else {
-            console.log(`Opportunity ${payload.opportunity_id} marked as won`)
+            logger.info('Opportunity marked as won', {
+                opportunityId: payload.opportunity_id,
+                event_type: 'invoice.paid',
+                organizationId,
+            })
         }
     }
 }
@@ -290,12 +303,18 @@ async function handleInvoicePaid(payload: any, supabase: any): Promise<void> {
 
 
 async function handlePaymentCompleted(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling payment.completed for payment ${payload.id}`)
+    logger.info('Handling payment.completed', {
+        paymentId: payload?.id,
+        event_type: 'payment.completed',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('payment.completed event missing organization_id in payload')
+        logger.warn('payment.completed event missing organization_id in payload', {
+            paymentId: payload?.id,
+            event_type: 'payment.completed',
+        })
         return
     }
 
@@ -324,12 +343,20 @@ async function handlePaymentCompleted(payload: any, supabase: any): Promise<void
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'payment.completed',
+                organizationId,
+            })
         }
     }
 
     // 2. Send receipt notification (future enhancement)
-    console.log(`Payment ${payload.id} completed - receipt notification queued`)
+    logger.info('Payment completed - receipt notification queued', {
+        paymentId: payload?.id,
+        event_type: 'payment.completed',
+        organizationId,
+    })
 }
 
 /**
@@ -366,7 +393,7 @@ async function executeWorkflowAction(
             break
 
         default:
-            console.log(`Unknown action type: ${actionType}`)
+            logger.warn('Unknown workflow action type', { actionType })
     }
 }
 
@@ -391,7 +418,11 @@ async function executeSendEmail(action: any, payload: any): Promise<void> {
     const recipient = to || payload.email || payload.contact_email
 
     if (!recipient) {
-        console.warn('Email action missing recipient - no "to" param or email in payload')
+        logger.warn('Email action missing recipient', {
+            actionType: 'send_email',
+            hasToParam: Boolean(to),
+            hasPayloadEmail: Boolean(payload?.email || payload?.contact_email),
+        })
         return
     }
 
@@ -420,12 +451,18 @@ async function executeSendEmail(action: any, payload: any): Promise<void> {
         })
 
         if (result.success) {
-            console.log(`Email sent successfully to ${recipient}: ${emailContent.subject}`)
+            logger.info('Email sent successfully', {
+                actionType: 'send_email',
+                subject: emailContent.subject,
+            })
         } else {
-            console.error(`Failed to send email to ${recipient}:`, result.error)
+            logger.error('Failed to send email', result.error, {
+                actionType: 'send_email',
+                subject: emailContent.subject,
+            })
         }
     } catch (error) {
-        console.error('Error sending email:', error)
+        logger.error('Error sending email', error, { actionType: 'send_email' })
         // No lanzar error para no interrumpir el workflow
     }
 }
@@ -435,7 +472,11 @@ async function executeUpdateLeadScore(action: any, payload: any, supabase: any):
     const targetContactId = contactId || payload.id || payload.contact_id
 
     if (!targetContactId || score === undefined) {
-        console.warn('Update lead score action missing parameters')
+        logger.warn('Update lead score action missing parameters', {
+            actionType: 'update_lead_score',
+            hasContactId: Boolean(targetContactId),
+            hasScore: score !== undefined,
+        })
         return
     }
 
@@ -443,7 +484,11 @@ async function executeUpdateLeadScore(action: any, payload: any, supabase: any):
     const normalizedScore = Math.max(0, Math.min(100, Number(score) || 0))
 
     if (normalizedScore !== score) {
-        console.warn(`Lead score ${score} normalized to ${normalizedScore} (valid range: 0-100)`)
+        logger.warn('Lead score normalized to valid range (0-100)', {
+            actionType: 'update_lead_score',
+            originalScore: score,
+            normalizedScore,
+        })
     }
 
     await supabase
@@ -451,7 +496,11 @@ async function executeUpdateLeadScore(action: any, payload: any, supabase: any):
         .update({ lead_score: normalizedScore, updated_at: new Date().toISOString() })
         .eq('id', targetContactId)
 
-    console.log(`Updated lead score for contact ${targetContactId} to ${normalizedScore}`)
+    logger.info('Updated lead score', {
+        actionType: 'update_lead_score',
+        contactId: targetContactId,
+        lead_score: normalizedScore,
+    })
 }
 
 async function executeUpdateLeadStatus(action: any, payload: any, supabase: any): Promise<void> {
@@ -459,7 +508,11 @@ async function executeUpdateLeadStatus(action: any, payload: any, supabase: any)
     const targetContactId = contactId || payload.id || payload.contact_id
 
     if (!targetContactId || !status) {
-        console.warn('Update lead status action missing parameters')
+        logger.warn('Update lead status action missing parameters', {
+            actionType: 'update_lead_status',
+            hasContactId: Boolean(targetContactId),
+            hasStatus: Boolean(status),
+        })
         return
     }
 
@@ -468,7 +521,11 @@ async function executeUpdateLeadStatus(action: any, payload: any, supabase: any)
         .update({ lead_status: status, updated_at: new Date().toISOString() })
         .eq('id', targetContactId)
 
-    console.log(`Updated lead status for contact ${targetContactId} to ${status}`)
+    logger.info('Updated lead status', {
+        actionType: 'update_lead_status',
+        contactId: targetContactId,
+        lead_status: status,
+    })
 }
 
 async function executeCreateTask(action: any, payload: any, supabase: any, organizationId: string): Promise<void> {
@@ -476,7 +533,7 @@ async function executeCreateTask(action: any, payload: any, supabase: any, organ
     const targetContactId = contactId || payload.id || payload.contact_id
 
     if (!title) {
-        console.warn('Create task action missing title')
+        logger.warn('Create task action missing title', { actionType: 'create_task' })
         return
     }
 
@@ -492,7 +549,12 @@ async function executeCreateTask(action: any, payload: any, supabase: any, organ
         status: 'pending'
     })
 
-    console.log(`Created task "${title}" for contact ${targetContactId}`)
+    logger.info('Created task', {
+        actionType: 'create_task',
+        contactId: targetContactId,
+        organizationId,
+        priority: priority || 'medium',
+    })
 }
 
 /**
@@ -552,14 +614,14 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
     const { url, method = 'POST' } = action.params || {}
 
     if (!url) {
-        console.warn('Webhook action missing URL')
+        logger.warn('Webhook action missing URL', { actionType: 'webhook' })
         return
     }
 
     // ✅ FIX: Validar URL antes de hacer request
     const validation = isValidWebhookUrl(url)
     if (!validation.valid) {
-        console.error(`[Webhook] URL rechazada: ${validation.error}`)
+        logger.warn('Webhook URL rejected', { actionType: 'webhook', reason: validation.error })
         throw new Error(`URL de webhook inválida: ${validation.error}`)
     }
 
@@ -583,13 +645,28 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
             throw new Error(`Webhook failed with status ${response.status}`)
         }
 
-        console.log(`Webhook called successfully: ${url}`)
+        const parsed = new URL(url)
+        logger.info('Webhook called successfully', {
+            actionType: 'webhook',
+            webhook_host: parsed.hostname,
+            webhook_protocol: parsed.protocol,
+        })
     } catch (error: any) {
         if (error.name === 'AbortError') {
-            console.error(`[Webhook] Timeout: ${url}`)
+            const parsed = new URL(url)
+            logger.warn('Webhook timeout', {
+                actionType: 'webhook',
+                webhook_host: parsed.hostname,
+                webhook_protocol: parsed.protocol,
+            })
             throw new Error('Webhook timeout después de 10 segundos')
         }
-        console.error(`Webhook failed: ${url}`, error)
+        const parsed = new URL(url)
+        logger.error('Webhook failed', error, {
+            actionType: 'webhook',
+            webhook_host: parsed.hostname,
+            webhook_protocol: parsed.protocol,
+        })
         throw error
     }
 }
@@ -600,12 +677,18 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
 // =====================================================
 
 async function handleContactUpdated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling contact.updated for contact ${payload.id}`)
+    logger.info('Handling contact.updated', {
+        contactId: payload?.id,
+        event_type: 'contact.updated',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('contact.updated event missing organization_id in payload')
+        logger.warn('contact.updated event missing organization_id in payload', {
+            contactId: payload?.id,
+            event_type: 'contact.updated',
+        })
         return
     }
 
@@ -634,7 +717,11 @@ async function handleContactUpdated(payload: any, supabase: any): Promise<void> 
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'contact.updated',
+                organizationId,
+            })
             await supabase.from('workflow_executions').insert({
                 organization_id: organizationId,
                 workflow_id: workflow.id,
@@ -648,13 +735,19 @@ async function handleContactUpdated(payload: any, supabase: any): Promise<void> 
 }
 
 async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling invoice.sent for invoice ${payload.invoice_id || payload.id}`)
+    logger.info('Handling invoice.sent', {
+        invoiceId: payload?.invoice_id || payload?.id,
+        event_type: 'invoice.sent',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId || payload.created_by
     if (!organizationId) {
-        console.warn('invoice.sent event missing organization_id in payload')
+        logger.warn('invoice.sent event missing organization_id in payload', {
+            invoiceId: payload?.invoice_id || payload?.id,
+            event_type: 'invoice.sent',
+        })
         return
     }
 
@@ -683,7 +776,11 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'invoice.sent',
+                organizationId,
+            })
         }
     }
 
@@ -701,12 +798,18 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
 }
 
 async function handleOpportunityCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling opportunity.created for opportunity ${payload.opportunityId || payload.id}`)
+    logger.info('Handling opportunity.created', {
+        opportunityId: payload?.opportunityId || payload?.id,
+        event_type: 'opportunity.created',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('opportunity.created event missing organization_id in payload')
+        logger.warn('opportunity.created event missing organization_id in payload', {
+            opportunityId: payload?.opportunityId || payload?.id,
+            event_type: 'opportunity.created',
+        })
         return
     }
 
@@ -735,19 +838,29 @@ async function handleOpportunityCreated(payload: any, supabase: any): Promise<vo
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'opportunity.created',
+                organizationId,
+            })
         }
     }
 }
 
 async function handleOpportunityUpdated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling opportunity.updated for opportunity ${payload.opportunityId || payload.id}`)
+    logger.info('Handling opportunity.updated', {
+        opportunityId: payload?.opportunityId || payload?.id,
+        event_type: 'opportunity.updated',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId
     if (!organizationId) {
-        console.warn('opportunity.updated event missing organization_id in payload')
+        logger.warn('opportunity.updated event missing organization_id in payload', {
+            opportunityId: payload?.opportunityId || payload?.id,
+            event_type: 'opportunity.updated',
+        })
         return
     }
 
@@ -776,7 +889,11 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'opportunity.updated',
+                organizationId,
+            })
         }
     }
 
@@ -799,13 +916,19 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
 // =====================================================
 
 async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling task.created for task ${payload.id}`)
+    logger.info('Handling task.created', {
+        taskId: payload?.id,
+        event_type: 'task.created',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId || payload.created_by
     if (!organizationId) {
-        console.warn('task.created event missing organization_id in payload')
+        logger.warn('task.created event missing organization_id in payload', {
+            taskId: payload?.id,
+            event_type: 'task.created',
+        })
         return
     }
 
@@ -834,7 +957,11 @@ async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'task.created',
+                organizationId,
+            })
         }
     }
 
@@ -852,7 +979,10 @@ async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
 }
 
 async function handleTaskCompleted(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling task.completed for task ${payload.id}`)
+    logger.info('Handling task.completed', {
+        taskId: payload?.id,
+        event_type: 'task.completed',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
@@ -883,18 +1013,28 @@ async function handleTaskCompleted(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'task.completed',
+                organizationId,
+            })
         }
     }
 }
 
 async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling ticket.created for ticket ${payload.id}`)
+    logger.info('Handling ticket.created', {
+        ticketId: payload?.id,
+        event_type: 'ticket.created',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('ticket.created event missing organization_id in payload')
+        logger.warn('ticket.created event missing organization_id in payload', {
+            ticketId: payload?.id,
+            event_type: 'ticket.created',
+        })
         return
     }
 
@@ -923,7 +1063,11 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'ticket.created',
+                organizationId,
+            })
         }
     }
 
@@ -950,7 +1094,10 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
 }
 
 async function handleTicketResolved(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling ticket.resolved for ticket ${payload.id}`)
+    logger.info('Handling ticket.resolved', {
+        ticketId: payload?.id,
+        event_type: 'ticket.resolved',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
@@ -981,18 +1128,28 @@ async function handleTicketResolved(payload: any, supabase: any): Promise<void> 
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'ticket.resolved',
+                organizationId,
+            })
         }
     }
 }
 
 async function handleCampaignCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling campaign.created for campaign ${payload.id}`)
+    logger.info('Handling campaign.created', {
+        campaignId: payload?.id,
+        event_type: 'campaign.created',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     if (!organizationId) {
-        console.warn('campaign.created event missing organization_id in payload')
+        logger.warn('campaign.created event missing organization_id in payload', {
+            campaignId: payload?.id,
+            event_type: 'campaign.created',
+        })
         return
     }
 
@@ -1020,19 +1177,29 @@ async function handleCampaignCreated(payload: any, supabase: any): Promise<void>
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'campaign.created',
+                organizationId,
+            })
         }
     }
 }
 
 async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
-    console.log(`Handling quote.created for quote ${payload.id}`)
+    logger.info('Handling quote.created', {
+        quoteId: payload?.id,
+        event_type: 'quote.created',
+    })
 
     // ✅ FIX WF-001: Usar organization_id para multi-tenant correcto
     const organizationId = payload.organization_id || payload.organizationId
     const userId = payload.user_id || payload.userId || payload.created_by
     if (!organizationId) {
-        console.warn('quote.created event missing organization_id in payload')
+        logger.warn('quote.created event missing organization_id in payload', {
+            quoteId: payload?.id,
+            event_type: 'quote.created',
+        })
         return
     }
 
@@ -1061,7 +1228,11 @@ async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
                 executed_at: new Date().toISOString()
             })
         } catch (error: any) {
-            console.error(`Failed to execute workflow ${workflow.id}:`, error)
+            logger.error('Failed to execute workflow', error, {
+                workflowId: workflow.id,
+                event_type: 'quote.created',
+                organizationId,
+            })
         }
     }
 

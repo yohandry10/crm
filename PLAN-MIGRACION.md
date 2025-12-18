@@ -1,3 +1,5 @@
+> Esta documentación fue consolidada en `DOCUMENTACION.md#plan-de-migración-componentes-optimizados`.
+
 # 📋 Plan de Migración a Componentes Optimizados
 
 ## ⏱️ Tiempo Estimado Total: 30-45 minutos

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { logger } from './logger'
 
 /**
  * =====================================================
@@ -32,14 +33,14 @@ export async function triggerWorkflowsForEvent(
     payload: any,
     userId?: string
 ): Promise<void> {
-    console.log(`[Workflows] Triggering workflows for event: ${eventType}`)
+    logger.info('Triggering workflows for event', { eventType })
 
     // ✅ FIX: Detección de loops
     const executionKey = `${userId || 'system'}:${eventType}:${payload.id || 'unknown'}`
     const currentDepth = EXECUTION_STACK.get(executionKey) || 0
 
     if (currentDepth >= MAX_RECURSION_DEPTH) {
-        console.warn(`[Workflows] ⚠️ Loop detected for ${executionKey} at depth ${currentDepth}, stopping execution`)
+        logger.warn('Workflow loop detected, stopping execution', { executionKey, depth: currentDepth })
         return
     }
 
@@ -79,32 +80,32 @@ export async function triggerWorkflowsForEvent(
         const { data: workflows, error } = await query
 
         if (error) {
-            console.error('[Workflows] Error fetching workflows:', error)
+            logger.error('Error fetching workflows', error, { eventType })
             return
         }
 
         if (!workflows || workflows.length === 0) {
-            console.log(`[Workflows] No active workflows for event ${eventType}`)
+            logger.debug('No active workflows for event', { eventType })
             return
         }
 
-        console.log(`[Workflows] Found ${workflows.length} workflows for event ${eventType}`)
+        logger.info('Found workflows for event', { eventType, workflowCount: workflows.length })
 
         // Execute each workflow
         for (const workflow of workflows) {
             try {
-                console.log(`[Workflows] Executing workflow: ${workflow.name} (${workflow.id})`)
+                logger.info('Executing workflow', { workflowId: workflow.id, workflowName: workflow.name, eventType })
 
                 // Evaluar condiciones del trigger si existen
                 if (workflow.trigger_conditions && !evaluateTriggerConditions(workflow.trigger_conditions, payload)) {
-                    console.log(`[Workflows] Workflow ${workflow.id} conditions not met, skipping`)
+                    logger.debug('Workflow conditions not met, skipping', { workflowId: workflow.id, eventType })
                     continue
                 }
 
                 const actions = workflow.actions || []
 
                 if (actions.length === 0) {
-                    console.warn(`[Workflows] Workflow ${workflow.id} has no actions`)
+                    logger.warn('Workflow has no actions', { workflowId: workflow.id, eventType })
                     continue
                 }
 
@@ -112,13 +113,13 @@ export async function triggerWorkflowsForEvent(
                 // This avoids auth issues and is more efficient for internal execution
                 await executeWorkflowActions(supabase, workflow, payload)
             } catch (error) {
-                console.error(`[Workflows] Error executing workflow ${workflow.id}:`, error)
+                logger.error('Error executing workflow', error, { workflowId: workflow.id, eventType })
             }
         }
         // Cleanup al finalizar exitosamente
         cleanupStack()
     } catch (error) {
-        console.error('[Workflows] Error in triggerWorkflowsForEvent:', error)
+        logger.error('Error in triggerWorkflowsForEvent', error, { eventType })
         // Cleanup también en caso de error
         const newDepth = (EXECUTION_STACK.get(executionKey) || 1) - 1
         if (newDepth <= 0) {
@@ -163,7 +164,7 @@ function evaluateSingleCondition(condition: any, payload: any): boolean {
     const { field, operator, value } = condition
 
     if (!field || !operator) {
-        console.warn('[Workflows] Invalid condition - missing field or operator')
+        logger.warn('Invalid workflow condition - missing field or operator')
         return true
     }
 
@@ -227,7 +228,7 @@ function evaluateSingleCondition(condition: any, payload: any): boolean {
             }
 
         default:
-            console.warn(`[Workflows] Unknown operator: ${operator}`)
+            logger.warn('Unknown workflow condition operator', { operator })
             return true
     }
 }
@@ -261,7 +262,10 @@ async function executeWorkflowActions(supabase: any, workflow: any, payload: any
         .single()
 
     if (execError) {
-        console.error(`[Workflows] Failed to create execution record:`, execError)
+        logger.error('Failed to create execution record', execError, {
+            workflowId: workflow.id,
+            organizationId,
+        })
         return
     }
 
@@ -273,7 +277,12 @@ async function executeWorkflowActions(supabase: any, workflow: any, payload: any
             const result = await executeWorkflowAction(supabase, action, contact_id, organizationId)
             executedActions.push({ action: action.type, success: true, result })
         } catch (error: any) {
-            console.error(`[Workflows] Action ${action.type} failed:`, error.message)
+            logger.error('Workflow action failed', error, {
+                workflowId: workflow.id,
+                executionId: execution.id,
+                organizationId,
+                actionType: action.type,
+            })
             errors.push({ action: action.type, error: error.message })
         }
     }
@@ -288,7 +297,13 @@ async function executeWorkflowActions(supabase: any, workflow: any, payload: any
         })
         .eq('id', execution.id)
 
-    console.log(`[Workflows] Execution ${execution.id} completed: ${executedActions.length} actions, ${errors.length} errors`)
+    logger.info('Workflow execution completed', {
+        workflowId: workflow.id,
+        executionId: execution.id,
+        organizationId,
+        actionsExecuted: executedActions.length,
+        errors: errors.length,
+    })
 }
 
 /**

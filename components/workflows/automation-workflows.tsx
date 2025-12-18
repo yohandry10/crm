@@ -8,20 +8,23 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Zap, Plus, Play, Settings, Trash2, Clock, Mail, Phone, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
+import { useFieldArray, useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { WORKFLOW_ACTIONS, WORKFLOW_TRIGGERS, WORKFLOW_TRIGGER_OPTIONS } from "@/lib/workflow-constants"
 
 interface WorkflowAction {
   id: string
-  type: "send_email" | "send_whatsapp" | "update_lead_status" | "create_task" | "schedule_call"
-  config: any
+  type: typeof WORKFLOW_ACTIONS[number]
+  params: Record<string, any>
 }
 
 interface Workflow {
   id: string
   name: string
   description: string
-  // ✅ FIX: Sincronizado con lib/schemas.ts trigger_type enum
-  triggerType: "contact.created" | "contact.updated" | "invoice.sent" | "invoice.paid" | "payment.completed" | "opportunity.created" | "opportunity.updated" | "manual" | "schedule"
-  triggerConditions: any
+  triggerType: typeof WORKFLOW_TRIGGERS[number]
+  triggerConditions: Record<string, any>
   actions: WorkflowAction[]
   isActive: boolean
   executionCount: number
@@ -38,8 +41,8 @@ export function AutomationWorkflows() {
       triggerType: "contact.created",
       triggerConditions: {},
       actions: [
-        { id: "1", type: "send_email", config: { template: "welcome", recipient: "contact" } },
-        { id: "2", type: "create_task", config: { description: "Contactar nuevo lead", assignee: "admin" } },
+        { id: "1", type: "send_email", params: { template: "welcome", to: "{{contact.email}}" } },
+        { id: "2", type: "create_task", params: { description: "Contactar nuevo lead" } },
       ],
       isActive: true,
       executionCount: 15,
@@ -52,8 +55,8 @@ export function AutomationWorkflows() {
       triggerType: "invoice.paid",
       triggerConditions: {},
       actions: [
-        { id: "1", type: "send_email", config: { template: "thank_you", recipient: "contact" } },
-        { id: "2", type: "update_lead_status", config: { status: "converted" } },
+        { id: "1", type: "send_email", params: { template: "thank_you", to: "{{contact.email}}" } },
+        { id: "2", type: "update_lead_status", params: { status: "converted" } },
       ],
       isActive: true,
       executionCount: 8,
@@ -66,8 +69,8 @@ export function AutomationWorkflows() {
       triggerType: "opportunity.created",
       triggerConditions: {},
       actions: [
-        { id: "1", type: "send_email", config: { template: "opportunity_notification", recipient: "admin" } },
-        { id: "2", type: "create_task", config: { description: "Seguimiento de oportunidad", assignee: "admin" } },
+        { id: "1", type: "send_email", params: { template: "opportunity_notification", to: "{{user.email}}" } },
+        { id: "2", type: "create_task", params: { description: "Seguimiento de oportunidad" } },
       ],
       isActive: false,
       executionCount: 3,
@@ -76,18 +79,39 @@ export function AutomationWorkflows() {
   ])
 
   const [isCreating, setIsCreating] = useState(false)
-  const [newWorkflow, setNewWorkflow] = useState<{
-    name: string
-    description: string
-    triggerType: string
-    triggerConditions: Record<string, any>
-    actions: WorkflowAction[]
-  }>({
-    name: "",
-    description: "",
-    triggerType: "",
-    triggerConditions: {},
-    actions: [],
+
+  const workflowCreateSchema = z.object({
+    name: z.string().min(1, "El nombre es requerido").max(200),
+    description: z.string().optional().nullable(),
+    trigger_type: z.enum(WORKFLOW_TRIGGERS, { message: "Selecciona un trigger válido" }),
+    actions: z.array(z.object({
+      id: z.string().min(1),
+      type: z.enum(WORKFLOW_ACTIONS),
+      params: z.record(z.any()),
+    })).min(1, "Agrega al menos una acción"),
+  })
+
+  type WorkflowCreateFormData = z.infer<typeof workflowCreateSchema>
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<WorkflowCreateFormData>({
+    resolver: zodResolver(workflowCreateSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      trigger_type: "contact.created",
+      actions: [],
+    },
+  })
+
+  const actionsArray = useFieldArray({
+    control,
+    name: "actions",
   })
 
   const toggleWorkflow = async (id: string) => {
@@ -129,10 +153,8 @@ export function AutomationWorkflows() {
     switch (type) {
       case "send_email":
         return <Mail className="h-4 w-4" />
-      case "send_whatsapp":
-        return <MessageSquare className="h-4 w-4" />
-      case "schedule_call":
-        return <Phone className="h-4 w-4" />
+      case "delay":
+        return <Clock className="h-4 w-4" />
       default:
         return <Settings className="h-4 w-4" />
     }
@@ -166,17 +188,54 @@ export function AutomationWorkflows() {
   const getActionDescription = (action: WorkflowAction) => {
     switch (action.type) {
       case "send_email":
-        return `Email: ${action.config.template}`
-      case "send_whatsapp":
-        return `WhatsApp: ${action.config.template}`
+        return `Email: ${action.params.template || action.params.subject || "Sin plantilla"}`
       case "update_lead_status":
-        return `Cambiar status a ${action.config.status}`
+        return `Cambiar status a ${action.params.status}`
       case "create_task":
-        return `Crear tarea: ${action.config.description}`
-      case "schedule_call":
-        return `Programar llamada en ${action.config.daysFromNow} días`
+        return `Crear tarea: ${action.params.description || action.params.title || "Tarea"}`
+      case "delay":
+        return `Esperar: ${action.params.ms ? `${action.params.ms}ms` : "delay"}`
       default:
         return "Acción personalizada"
+    }
+  }
+
+  const onCreateWorkflow = async (data: WorkflowCreateFormData) => {
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description || null,
+          trigger_type: data.trigger_type,
+          trigger_conditions: {},
+          actions: data.actions.map(a => ({ type: a.type, params: a.params })),
+          is_active: true
+        })
+      })
+
+      if (!response.ok) {
+        toast.error("Error al crear workflow")
+        return
+      }
+
+      const result = await response.json()
+      setWorkflows([...workflows, {
+        id: result.data?.id || crypto.randomUUID(),
+        name: data.name,
+        description: data.description || "",
+        triggerType: data.trigger_type,
+        triggerConditions: {},
+        actions: data.actions,
+        isActive: true,
+        executionCount: 0
+      }])
+      reset({ name: "", description: "", trigger_type: "contact.created", actions: [] })
+      setIsCreating(false)
+      toast.success("Workflow creado exitosamente")
+    } catch {
+      toast.error("Error de conexión")
     }
   }
 
@@ -188,7 +247,10 @@ export function AutomationWorkflows() {
           <h2 className="text-2xl font-bold text-gray-900">Automatización de Flujos</h2>
         </div>
         <Button
-          onClick={() => setIsCreating(true)}
+          onClick={() => {
+            reset({ name: "", description: "", trigger_type: "contact.created", actions: [] })
+            setIsCreating(true)
+          }}
           className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -324,6 +386,7 @@ export function AutomationWorkflows() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              <form className="space-y-6" onSubmit={handleSubmit(onCreateWorkflow)}>
               {/* Nombre y descripción */}
               <div className="space-y-4">
                 <div>
@@ -332,9 +395,9 @@ export function AutomationWorkflows() {
                     type="text"
                     className="w-full mt-1 px-3 py-2 border rounded-md"
                     placeholder="Ej: Seguimiento de leads calientes"
-                    value={newWorkflow.name}
-                    onChange={(e) => setNewWorkflow({ ...newWorkflow, name: e.target.value })}
+                    {...register("name")}
                   />
+                  {errors.name?.message && <p className="text-destructive text-sm mt-1">{String(errors.name.message)}</p>}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Descripción</label>
@@ -342,8 +405,7 @@ export function AutomationWorkflows() {
                     className="w-full mt-1 px-3 py-2 border rounded-md"
                     placeholder="Describe qué hace este workflow..."
                     rows={2}
-                    value={newWorkflow.description}
-                    onChange={(e) => setNewWorkflow({ ...newWorkflow, description: e.target.value })}
+                    {...register("description")}
                   />
                 </div>
               </div>
@@ -353,82 +415,68 @@ export function AutomationWorkflows() {
                 <label className="text-sm font-medium">Disparador (Trigger)</label>
                 <select
                   className="w-full mt-1 px-3 py-2 border rounded-md"
-                  value={newWorkflow.triggerType}
-                  onChange={(e) => setNewWorkflow({ ...newWorkflow, triggerType: e.target.value })}
+                  {...register("trigger_type")}
                 >
-                  <option value="">Seleccionar trigger...</option>
-                  <option value="contact.created">Contacto Creado</option>
-                  <option value="contact.updated">Contacto Actualizado</option>
-                  <option value="invoice.sent">Factura Enviada</option>
-                  <option value="invoice.paid">Factura Pagada</option>
-                  <option value="payment.completed">Pago Completado</option>
-                  <option value="opportunity.created">Oportunidad Creada</option>
-                  <option value="opportunity.updated">Oportunidad Actualizada</option>
-                  <option value="manual">Manual</option>
-                  <option value="schedule">Programado</option>
+                  {WORKFLOW_TRIGGER_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
+                {errors.trigger_type?.message && <p className="text-destructive text-sm mt-1">{String(errors.trigger_type.message)}</p>}
               </div>
 
               {/* Acciones */}
               <div>
                 <label className="text-sm font-medium">Acciones</label>
                 <div className="mt-2 space-y-2">
-                  {(newWorkflow.actions as WorkflowAction[]).map((action, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                  {actionsArray.fields.map((action, idx) => (
+                    <div key={action.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                       {getActionIcon(action.type)}
-                      <span className="flex-1 text-sm">{getActionDescription(action)}</span>
+                      <span className="flex-1 text-sm">{getActionDescription(action as any)}</span>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setNewWorkflow({
-                          ...newWorkflow,
-                          actions: (newWorkflow.actions as WorkflowAction[]).filter((_, i) => i !== idx)
-                        })}
+                        onClick={() => actionsArray.remove(idx)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
                   ))}
                 </div>
+                {errors.actions?.message && <p className="text-destructive text-sm mt-1">{String(errors.actions.message)}</p>}
                 <div className="mt-2 flex gap-2 flex-wrap">
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setNewWorkflow({
-                      ...newWorkflow,
-                      actions: [...(newWorkflow.actions as WorkflowAction[]), {
-                        id: crypto.randomUUID(),
-                        type: "send_email",
-                        config: { template: "notification", recipient: "contact" }
-                      }]
+                    onClick={() => actionsArray.append({
+                      id: crypto.randomUUID(),
+                      type: "send_email",
+                      params: { template: "notification", to: "{{contact.email}}" }
                     })}
                   >
                     <Mail className="h-4 w-4 mr-1" /> Email
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setNewWorkflow({
-                      ...newWorkflow,
-                      actions: [...(newWorkflow.actions as WorkflowAction[]), {
-                        id: crypto.randomUUID(),
-                        type: "create_task",
-                        config: { description: "Seguimiento", assignee: "admin" }
-                      }]
+                    onClick={() => actionsArray.append({
+                      id: crypto.randomUUID(),
+                      type: "create_task",
+                      params: { description: "Seguimiento" }
                     })}
                   >
                     <Settings className="h-4 w-4 mr-1" /> Tarea
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setNewWorkflow({
-                      ...newWorkflow,
-                      actions: [...(newWorkflow.actions as WorkflowAction[]), {
-                        id: crypto.randomUUID(),
-                        type: "update_lead_status",
-                        config: { status: "warm" }
-                      }]
+                    onClick={() => actionsArray.append({
+                      id: crypto.randomUUID(),
+                      type: "update_lead_status",
+                      params: { status: "warm" }
                     })}
                   >
                     <Zap className="h-4 w-4 mr-1" /> Cambiar Status
@@ -438,53 +486,18 @@ export function AutomationWorkflows() {
 
               {/* Botones */}
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setIsCreating(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
                   Cancelar
                 </Button>
                 <Button
+                  type="submit"
                   className="bg-gradient-to-r from-cyan-500 to-blue-600"
-                  disabled={!newWorkflow.name || !newWorkflow.triggerType || (newWorkflow.actions as WorkflowAction[]).length === 0}
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/workflows', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          name: newWorkflow.name,
-                          description: newWorkflow.description,
-                          trigger_type: newWorkflow.triggerType,
-                          trigger_conditions: newWorkflow.triggerConditions,
-                          actions: newWorkflow.actions,
-                          is_active: true
-                        })
-                      })
-                      
-                      if (response.ok) {
-                        const result = await response.json()
-                        setWorkflows([...workflows, {
-                          id: result.data?.id || crypto.randomUUID(),
-                          name: newWorkflow.name,
-                          description: newWorkflow.description,
-                          triggerType: newWorkflow.triggerType as any,
-                          triggerConditions: newWorkflow.triggerConditions,
-                          actions: newWorkflow.actions as WorkflowAction[],
-                          isActive: true,
-                          executionCount: 0
-                        }])
-                        setNewWorkflow({ name: "", description: "", triggerType: "", triggerConditions: {}, actions: [] })
-                        setIsCreating(false)
-                        toast.success("Workflow creado exitosamente")
-                      } else {
-                        toast.error("Error al crear workflow")
-                      }
-                    } catch {
-                      toast.error("Error de conexión")
-                    }
-                  }}
+                  disabled={isSubmitting}
                 >
-                  Crear Workflow
+                  {isSubmitting ? "Creando..." : "Crear Workflow"}
                 </Button>
               </div>
+              </form>
             </CardContent>
           </Card>
         </div>

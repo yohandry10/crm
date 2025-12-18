@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseRouteHandler } from "@/lib/supabase-server"
 import { rateLimit } from "@/lib/rate-limit"
 import { createClient } from "@supabase/supabase-js"
+import { createRequestLogger } from "@/lib/logger"
 
 // Rate limit: max 5 intentos por minuto (previene brute force)
 const CHANGE_PASSWORD_LIMIT = { interval: 60 * 1000, maxRequests: 5 }
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request)
   try {
     // 1. RATE LIMITING (Resuelve AUTH-002 - parte de prevención brute force)
     const rateLimitResponse = await rateLimit(request, CHANGE_PASSWORD_LIMIT)
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
       // Las sesiones en otros dispositivos necesitarán re-autenticarse
     } catch (signOutError) {
       // No bloqueamos si falla el sign out, el password ya fue cambiado
-      console.error("Error invalidating other sessions:", signOutError)
+      log.warn("Error invalidating other sessions", { error: signOutError })
     }
 
     return NextResponse.json({
@@ -119,7 +121,7 @@ export async function POST(request: NextRequest) {
       sessionRefreshed: true  // Indica que la sesión fue renovada
     })
   } catch (error: any) {
-    console.error("Error changing password:", error)
+    log.error("Error changing password", error)
     return NextResponse.json(
       { success: false, error: "Error interno del servidor" },
       { status: 500 }

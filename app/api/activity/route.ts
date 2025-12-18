@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/auth-context"
+import { createRequestLogger } from "@/lib/logger"
 
 export async function GET(request: NextRequest) {
   try {
     const { supabase, organizationId } = await getAuthenticatedContext()
+    const log = createRequestLogger(request, organizationId || undefined)
 
     if (!organizationId) {
       return NextResponse.json(
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query
 
     if (error) {
-      console.error("Error fetching activity logs:", error)
+      log.error("Error fetching activity logs", error)
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
@@ -57,7 +59,8 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error("Activity logs error:", error)
+    const log = createRequestLogger(request)
+    log.error("Activity logs error", error)
     return NextResponse.json(
       { success: false, error: error.message || "Error interno" },
       { status: 500 }
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { supabase, organizationId, userId } = await getAuthenticatedContext()
+    const log = createRequestLogger(request, organizationId || undefined)
 
     if (!organizationId || !userId) {
       return NextResponse.json(
@@ -103,7 +107,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Error creating activity log:", error)
+      log.error("Error creating activity log", error)
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
@@ -112,7 +116,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
-    console.error("Activity log create error:", error)
+    const log = createRequestLogger(request)
+    log.error("Activity log create error", error)
     return NextResponse.json(
       { success: false, error: error.message || "Error interno" },
       { status: 500 }

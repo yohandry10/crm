@@ -1,3 +1,5 @@
+> Este changelog fue consolidado en `DOCUMENTACION.md#changelog-seguridad-histórico`.
+
 # 🔒 Changelog de Mejoras de Seguridad
 
 Este documento registra todas las correcciones de seguridad implementadas basadas en el análisis forense del 12 de diciembre de 2025.

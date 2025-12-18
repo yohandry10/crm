@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { taskSchema } from "@/lib/schemas"
+import { validatePagination } from "@/lib/auth-helpers"
 import crypto from "crypto"
 
 export async function GET(request: NextRequest) {
@@ -15,9 +16,11 @@ export async function GET(request: NextRequest) {
         const priority = searchParams.get("priority")
         const contact_id = searchParams.get("contact_id")
 
+        const { page, limit, offset } = validatePagination(searchParams)
+
         let query = supabase
             .from("tasks")
-            .select("*, contact:contacts(name, email)")
+            .select("*, contact:contacts(name, email)", { count: "exact" })
             .eq("organization_id", organizationId)
             .order("due_date", { ascending: true, nullsFirst: false })
 
@@ -25,10 +28,21 @@ export async function GET(request: NextRequest) {
         if (priority) query = query.eq("priority", priority)
         if (contact_id) query = query.eq("contact_id", contact_id)
 
-        const { data, error } = await query
+        const { data, error, count } = await query.range(offset, offset + limit - 1)
         if (error) throw error
 
-        return NextResponse.json({ success: true, data })
+        return NextResponse.json({
+            success: true,
+            data,
+            pagination: {
+                page,
+                limit,
+                total: count || 0,
+                totalPages: Math.ceil((count || 0) / limit),
+                hasNext: page < Math.ceil((count || 0) / limit),
+                hasPrev: page > 1
+            }
+        })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/tasks", method: "GET", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })

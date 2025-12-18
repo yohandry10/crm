@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { createRequestLogger } from '@/lib/logger'
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -32,6 +33,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const log = createRequestLogger(request)
   try {
     const rate = await rateLimit(request, RATE_LIMITS.sensitive)
     if (rate) return rate
@@ -178,7 +180,7 @@ export async function POST(
     // Enviar notificación por email si está configurado
     if (form.notify_on_submit && form.notify_emails?.length > 0) {
       // TODO: Implementar envío de email de notificación
-      console.log(`[Forms] Notificar a: ${form.notify_emails.join(', ')}`)
+      log.info('[Forms] Notification requested', { notifyEmailsCount: form.notify_emails.length })
     }
 
     // Emitir evento para workflows
@@ -199,7 +201,7 @@ export async function POST(
         }
       })
     } catch (e) {
-      console.error('[Forms] Error emitiendo evento:', e)
+      log.warn('[Forms] Error emitiendo evento', { error: e })
     }
 
     return corsResponse({
@@ -211,7 +213,7 @@ export async function POST(
     }, 200, allowedOrigin)
 
   } catch (error: any) {
-    console.error('[Public Forms Submit] Error:', error)
+    log.error('[Public Forms Submit] Error', error)
     const origin = getAllowedOrigin(request) || '*'
     return corsResponse({ error: error.message }, 500, origin)
   }

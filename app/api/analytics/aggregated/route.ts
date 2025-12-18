@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
             invoices_trend: calculateTrend(chartData[1].invoices, chartData[0].invoices)
         } : null
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: {
                 period,
@@ -96,6 +96,21 @@ export async function GET(request: NextRequest) {
                 trends
             }
         })
+
+        // ✅ SECURITY: Prevent cache leaks between organizations
+        // Cache for 10 minutes (aggregated data changes less frequently)
+        response.headers.set('Cache-Control', 'private, max-age=600, stale-while-revalidate=120')
+
+        // Vary header ensures different cache entries for different auth contexts
+        response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
+
+        // Unique cache key per organization to prevent cross-org data leaks
+        const cacheKey = crypto.createHash('sha256')
+            .update(`analytics-aggregated:${organizationId}:${period}:${months_back}:${new Date().toISOString().split('T')[0]}`)
+            .digest('hex')
+        response.headers.set('X-Cache-Key', cacheKey)
+
+        return response
 
     } catch (error: any) {
         await logError({

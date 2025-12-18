@@ -67,7 +67,7 @@ describe('Contacts API', () => {
         email: 'juan@example.com',
       }
 
-      const invalidContact = {
+      const invalidContact: Partial<typeof validContact> = {
         email: 'invalid-email',
       }
 
