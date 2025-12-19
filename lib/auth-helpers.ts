@@ -37,11 +37,29 @@ export async function requirePlatformAdmin() {
     .eq("id", user.id)
     .single()
 
-  if (error || !profile?.is_platform_admin) {
-    throw new Error("Forbidden: Platform admin access required")
+  if (!error && profile?.is_platform_admin) {
+    return { supabase, user }
   }
 
-  return { supabase, user }
+  const allowlistRaw = process.env.PLATFORM_ADMIN_EMAILS || ""
+  const allowlist = allowlistRaw
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+
+  const userEmail = (user.email || "").toLowerCase()
+  const isAllowlisted = userEmail && allowlist.includes(userEmail)
+
+  if (isAllowlisted) {
+    try {
+      await supabase.from("profiles").update({ is_platform_admin: true }).eq("id", user.id)
+    } catch {
+      // Best effort; allowlist still grants access.
+    }
+    return { supabase, user }
+  }
+
+  throw new Error("Forbidden: Platform admin access required")
 }
 
 /**

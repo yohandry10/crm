@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS subscription_history (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscription_history_org ON subscription_history(organization_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_history_org ON subscription_history(organization_id);
 
 -- 7. Crear tabla de planes con precios
 CREATE TABLE IF NOT EXISTS subscription_plans (
