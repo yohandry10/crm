@@ -19,6 +19,7 @@ interface Invitation {
 export default function SignupPage() {
   const searchParams = useSearchParams()
   const inviteToken = searchParams?.get("token")
+  const loginRedirectUrl = inviteToken ? `/login?redirect=${encodeURIComponent(`/signup?token=${inviteToken}`)}` : "/login"
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -31,6 +32,7 @@ export default function SignupPage() {
   const [loadingInvite, setLoadingInvite] = useState(!!inviteToken)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [requiresLoginToAccept, setRequiresLoginToAccept] = useState(false)
   const [invitation, setInvitation] = useState<Invitation | null>(null)
   const supabaseRef = useRef<SupabaseClient | null>(null)
 
@@ -48,8 +50,9 @@ export default function SignupPage() {
     try {
       const { data, error } = await supabase
         .from("organization_invitations")
-        .select("id, email, role, organization_id, organizations(name)")
+        .select("id, email, role, organization_id, status, expires_at, accepted_at, organizations(name)")
         .eq("token", inviteToken)
+        .eq("status", "pending")
         .is("accepted_at", null)
         .single()
 
@@ -61,10 +64,46 @@ export default function SignupPage() {
 
       setInvitation(data as Invitation)
       setFormData(prev => ({ ...prev, email: data.email }))
+
+      const { data: session } = await supabase.auth.getSession()
+      if (session?.session?.user) {
+        if (inviteToken) await acceptInvitation(inviteToken)
+      }
     } catch {
       setError("Error al validar invitación")
     } finally {
       setLoadingInvite(false)
+    }
+  }
+
+  const acceptInvitation = async (token: string) => {
+    setLoading(true)
+    setError("")
+    setRequiresLoginToAccept(false)
+
+    try {
+      const res = await fetch("/api/invitations/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      })
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setRequiresLoginToAccept(true)
+          setError("Inicia sesión para aceptar la invitación")
+          return
+        }
+        setError(json?.error || "No se pudo aceptar la invitación")
+        return
+      }
+
+      setSuccess(true)
+    } catch {
+      setError("No se pudo aceptar la invitación")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -75,6 +114,7 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setRequiresLoginToAccept(false)
 
     if (formData.password.length < 8) {
       setError("La contraseña debe tener al menos 8 caracteres")
@@ -104,9 +144,12 @@ export default function SignupPage() {
       })
 
       if (authError) {
-        setError(authError.message.includes("already registered") 
-          ? "Este email ya está registrado" 
-          : authError.message)
+        if (authError.message.toLowerCase().includes("already registered")) {
+          setRequiresLoginToAccept(!!inviteToken)
+          setError(inviteToken ? "Este email ya existe. Inicia sesión para aceptar la invitación." : "Este email ya está registrado")
+          return
+        }
+        setError(authError.message)
         return
       }
 
@@ -120,23 +163,11 @@ export default function SignupPage() {
           role: "user",
           current_organization_id: invitation?.organization_id || null,
         })
+      }
 
-        // If invitation exists, accept it and add to organization
-        if (invitation) {
-          // Add user to organization
-          await supabase.from("organization_members").insert({
-            organization_id: invitation.organization_id,
-            user_id: authData.user.id,
-            role: invitation.role,
-            is_active: true,
-          })
-
-          // Mark invitation as accepted
-          await supabase
-            .from("organization_invitations")
-            .update({ accepted_at: new Date().toISOString() })
-            .eq("id", invitation.id)
-        }
+      if (inviteToken) {
+        await acceptInvitation(inviteToken)
+        return
       }
 
       setSuccess(true)
@@ -243,6 +274,21 @@ export default function SignupPage() {
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
               <p className="text-sm text-red-600">{error}</p>
             </motion.div>
+          )}
+
+          {requiresLoginToAccept && (
+            <div className="mb-6">
+              <Link href={loginRedirectUrl} className="block">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full py-3 rounded-xl font-semibold bg-gray-900 text-white"
+                >
+                  Iniciar sesión para aceptar
+                </motion.button>
+              </Link>
+            </div>
           )}
 
           <form onSubmit={handleSignup} className="space-y-4">
