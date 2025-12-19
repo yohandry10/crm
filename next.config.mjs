@@ -10,9 +10,6 @@ const nextConfig = {
   // OPTIMIZACIONES DE RENDIMIENTO
   // ==============================
 
-  // Cambiamos distDir para evitar conflictos con el .next anterior bloqueado
-  distDir: '.next-build',
-
   // Modo estricto para detectar problemas de hidratación y bugs
   reactStrictMode: true,
 
@@ -112,6 +109,11 @@ const nextConfig = {
 
   // Generar source maps solo en desarrollo
   productionBrowserSourceMaps: false,
+
+  // Ignorar ESLint en build (Vercel) para no bloquear por falta de plugin
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 
   // ==============================
   // VARIABLES DE ENTORNO

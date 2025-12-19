@@ -97,6 +97,71 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const log = createRequestLogger(request)
+  try {
+    const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { supabase, user } = await requirePlatformAdmin()
+    const { id } = await params
+    const body = await request.json()
+    const action = body?.action as "deactivate" | "activate"
+
+    if (!action) {
+      return NextResponse.json({ success: false, error: "Missing action" }, { status: 400 })
+    }
+
+    const supabaseAdmin = getAdminClient()
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    }
+
+    if (action === "deactivate") {
+      updates.is_active = false
+      updates.subscription_status = "cancelled"
+    } else if (action === "activate") {
+      updates.is_active = true
+      if (body?.subscription_status) {
+        updates.subscription_status = body.subscription_status
+      } else {
+        updates.subscription_status = "trial"
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("organizations")
+      .update(updates)
+      .eq("id", id)
+      .select("id, name, is_active, subscription_status")
+      .single()
+
+    if (error) throw error
+
+    await logAdminAction({
+      supabase,
+      request,
+      userId: user.id,
+      action: action === "deactivate" ? "SUSPEND_ORGANIZATION" : "ACTIVATE_ORGANIZATION",
+      resource: "organizations",
+      resourceId: id,
+      details: { updates },
+      success: true,
+    })
+
+    return NextResponse.json({ success: true, data })
+  } catch (error: any) {
+    log.error("PATCH /api/admin/organizations/[id] error", error)
+    const status = error.message === "Unauthorized" ? 401 :
+                   error.message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ success: false, error: error.message }, { status })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

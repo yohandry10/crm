@@ -122,8 +122,8 @@ export default function NewOrganizationPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">Organización Creada</h1>
-            <p className="text-sm text-slate-500">Envía la invitación al owner</p>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Organización Creada</h1>
+          <p className="text-sm text-slate-600">Envía la invitación al owner</p>
           </div>
         </div>
 
@@ -184,8 +184,8 @@ export default function NewOrganizationPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">Nueva Organización</h1>
-          <p className="text-sm text-slate-500">Crea una nueva organización y envía invitación al owner</p>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Nueva Organización</h1>
+          <p className="text-sm text-slate-600">Crea una nueva organización y envía invitación al owner</p>
         </div>
       </div>
 

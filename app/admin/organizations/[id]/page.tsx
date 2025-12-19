@@ -18,6 +18,7 @@ interface Organization {
   name: string
   slug: string
   ruc: string | null
+  is_active: boolean
   subscription_status: string
   subscription_plan: string
   trial_ends_at: string | null
@@ -53,6 +54,7 @@ export default function OrganizationDetailPage() {
   const [history, setHistory] = useState<SubscriptionHistory[]>([])
   const [loading, setLoading] = useState(true)
   const [activating, setActivating] = useState(false)
+  const [togglingAccess, setTogglingAccess] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState("starter")
   const [billingPeriod, setBillingPeriod] = useState("monthly")
   const [paymentReference, setPaymentReference] = useState("")
@@ -109,6 +111,29 @@ export default function OrganizationDetailPage() {
     }
   }
 
+  const toggleAccess = async (action: "deactivate" | "activate") => {
+    if (!organization) return
+    setTogglingAccess(true)
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          subscription_status: organization.subscription_status,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      toast.success(action === "deactivate" ? "Organización suspendida" : "Organización reactivada")
+      await loadOrganization()
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo actualizar el acceso")
+    } finally {
+      setTogglingAccess(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       active: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
@@ -161,17 +186,36 @@ export default function OrganizationDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/organizations">
-          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]">
+          <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-800 hover:bg-slate-100">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">{organization.name}</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{organization.name}</h1>
           <p className="text-sm text-slate-500">{organization.slug}</p>
         </div>
-        <span className={`inline-flex px-3 py-1.5 rounded-lg text-[12px] font-medium border ${getStatusBadge(organization.subscription_status)}`}>
-          {organization.subscription_status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex px-3 py-1.5 rounded-lg text-[12px] font-medium border ${getStatusBadge(organization.subscription_status)}`}>
+            {organization.subscription_status}
+          </span>
+          <span className={`inline-flex px-3 py-1.5 rounded-lg text-[12px] font-medium border ${organization.is_active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
+            {organization.is_active ? "Activa" : "Suspendida"}
+          </span>
+          <Button
+            variant={organization.is_active ? "destructive" : "default"}
+            className={organization.is_active ? "bg-red-500 hover:bg-red-600" : "bg-cyan-600 hover:bg-cyan-700 text-white"}
+            disabled={togglingAccess}
+            onClick={() => toggleAccess(organization.is_active ? "deactivate" : "activate")}
+          >
+            {togglingAccess ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : organization.is_active ? (
+              "Suspender acceso"
+            ) : (
+              "Reactivar acceso"
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
