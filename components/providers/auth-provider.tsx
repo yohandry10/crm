@@ -39,7 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 1. Get authenticated user
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
-      if (authError) throw authError
+      if (authError) {
+        const errorCode = (authError as any)?.code
+        const errorName = (authError as any)?.name
+        if (errorCode === "refresh_token_not_found" || errorName === "AuthSessionMissingError") {
+          // Session is missing/expired; treat as logged out without noisy errors.
+          setUser(null)
+          setProfile(null)
+          setOrganizationId(null)
+          setLoading(false)
+          return
+        }
+        throw authError
+      }
+
       if (!authUser) {
         setUser(null)
         setProfile(null)

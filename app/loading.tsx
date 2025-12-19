@@ -10,6 +10,7 @@ export default function Loading() {
             alt="NEON SYSTEM"
             fill
             className="object-contain"
+            sizes="128px"
             priority
           />
         </div>

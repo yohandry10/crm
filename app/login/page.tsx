@@ -92,7 +92,7 @@ export default function LoginPage() {
           {/* Logo */}
           <Link href="/" className="flex justify-center mb-8">
             <div className="relative w-20 h-20">
-              <Image src="/logo.png" alt="NEON SYSTEM" fill className="object-contain" priority />
+              <Image src="/logo.png" alt="NEON SYSTEM" fill className="object-contain" sizes="80px" priority />
             </div>
           </Link>
 

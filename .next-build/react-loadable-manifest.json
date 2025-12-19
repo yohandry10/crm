@@ -1,4 +1,12 @@
 {
+  "app\\login\\page.tsx -> @/lib/supabase-browser": {
+    "id": "app\\login\\page.tsx -> @/lib/supabase-browser",
+    "files": [
+      "static/chunks/supabase.js",
+      "static/chunks/vendor.js",
+      "static/chunks/_app-pages-browser_lib_supabase-browser_ts.js"
+    ]
+  },
   "components\\dashboard\\dashboard-wrapper.tsx -> @/components/dashboard/dashboard-overview": {
     "id": "components\\dashboard\\dashboard-wrapper.tsx -> @/components/dashboard/dashboard-overview",
     "files": [

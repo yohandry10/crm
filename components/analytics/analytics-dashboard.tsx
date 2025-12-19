@@ -18,6 +18,7 @@ import {
     Download
 } from "lucide-react"
 import { toast } from "sonner"
+import Link from "next/link"
 
 interface AnalyticsData {
     metrics: {
@@ -102,6 +103,10 @@ export function AnalyticsDashboard() {
     }
 
     if (!data) return null
+
+    const salesData = Array.isArray(data.salesData) ? data.salesData : []
+    const maxSales = salesData.reduce((max, item) => Math.max(max, Number(item.ventas) || 0), 0)
+    const hasSales = salesData.length > 0 && maxSales > 0
 
     return (
         <div className="space-y-6">
@@ -201,17 +206,39 @@ export function AnalyticsDashboard() {
                                 <CardTitle>Resumen de Ventas</CardTitle>
                             </CardHeader>
                             <CardContent className="pl-2">
-                                <div className="h-[200px] flex items-end justify-between gap-2 px-4">
-                                    {data.salesData.map((item, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-2 w-full">
-                                            <div
-                                                className="w-full bg-primary/80 rounded-t-md hover:bg-primary transition-all"
-                                                style={{ height: `${Math.max(item.ventas / 100, 10)}%` }}
-                                            ></div>
-                                            <span className="text-xs text-muted-foreground">{item.month}</span>
+                                {!hasSales ? (
+                                    <div className="h-[200px] px-4 flex flex-col items-center justify-center text-center">
+                                        <p className="text-sm font-medium">Aún no hay ventas en este período</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Registra pagos o marca facturas como pagadas para ver el gráfico.
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-4">
+                                            <Link href="/invoicing">
+                                                <Button size="sm" className="gradient-neon border-0">Ir a Facturación</Button>
+                                            </Link>
+                                            <Link href="/quotes">
+                                                <Button size="sm" variant="outline">Ver Cotizaciones</Button>
+                                            </Link>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-[200px] flex items-end justify-between gap-2 px-4">
+                                        {salesData.map((item, i) => {
+                                            const ventas = Number(item.ventas) || 0
+                                            const heightPct = maxSales > 0 ? (ventas / maxSales) * 100 : 0
+                                            return (
+                                                <div key={i} className="flex flex-col items-center gap-2 w-full">
+                                                    <div
+                                                        className="w-full bg-primary/80 rounded-t-md hover:bg-primary transition-all"
+                                                        style={{ height: `${Math.max(heightPct, 8)}%` }}
+                                                        title={`${item.month}: ${formatCurrency(ventas)}`}
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">{item.month}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                         <Card className="col-span-3">

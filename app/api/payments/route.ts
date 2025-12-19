@@ -227,7 +227,12 @@ export async function POST(request: NextRequest) {
         const isFullyPaid = totalPaidAmount >= Number(invoice.total)
 
         if (isFullyPaid && (payment.status === 'completed')) {
-            await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoice_id)
+            await supabase.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', invoice_id)
+            await supabase
+                .from('quotes')
+                .update({ status: 'paid', updated_at: new Date().toISOString() })
+                .eq('invoice_id', invoice_id)
+                .eq('organization_id', organizationId)
         }
 
         // 6. Emit event

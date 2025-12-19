@@ -1,10 +1,15 @@
 {
   "/api/notifications/route": "app/api/notifications/route.js",
-  "/api/payments/route": "app/api/payments/route.js",
-  "/api/invoices/route": "app/api/invoices/route.js",
-  "/leads/page": "app/leads/page.js",
-  "/pipeline/page": "app/pipeline/page.js",
-  "/sales/page": "app/sales/page.js",
-  "/quotes/page": "app/quotes/page.js",
-  "/invoicing/page": "app/invoicing/page.js"
+  "/api/inventory/route": "app/api/inventory/route.js",
+  "/api/analytics/route": "app/api/analytics/route.js",
+  "/api/reports/saved/route": "app/api/reports/saved/route.js",
+  "/api/workflows/route": "app/api/workflows/route.js",
+  "/api/integrations/route": "app/api/integrations/route.js",
+  "/inventory/page": "app/inventory/page.js",
+  "/forms/page": "app/forms/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/reports/builder/page": "app/reports/builder/page.js",
+  "/workflows/page": "app/workflows/page.js",
+  "/integrations/page": "app/integrations/page.js",
+  "/settings/page": "app/settings/page.js"
 }

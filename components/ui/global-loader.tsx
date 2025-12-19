@@ -140,6 +140,7 @@ export function GlobalLoader() {
                   alt="NEON SYSTEM"
                   fill
                   className="object-contain p-2"
+                  sizes="96px"
                   priority
                 />
               </motion.div>

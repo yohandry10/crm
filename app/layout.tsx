@@ -6,6 +6,7 @@ import { GeistMono } from "geist/font/mono"
 import { NavigationLoadingProvider } from "@/components/providers/navigation-loading-provider"
 import { AuthProvider } from "@/components/providers/auth-provider"
 import { SWRProvider } from "@/components/providers/swr-provider"
+import { GlobalChatbotWrapper } from "@/components/chatbot/global-chatbot-wrapper"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -39,6 +40,7 @@ export default function RootLayout({
             <NavigationLoadingProvider>
               {children}
             </NavigationLoadingProvider>
+            <GlobalChatbotWrapper />
           </AuthProvider>
         </SWRProvider>
       </body>

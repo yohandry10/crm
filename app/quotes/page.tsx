@@ -16,9 +16,10 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, RefreshCw, Download, FileText, Loader2, Link, Share2, Send, CheckCircle, XCircle, Trash2, CreditCard } from "lucide-react"
+import { Plus, Search, RefreshCw, Download, FileText, Loader2, Share2, Send, CheckCircle, XCircle, Trash2, CreditCard, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
+import Link from "next/link"
 
 export default function QuotesPage() {
     const [quotes, setQuotes] = useState<any[]>([])
@@ -169,7 +170,7 @@ export default function QuotesPage() {
         }
     }
 
-    const canConvert = (status: string) => ['accepted', 'sent'].includes(status)
+    const canConvert = (status: string, hasInvoice: boolean) => ['accepted', 'sent'].includes(status) && !hasInvoice
 
     const handleGeneratePaymentLink = async (quoteId: string) => {
         setGeneratingLink(quoteId)
@@ -257,7 +258,9 @@ export default function QuotesPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredQuotes.map((quote) => (
+                                    filteredQuotes.map((quote) => {
+                                        const hasInvoice = Boolean(quote.invoice_id)
+                                        return (
                                         <TableRow key={quote.id}>
                                             <TableCell className="font-medium">
                                                 #{quote.quote_number}
@@ -332,7 +335,7 @@ export default function QuotesPage() {
                                                     )}
 
                                                     {/* Facturar: accepted/sent → converted */}
-                                                    {canConvert(quote.status) && (
+                                                    {canConvert(quote.status, hasInvoice) && (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
@@ -347,6 +350,20 @@ export default function QuotesPage() {
                                                                 <><FileText className="h-4 w-4 mr-1" /> Facturar</>
                                                             )}
                                                         </Button>
+                                                    )}
+
+                                                    {/* Ver factura si ya fue convertida */}
+                                                    {hasInvoice && (
+                                                        <Link href={`/invoicing/${quote.invoice_id}`}>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-blue-600 hover:bg-blue-50 border-blue-200"
+                                                                title="Ver factura"
+                                                            >
+                                                                <ExternalLink className="h-4 w-4 mr-1" /> Ver factura
+                                                            </Button>
+                                                        </Link>
                                                     )}
 
                                                     {/* Registrar Pago: para accepted/sent */}
@@ -415,7 +432,8 @@ export default function QuotesPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    )
+                                    })
                                 )}
                             </TableBody>
                         </Table>

@@ -129,6 +129,10 @@ export async function PATCH(
                     .from("invoices")
                     .update({ status: 'paid', paid_at: new Date().toISOString() })
                     .eq("id", currentPayment.invoice.id)
+                await supabase
+                    .from("quotes")
+                    .update({ status: 'paid', updated_at: new Date().toISOString() })
+                    .eq("invoice_id", currentPayment.invoice.id)
             }
         }
 

@@ -106,6 +106,11 @@ BEGIN
         paid_at = NOW(),
         updated_at = NOW()
     WHERE id = v_invoice.id;
+
+    UPDATE quotes
+    SET status = 'paid',
+        updated_at = NOW()
+    WHERE invoice_id = v_invoice.id;
   END IF;
 
   RETURN jsonb_build_object(
