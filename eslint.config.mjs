@@ -1,7 +1,15 @@
-import nextPlugin from "@next/eslint-plugin-next";
+import { createRequire } from "module";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
+
+const require = createRequire(import.meta.url);
+let nextPlugin;
+try {
+  nextPlugin = require("@next/eslint-plugin-next");
+} catch {
+  nextPlugin = { rules: {} };
+}
 
 export default [
   {

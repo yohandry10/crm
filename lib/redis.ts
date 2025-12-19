@@ -43,14 +43,21 @@ export function getRedisClient(): Redis | null {
       },
     }
 
-    // Crear cliente con URL o con host/port separados
+    // Crear cliente solo si hay URL o host explícito
     const redisConfig = process.env.REDIS_URL
       ? process.env.REDIS_URL
-      : {
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379'),
-          password: process.env.REDIS_PASSWORD || undefined,
-        }
+      : process.env.REDIS_HOST
+        ? {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || '6379'),
+            password: process.env.REDIS_PASSWORD || undefined,
+          }
+        : null
+
+    if (!redisConfig) {
+      logger.warn('Redis config missing; skipping Redis client initialization')
+      return null
+    }
 
     redis =
       typeof redisConfig === 'string'
