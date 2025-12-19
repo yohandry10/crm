@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, lazy, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import dynamic from "next/dynamic"
 import { SidebarOptimized } from "@/components/dashboard/sidebar-optimized"
 import { Header } from "@/components/dashboard/header"
 import { useCRMPrefetch } from "@/hooks/use-route-prefetch"
+import { useKeyboardShortcuts } from "@/components/keyboard"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -47,19 +48,13 @@ export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
   // Prefetch rutas frecuentes en segundo plano
   useCRMPrefetch()
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts()
+
   // Evitar hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Importar dinámicamente el hook de keyboard shortcuts
-  useEffect(() => {
-    if (!mounted) return
-
-    import("@/components/keyboard").then(({ useKeyboardShortcuts }) => {
-      useKeyboardShortcuts()
-    })
-  }, [mounted])
 
   // Listen for show-shortcuts event
   useEffect(() => {

@@ -40,7 +40,6 @@ export function WorkflowStatusTracker({
     error,
     refresh,
     cancel,
-    isWaiting,
     isActive,
     isCompleted,
     isFailed,

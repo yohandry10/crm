@@ -27,7 +27,6 @@ export function EmbedCodeDialog({ open, onOpenChange, form }: EmbedCodeDialogPro
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const formUrl = `${baseUrl}/f/${form.slug}`
-  const apiUrl = `${baseUrl}/api/public/forms/${form.id}`
 
   const iframeCode = `<iframe 
   src="${formUrl}" 
@@ -89,7 +88,7 @@ fetch('${baseUrl}/api/public/forms/${form.id}/submit', {
       setCopiedType(type)
       toast.success('Copiado al portapapeles')
       setTimeout(() => setCopiedType(null), 2000)
-    } catch (err) {
+    } catch {
       toast.error('Error al copiar')
     }
   }

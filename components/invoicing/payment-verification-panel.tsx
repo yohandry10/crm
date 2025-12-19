@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, CheckCircle, XCircle, Image, ExternalLink, Clock, CreditCard } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, Image, ExternalLink, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
     Dialog,
     DialogContent,
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Mail, MessageCircle, Copy, Check, ExternalLink } from "lucide-react"
+import { Loader2, Mail, MessageCircle, Copy, Check } from "lucide-react"
 import { toast } from "sonner"
 
 interface Quote {
@@ -64,14 +64,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
         }
     }, [open, quote])
 
-    // Generate payment link when method is selected
-    useEffect(() => {
-        if (method && quote && !paymentLink) {
-            generatePaymentLink()
-        }
-    }, [method])
-
-    const generatePaymentLink = async () => {
+    const generatePaymentLink = useCallback(async () => {
         if (!quote) return
 
         try {
@@ -89,7 +82,14 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
         } catch (error) {
             console.error("Error generating link:", error)
         }
-    }
+    }, [quote])
+
+    // Generate payment link when method is selected
+    useEffect(() => {
+        if (method && quote && !paymentLink) {
+            generatePaymentLink()
+        }
+    }, [method, quote, paymentLink, generatePaymentLink])
 
     const handleSendEmail = async () => {
         if (!email || !quote) {

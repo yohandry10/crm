@@ -10,8 +10,7 @@ import { logger } from '../logger'
 async function processEmailJob(
   job: Job<EmailJobData, EmailJobResult>
 ): Promise<EmailJobResult> {
-  const { to, subject, html, text, template, templateData, attachments } =
-    job.data
+  const { to, subject, html, text, template, templateData } = job.data
 
   logger.info('Processing email job', {
     jobId: job.id,

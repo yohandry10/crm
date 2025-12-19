@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Dialog,
@@ -42,7 +41,7 @@ export const ActionNode = memo(({ id, data, isConnectable }: NodeProps<ActionNod
     const [dialogOpen, setDialogOpen] = useState(false);
     const [params, setParams] = useState<Record<string, any>>(data.params || {});
     const [paramErrors, setParamErrors] = useState<Record<string, string>>({});
-    const { setNodes, getNodes } = useReactFlow();
+    const { setNodes } = useReactFlow();
 
     const Icon = icons[data.actionType] || icons.default;
 

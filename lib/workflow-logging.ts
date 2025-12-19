@@ -65,16 +65,6 @@ function createLogEntry(
     return entry
 }
 
-/**
- * Formatea un log entry para consola
- */
-function formatForConsole(entry: LogEntry): string {
-    const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}] [${entry.module}]`
-    const contextStr = entry.context ? ` | Context: ${JSON.stringify(entry.context)}` : ''
-    const errorStr = entry.error ? ` | Error: ${entry.error.message}` : ''
-    return `${prefix} ${entry.message}${contextStr}${errorStr}`
-}
-
 // =====================================================
 // WORKFLOW LOGGER
 // =====================================================
@@ -287,8 +277,7 @@ export async function persistWorkflowError(
     organizationId: string,
     workflowId: string,
     executionId: string | undefined,
-    error: Error,
-    context?: Record<string, any>
+    error: Error
 ): Promise<void> {
     try {
         // Solo persistir si hay un executionId (la ejecución ya inició)

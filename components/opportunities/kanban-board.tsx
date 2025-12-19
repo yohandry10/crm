@@ -1,24 +1,14 @@
 "use client"
 
 import { useState, useCallback, memo } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DollarSign,
   Calendar,
   User,
-  MoreHorizontal,
   Plus,
-  GripVertical
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 export interface Opportunity {
@@ -255,7 +245,6 @@ const OpportunityCard = memo(function OpportunityCard({
   opportunity,
   onDragStart,
   onEdit,
-  onDelete,
 }: OpportunityCardProps) {
   const probability = opportunity.probability || 0
 

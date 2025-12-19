@@ -16,13 +16,13 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { jobId: string } }
+    { params }: { params: Promise<{ jobId: string }> }
 ) {
     try {
         // Autenticación (para evitar que cualquiera vea el estado de jobs)
         await getAuthenticatedContext()
 
-        const { jobId } = params
+        const { jobId } = await params
 
         if (!jobId) {
             return NextResponse.json({
@@ -114,12 +114,12 @@ export async function GET(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { jobId: string } }
+    { params }: { params: Promise<{ jobId: string }> }
 ) {
     try {
         await getAuthenticatedContext()
 
-        const { jobId } = params
+        const { jobId } = await params
 
         // Primero verificar que el job existe
         const status = await getJobStatus(jobId)

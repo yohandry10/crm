@@ -18,8 +18,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Plus, Save, Play, MonitorPlay, Loader2, Check } from 'lucide-react';
+import { Save, Play, MonitorPlay, Loader2, Check } from 'lucide-react';
 import { toast } from "sonner";
 import { TriggerNode } from './nodes/trigger-node';
 import { ActionNode } from './nodes/action-node';

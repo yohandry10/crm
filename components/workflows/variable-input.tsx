@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';

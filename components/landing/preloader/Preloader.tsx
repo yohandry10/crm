@@ -11,17 +11,18 @@ function QuantumSphereInternal() {
     const mountRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        if (!mountRef.current) return
+        const mountEl = mountRef.current
+        if (!mountEl) return
 
         const scene = new THREE.Scene()
-        const camera = new THREE.PerspectiveCamera(60, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 1000)
+        const camera = new THREE.PerspectiveCamera(60, mountEl.clientWidth / mountEl.clientHeight, 0.1, 1000)
         camera.position.z = 8
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" })
-        renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight)
+        renderer.setSize(mountEl.clientWidth, mountEl.clientHeight)
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         renderer.setClearColor(0x000000, 0)
-        mountRef.current.appendChild(renderer.domElement)
+        mountEl.appendChild(renderer.domElement)
 
         const ambientLight = new THREE.AmbientLight(0x00ffff, 0.3)
         scene.add(ambientLight)
@@ -100,9 +101,9 @@ function QuantumSphereInternal() {
         animate()
 
         const handleResize = () => {
-            if (!mountRef.current) return
-            const width = mountRef.current.clientWidth
-            const height = mountRef.current.clientHeight
+            if (!mountEl) return
+            const width = mountEl.clientWidth
+            const height = mountEl.clientHeight
             camera.aspect = width / height
             camera.updateProjectionMatrix()
             renderer.setSize(width, height)
@@ -113,7 +114,7 @@ function QuantumSphereInternal() {
             cancelAnimationFrame(animationId)
             window.removeEventListener('resize', handleResize)
             sphereGeometry.dispose(); sphereMaterial.dispose(); ringGeometry.dispose(); ringMaterial.dispose(); particleGeometry.dispose(); particleMaterial.dispose(); renderer.dispose()
-            if (mountRef.current && renderer.domElement) mountRef.current.removeChild(renderer.domElement)
+            if (mountEl && renderer.domElement) mountEl.removeChild(renderer.domElement)
         }
     }, [])
 

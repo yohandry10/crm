@@ -104,7 +104,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
                 is_active: true,
             })
         }
-    }, [workflow, open])
+    }, [workflow, open, reset])
 
     const onSubmit = async (data: WorkflowDialogFormData) => {
         setLoading(true)

@@ -71,6 +71,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     return () => clearTimeout(timer)
   }, [query])
 
+  const navigateTo = useCallback((result: SearchResult) => {
+    onOpenChange(false)
+    setQuery("")
+    router.push(result.url)
+  }, [onOpenChange, router])
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -83,13 +89,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       e.preventDefault()
       navigateTo(results[selectedIndex])
     }
-  }, [results, selectedIndex])
-
-  const navigateTo = (result: SearchResult) => {
-    onOpenChange(false)
-    setQuery("")
-    router.push(result.url)
-  }
+  }, [navigateTo, results, selectedIndex])
 
   // Focus input when dialog opens
   useEffect(() => {

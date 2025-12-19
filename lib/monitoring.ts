@@ -57,7 +57,6 @@ export async function measurePerformance<T>(
     context: { endpoint: string; method: string; user_id?: string }
 ): Promise<{ result: T; duration_ms: number }> {
     const start = Date.now()
-    let error: Error | undefined
 
     try {
         const result = await fn()

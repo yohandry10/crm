@@ -35,6 +35,7 @@ async function processWorkflowJob(
 
   // Wrap todo el procesamiento en un span de OpenTelemetry
   return withSpan('workflow.process', async (span) => {
+    void span
     // Agregar atributos del workflow al span
     addSpanAttributes({
       'workflow.id': workflowId,

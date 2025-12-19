@@ -100,7 +100,7 @@ export function LeadDialog({
         } else {
             form.reset(defaultFormValues)
         }
-    }, [open, lead]) // ✅ Removido 'form' de dependencias - form.reset es estable
+    }, [open, lead, form])
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setLoading(true)

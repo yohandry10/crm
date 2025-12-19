@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       notificationsQuery = notificationsQuery.eq("is_read", false)
     }
 
-    const { data: notifications } = await notificationsQuery
+    const notificationsPromise = notificationsQuery
 
     // Also query system_notifications for backwards compatibility
     let systemQuery = supabase
@@ -40,7 +40,32 @@ export async function GET(request: NextRequest) {
       systemQuery = systemQuery.is("read_at", null)
     }
 
-    const { data: systemNotifications } = await systemQuery
+    const systemPromise = systemQuery
+
+    // Count unread from both tables
+    const unreadNotifPromise = supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false)
+
+    const unreadSystemPromise = supabase
+      .from("system_notifications")
+      .select("*", { count: "exact", head: true })
+      .or(`user_id.eq.${user.id},organization_id.eq.${organizationId}`)
+      .is("read_at", null)
+
+    const [
+      { data: notifications },
+      { data: systemNotifications },
+      { count: unreadNotif },
+      { count: unreadSystem },
+    ] = await Promise.all([
+      notificationsPromise,
+      systemPromise,
+      unreadNotifPromise,
+      unreadSystemPromise,
+    ])
 
     // Combine and normalize both sources
     const normalizedNotifications = (notifications || []).map(n => ({
@@ -59,19 +84,6 @@ export async function GET(request: NextRequest) {
     const allNotifications = [...normalizedNotifications, ...normalizedSystem]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit)
-
-    // Count unread from both tables
-    const { count: unreadNotif } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false)
-
-    const { count: unreadSystem } = await supabase
-      .from("system_notifications")
-      .select("*", { count: "exact", head: true })
-      .or(`user_id.eq.${user.id},organization_id.eq.${organizationId}`)
-      .is("read_at", null)
 
     return NextResponse.json({
       success: true,

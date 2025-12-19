@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { Float, PerspectiveCamera, Environment, Stars } from "@react-three/drei"
+import { Float, PerspectiveCamera } from "@react-three/drei"
 import * as THREE from "three"
 
 function QuantumSphere() {

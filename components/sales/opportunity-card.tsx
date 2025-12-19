@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, User, DollarSign } from "lucide-react"
+import { Calendar, DollarSign } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
+import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -40,23 +41,18 @@ export function Header({ onMenuClick }: HeaderProps) {
     })
   }, [])
 
+  const { data: notificationsResponse } = useSWR('/api/notifications?limit=10', {
+    refreshInterval: 60000,
+    dedupingInterval: 60000,
+  })
+
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const res = await fetch('/api/notifications?limit=10')
-        const data = await res.json()
-        if (data.success) {
-          setNotifications(data.data || [])
-          setUnreadCount(data.unread_count || 0)
-        }
-      } catch (error) {
-        console.error('Error fetching notifications:', error)
-      }
-    }
-    fetchNotifications()
-    const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    if (!notificationsResponse) return
+    const nextNotifications = notificationsResponse.data || []
+    const nextUnread = notificationsResponse.unreadCount || 0
+    setNotifications(nextNotifications)
+    setUnreadCount(nextUnread)
+  }, [notificationsResponse])
 
   const handleLogout = async () => {
     const supabase = supabaseRef.current

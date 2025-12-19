@@ -19,7 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Loader2, Upload, CreditCard, CheckCircle } from "lucide-react"
+import { Loader2, CreditCard, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 

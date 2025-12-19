@@ -65,9 +65,7 @@ class Logger {
     }
 
     const line = safeJson(entry) || `${entry.ts} ${level.toUpperCase()} ${message}`
-    // eslint-disable-next-line no-console
     const sink = level === "debug" ? console.log : console[level]
-    // eslint-disable-next-line no-console
     sink(line)
   }
 

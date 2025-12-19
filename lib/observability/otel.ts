@@ -16,7 +16,7 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
-import { trace, SpanStatusCode, context } from '@opentelemetry/api'
+import { trace, SpanStatusCode } from '@opentelemetry/api'
 import { logger } from '../logger'
 
 /**

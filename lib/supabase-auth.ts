@@ -3,6 +3,78 @@ import { NextResponse } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import type { OrgRole } from '@/lib/types/organization'
 import { logger } from './logger'
+import { getRedisClient } from './redis'
+
+type CachedAuthContext = {
+    organizationId: string
+    organization: any
+    membership: any
+    role: OrgRole
+}
+
+const AUTH_CONTEXT_TTL_SECONDS = 60
+const authContextMemoryCache = new Map<string, { data: CachedAuthContext; expiresAt: number }>()
+
+function getAuthContextCacheKey(userId: string, organizationId?: string) {
+    return organizationId ? `authctx:${userId}:${organizationId}` : `authctx:${userId}`
+}
+
+async function getCachedAuthContext(userId: string, organizationId?: string) {
+    const redis = getRedisClient()
+    const key = getAuthContextCacheKey(userId, organizationId)
+    const fallbackKey = getAuthContextCacheKey(userId)
+
+    if (redis) {
+        try {
+            const cached = await redis.get(key) || (!organizationId ? null : await redis.get(fallbackKey))
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached) as CachedAuthContext
+                    if (organizationId && data.organizationId !== organizationId) {
+                        return null
+                    }
+                    return data
+                } catch {
+                    return null
+                }
+            }
+        } catch {
+            // Ignore cache errors
+        }
+    }
+
+    const entry = authContextMemoryCache.get(key) || (!organizationId ? undefined : authContextMemoryCache.get(fallbackKey))
+    if (!entry) return null
+    if (Date.now() > entry.expiresAt) {
+        authContextMemoryCache.delete(key)
+        authContextMemoryCache.delete(fallbackKey)
+        return null
+    }
+    if (organizationId && entry.data.organizationId !== organizationId) {
+        return null
+    }
+    return entry.data
+}
+
+async function setCachedAuthContext(userId: string, data: CachedAuthContext) {
+    const redis = getRedisClient()
+    const key = getAuthContextCacheKey(userId, data.organizationId)
+    const fallbackKey = getAuthContextCacheKey(userId)
+    const payload = JSON.stringify(data)
+
+    if (redis) {
+        try {
+            await redis.set(key, payload, 'EX', AUTH_CONTEXT_TTL_SECONDS)
+            await redis.set(fallbackKey, payload, 'EX', AUTH_CONTEXT_TTL_SECONDS)
+        } catch {
+            // Ignore cache errors
+        }
+    }
+
+    const expiresAt = Date.now() + AUTH_CONTEXT_TTL_SECONDS * 1000
+    authContextMemoryCache.set(key, { data, expiresAt })
+    authContextMemoryCache.set(fallbackKey, { data, expiresAt })
+}
 
 /**
  * Crea cliente de Supabase para rutas de API usando SSR
@@ -71,9 +143,22 @@ export async function getAuthenticatedClientAndUser() {
 export async function getAuthenticatedContext() {
     try {
         const { supabase, user } = await getAuthenticatedClientAndUser()
+        const headersList = await headers()
+        const orgHint = headersList.get('x-organization-id') || undefined
+
+        const cached = await getCachedAuthContext(user.id, orgHint)
+        if (cached) {
+            return {
+                supabase,
+                user,
+                organizationId: cached.organizationId,
+                organization: cached.organization,
+                membership: cached.membership,
+                role: cached.role,
+            }
+        }
 
         // Get organization from header or profile
-        const headersList = await headers()
         let orgId = headersList.get('x-organization-id')
 
         if (!orgId) {
@@ -114,13 +199,19 @@ export async function getAuthenticatedContext() {
             throw new Error('Not a member of this organization')
         }
 
-        return {
-            supabase,
-            user,
-            organizationId: orgId,
+        const orgIdValue = orgId as string
+        const context = {
+            organizationId: orgIdValue,
             organization: membership.organization,
             membership,
             role: membership.role as OrgRole,
+        }
+        await setCachedAuthContext(user.id, context)
+
+        return {
+            supabase,
+            user,
+            ...context,
         }
     } catch (error) {
         logger.error("Error in getAuthenticatedContext", error)

@@ -57,7 +57,7 @@ export async function sendWebhook(
       if (!webhookSecret && webhook.secret_encrypted) {
         try {
           webhookSecret = decryptSecret(webhook.secret_encrypted)
-        } catch (error) {
+        } catch {
           logger.warn("Failed to decrypt webhook secret", { webhookId: webhook.id })
           continue
         }

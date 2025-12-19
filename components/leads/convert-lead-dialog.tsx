@@ -106,7 +106,7 @@ export function ConvertLeadDialog({
             } else {
                 toast.error(data.error || "Error al convertir lead")
             }
-        } catch (error) {
+        } catch {
             toast.error("Error al convertir lead")
         }
     }

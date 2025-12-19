@@ -116,7 +116,7 @@ export function NotesPanel({ entityType, entityId, title = "Notas" }: NotesPanel
           })
         })
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al actualizar nota")
     }
   }
@@ -138,7 +138,7 @@ export function NotesPanel({ entityType, entityId, title = "Notas" }: NotesPanel
         setEditingId(null)
         toast.success("Nota actualizada")
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al actualizar nota")
     }
   }
@@ -150,7 +150,7 @@ export function NotesPanel({ entityType, entityId, title = "Notas" }: NotesPanel
         setNotes(prev => prev.filter(n => n.id !== noteId))
         toast.success("Nota eliminada")
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al eliminar nota")
     }
   }
