@@ -7,8 +7,6 @@ import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "
 import crypto from "crypto"
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY
-const successUrl = process.env.STRIPE_SUCCESS_URL
-const cancelUrl = process.env.STRIPE_CANCEL_URL
 
 const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: "2025-02-24.acacia" }) : null
 
@@ -17,9 +15,13 @@ export async function POST(request: NextRequest) {
     const rate = await rateLimit(request, RATE_LIMITS.sensitive)
     if (rate) return rate
 
-    if (!stripe || !successUrl || !cancelUrl) {
-      throw new Error("Stripe no configurado. Define STRIPE_SECRET_KEY, STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL.")
+    if (!stripe) {
+      throw new Error("Stripe no configurado. Define STRIPE_SECRET_KEY.")
     }
+
+    const origin = new URL(request.url).origin
+    const successUrl = process.env.STRIPE_SUCCESS_URL || `${origin}/success`
+    const cancelUrl = process.env.STRIPE_CANCEL_URL || `${origin}/cancel`
 
     // MULTI-TENANT: Get organization context
     const { user, organizationId } = await getAuthenticatedContext()

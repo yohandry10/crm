@@ -8,7 +8,8 @@ export async function POST(request: NextRequest) {
     const { message, context = {} } = await request.json()
 
     // Simular conexión con Claude/Grok via MCP
-    const mcpResponse = await callMCPServer(message, context)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
+    const mcpResponse = await callMCPServer(baseUrl, message, context)
 
     // Generar respuesta IA
     const aiResponse = await generateAIResponse(message, mcpResponse)
@@ -24,13 +25,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function callMCPServer(message: string, context: any) {
+async function callMCPServer(baseUrl: string, message: string, context: any) {
   // Determinar qué tool MCP usar basado en el mensaje
   const toolName = determineToolFromMessage(message)
   const args = extractArgsFromMessage(message, context)
 
   // Llamar al servidor MCP
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/mcp/server`, {
+  const response = await fetch(`${baseUrl}/api/mcp/server`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
