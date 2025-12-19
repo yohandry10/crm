@@ -12,7 +12,7 @@ import { csrfMiddleware } from './middleware-csrf'
  */
 function getAllowedOrigins(): string[] {
     const isDev = process.env.NODE_ENV === 'development'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (isDev ? 'http://localhost:3000' : '')
 
     // En desarrollo: localhost + URLs configuradas
     if (isDev) {
@@ -42,6 +42,7 @@ function getAllowedOrigins(): string[] {
 function handleCORS(request: NextRequest, origin: string | null): NextResponse | null {
     const pathname = request.nextUrl.pathname
     const method = request.method
+    const hostOrigin = request.nextUrl.origin
 
     // Rutas que permiten CORS más permisivo (APIs públicas embebibles)
     const publicCORSRoutes = [
@@ -85,7 +86,8 @@ function handleCORS(request: NextRequest, origin: string | null): NextResponse |
     }
 
     // Para requests regulares, validar origen si no es público
-    if (!isPublicCORS && origin && !allowedOrigins.includes(origin)) {
+    // ✅ Siempre permitir same-origin
+    if (!isPublicCORS && origin && origin !== hostOrigin && !allowedOrigins.includes(origin)) {
         console.warn(`🚫 CORS blocked: Origin ${origin} not in allowed list for ${pathname}`)
         return NextResponse.json(
             { success: false, error: 'CORS policy: Origin not allowed' },
