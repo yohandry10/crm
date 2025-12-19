@@ -4,6 +4,12 @@ if (typeof globalThis.self === 'undefined') {
   globalThis.self = globalThis
 }
 
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // ==============================
@@ -14,13 +20,13 @@ const nextConfig = {
   reactStrictMode: true,
 
   // Habilitar Turbopack para desarrollo más rápido (Next 15+)
-  // Nota: Esto acelera significativamente el hot-reload
+  // (Next 15.5+): mover experimental.turbo -> turbopack
+  turbopack: {
+    // Reglas personalizadas si necesitas loaders específicos
+  },
+
+  // Optimización de paquetes para reducir tamaño de bundles
   experimental: {
-    // Turbopack es más rápido que Webpack para desarrollo
-    turbo: {
-      // Reglas personalizadas si necesitas loaders específicos
-    },
-    // Optimización de paquetes para reducir tamaño de bundles
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-icons',
@@ -30,6 +36,9 @@ const nextConfig = {
       'swr',
     ],
   },
+
+  // Evitar que Next infiera el root por lockfiles externos
+  outputFileTracingRoot: __dirname,
 
   // ✅ Optimizar server components (Next 15+ usa serverExternalPackages)
   serverExternalPackages: [
