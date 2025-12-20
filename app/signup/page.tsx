@@ -48,22 +48,21 @@ export default function SignupPage() {
 
   const validateInvitation = async (supabase: SupabaseClient) => {
     try {
-      const { data, error } = await supabase
-        .from("organization_invitations")
-        .select("id, email, role, organization_id, status, expires_at, accepted_at, organizations(name)")
-        .eq("token", inviteToken)
-        .eq("status", "pending")
-        .is("accepted_at", null)
-        .single()
+      const res = await fetch("/api/invitations/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: inviteToken }),
+      })
+      const json = await res.json().catch(() => ({}))
 
-      if (error || !data) {
+      if (!res.ok || !json?.data) {
         setError("Invitación inválida o expirada")
         setLoadingInvite(false)
         return
       }
 
-      setInvitation(data as Invitation)
-      setFormData(prev => ({ ...prev, email: data.email }))
+      setInvitation(json.data as Invitation)
+      setFormData(prev => ({ ...prev, email: json.data.email }))
 
       const { data: session } = await supabase.auth.getSession()
       if (session?.session?.user) {

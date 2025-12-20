@@ -93,8 +93,13 @@ export default function NewOrganizationPage() {
 
       const json = await res.json()
       if (json.success) {
-        toast.success("Invitación enviada exitosamente")
-        router.push("/admin/organizations")
+        const emailSent = !!json.data?.emailSent
+        if (emailSent) {
+          toast.success(json.message || "Invitación enviada exitosamente")
+          router.push("/admin/organizations")
+        } else {
+          toast.success(json.message || "Link de invitación generado")
+        }
       } else {
         throw new Error(json.error)
       }
