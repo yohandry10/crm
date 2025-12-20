@@ -51,16 +51,33 @@ export default function ResetPasswordPage() {
     return "El link de recuperación es inválido o expiró"
   }
 
+  const getHashParams = () => {
+    if (typeof window === "undefined") return null
+    const hash = window.location.hash || ""
+    if (!hash.startsWith("#")) return null
+    const params = new URLSearchParams(hash.slice(1))
+    return {
+      accessToken: params.get("access_token"),
+      refreshToken: params.get("refresh_token"),
+      expiresIn: params.get("expires_in"),
+      tokenType: params.get("token_type"),
+    }
+  }
+
   const handleRecoveryFromUrl = async () => {
     const supabase = supabaseRef.current
     if (!supabase) return
-    const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true })
-    if (error) {
-      setError(mapAuthError(error.code as string | null, error.message || null))
-      setSessionReady(false)
-      return
-    }
-    if (data?.session) {
+    const hashParams = getHashParams()
+    if (hashParams?.accessToken && hashParams?.refreshToken) {
+      const { error } = await supabase.auth.setSession({
+        access_token: hashParams.accessToken,
+        refresh_token: hashParams.refreshToken,
+      })
+      if (error) {
+        setError(mapAuthError(error.code as string | null, error.message || null))
+        setSessionReady(false)
+        return
+      }
       setSessionReady(true)
       return
     }
