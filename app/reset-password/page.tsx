@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
       if (code) {
         exchangeCode(code)
       } else {
-        checkExistingSession()
+        handleRecoveryFromUrl()
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,6 +49,22 @@ export default function ResetPasswordPage() {
       return decodeURIComponent(description.replace(/\+/g, " "))
     }
     return "El link de recuperación es inválido o expiró"
+  }
+
+  const handleRecoveryFromUrl = async () => {
+    const supabase = supabaseRef.current
+    if (!supabase) return
+    const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true })
+    if (error) {
+      setError(mapAuthError(error.code as string | null, error.message || null))
+      setSessionReady(false)
+      return
+    }
+    if (data?.session) {
+      setSessionReady(true)
+      return
+    }
+    await checkExistingSession()
   }
 
   const checkExistingSession = async () => {

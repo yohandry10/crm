@@ -66,6 +66,9 @@ export default function ForgotPasswordPage() {
           <p className="text-gray-500 mb-8">
             Revisa tu bandeja de entrada en <span className="text-cyan-600 font-medium">{email}</span>
           </p>
+          <p className="text-xs text-gray-400 mb-8">
+            Esto podría tardar algunos minutos, por favor ten paciencia.
+          </p>
           <Link href="/login">
             <motion.button
               whileHover={{ scale: 1.02 }}

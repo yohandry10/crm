@@ -35,7 +35,12 @@ export function getSupabaseBrowserClient(): SupabaseClient {
         )
     }
 
-    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            flowType: 'implicit',
+            detectSessionInUrl: true,
+        },
+    })
     return browserClient
 }
 
