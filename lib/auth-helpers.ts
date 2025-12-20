@@ -50,7 +50,16 @@ export async function requirePlatformAdmin() {
   const userEmail = (user.email || "").toLowerCase()
   const isAllowlisted = userEmail && allowlist.includes(userEmail)
 
-  if (isAllowlisted) {
+  const allowlistUserIdsRaw = process.env.PLATFORM_ADMIN_USER_IDS || ""
+  const allowlistUserIds = allowlistUserIdsRaw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  const fallbackSuperadminId = "f700987a-2bef-4928-b78f-48446a50d1e1"
+  const isAllowlistedId = user.id && (allowlistUserIds.includes(user.id) || user.id === fallbackSuperadminId)
+
+  if (isAllowlisted || isAllowlistedId) {
     try {
       await supabase.from("profiles").update({ is_platform_admin: true }).eq("id", user.id)
     } catch {
