@@ -112,6 +112,7 @@ const publicRoutes = [
     '/api/public',
     '/api/auth', // Login, cambio de contraseña
     '/auth/callback',
+    '/api/invitations',
 ]
 
 // Rutas de API que requieren autenticación
@@ -387,7 +388,8 @@ export async function middleware(request: NextRequest) {
     // CSRF defensa básica: para métodos sensibles, validar origen
     // ✅ Excluir webhooks de la validación de origen
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
-        !pathname.startsWith('/api/webhooks/')) {
+        !pathname.startsWith('/api/webhooks/') &&
+        !pathname.startsWith('/api/invitations')) {
         const host = request.nextUrl.origin
         if (origin && origin !== host) {
             return NextResponse.json({ success: false, error: 'CSRF protection: invalid origin' }, { status: 403 })
