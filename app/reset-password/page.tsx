@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, errorParam, errorCode, errorDescription])
 
-  const mapAuthError = (codeValue: string | null, description: string | null) => {
+  const mapAuthError = (codeValue?: string | null, description?: string | null) => {
     if (codeValue === "otp_expired") {
       return "El link de recuperación expiró. Solicita uno nuevo."
     }
