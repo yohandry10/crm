@@ -12,6 +12,9 @@ export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const code = searchParams?.get("code")
+  const errorParam = searchParams?.get("error")
+  const errorCode = searchParams?.get("error_code")
+  const errorDescription = searchParams?.get("error_description")
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -24,14 +27,41 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {
       supabaseRef.current = getSupabaseBrowserClient()
+      if (errorParam || errorCode || errorDescription) {
+        setError(mapAuthError(errorCode, errorDescription))
+        setSessionReady(false)
+        return
+      }
       if (code) {
         exchangeCode(code)
       } else {
-        setSessionReady(true)
+        checkExistingSession()
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [code, errorParam, errorCode, errorDescription])
+
+  const mapAuthError = (codeValue: string | null, description: string | null) => {
+    if (codeValue === "otp_expired") {
+      return "El link de recuperación expiró. Solicita uno nuevo."
+    }
+    if (description) {
+      return decodeURIComponent(description.replace(/\+/g, " "))
+    }
+    return "El link de recuperación es inválido o expiró"
+  }
+
+  const checkExistingSession = async () => {
+    const supabase = supabaseRef.current
+    if (!supabase) return
+    const { data } = await supabase.auth.getSession()
+    if (data?.session) {
+      setSessionReady(true)
+    } else {
+      setError("Abre el link de recuperación desde tu email.")
+      setSessionReady(false)
+    }
+  }
 
   const exchangeCode = async (authCode: string) => {
     try {
@@ -39,7 +69,7 @@ export default function ResetPasswordPage() {
       if (!supabase) return
       const { error } = await supabase.auth.exchangeCodeForSession(authCode)
       if (error) {
-        setError("El link de recuperación es inválido o expiró")
+        setError(mapAuthError(error.code as string | null, error.message || null))
         return
       }
       setSessionReady(true)
@@ -70,11 +100,13 @@ export default function ResetPasswordPage() {
     setLoading(true)
     try {
       const { error } = await supabase.auth.updateUser({ password })
-      if (error) throw error
+      if (error) {
+        throw error
+      }
       setSuccess(true)
       setTimeout(() => router.push("/login"), 1500)
-    } catch {
-      setError("No se pudo actualizar la contraseña")
+    } catch (err: any) {
+      setError(err?.message || "No se pudo actualizar la contraseña")
     } finally {
       setLoading(false)
     }
