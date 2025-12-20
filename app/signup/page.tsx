@@ -137,7 +137,11 @@ export default function SignupPage() {
         email: formData.email,
         password: formData.password,
         options: {
-          data: { full_name: formData.fullName, company_name: formData.companyName },
+          data: {
+            full_name: formData.fullName,
+            company_name: formData.companyName,
+            invitation_token: inviteToken || undefined,
+          },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })

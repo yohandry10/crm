@@ -178,7 +178,7 @@ export async function getAuthenticatedContext() {
                 .eq('user_id', user.id)
                 .eq('is_active', true)
                 .limit(1)
-                .single()
+                .maybeSingle()
             orgId = membership?.organization_id
         }
 
@@ -193,7 +193,7 @@ export async function getAuthenticatedContext() {
             .eq('organization_id', orgId)
             .eq('user_id', user.id)
             .eq('is_active', true)
-            .single()
+            .maybeSingle()
 
         if (memError || !membership) {
             throw new Error('Not a member of this organization')

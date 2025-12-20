@@ -73,6 +73,20 @@ export async function GET(request: NextRequest) {
                     log.error('Error creating user settings for OAuth user', settingsError)
                 }
             }
+
+            const invitationToken = session.user.user_metadata?.invitation_token as string | undefined
+            if (invitationToken) {
+                const { data: acceptResult, error: acceptError } = await supabase.rpc(
+                    'accept_organization_invitation',
+                    { p_token: invitationToken }
+                )
+                if (acceptError || acceptResult?.success === false) {
+                    log.warn('Invitation accept failed on auth callback', {
+                        invitationToken,
+                        error: acceptError?.message || acceptResult?.error,
+                    })
+                }
+            }
         }
 
         // Redirigir al dashboard o a la página solicitada

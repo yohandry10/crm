@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq("user_id", authUser.id)
           .eq("is_active", true)
           .limit(1)
-          .single()
+          .maybeSingle()
       ])
 
       const profileData = profileResult.data
