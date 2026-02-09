@@ -75,7 +75,7 @@ export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
         .from("profiles")
         .select("current_organization_id")
         .eq("id", user.id)
-        .single()
+        .maybeSingle()
 
       if (!isMounted) return
 
@@ -89,7 +89,7 @@ export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
           .eq("user_id", user.id)
           .eq("is_active", true)
           .limit(1)
-          .single()
+          .maybeSingle()
 
         if (membership && isMounted) {
           setOrganizationId(membership.organization_id)

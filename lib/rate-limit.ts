@@ -1,13 +1,13 @@
 /**
  * Rate Limiting Global usando Redis
  *
- * MEJORA CRÍTICA: Ahora REQUIERE Redis (no hay fallback)
- * Resuelve: AUTH-001 del reporte forense
+ * Redis-first rate limiting with optional fail-open mode.
+ * Resuelve: AUTH-001 del reporte forense sin tumbar toda la app por caidas de Redis.
  *
  * IMPORTANTE:
- * - En producción, Redis es OBLIGATORIO
- * - En desarrollo, se lanza error si no está configurado
- * - Elimina el riesgo de rate limit por servidor (multi-instancia)
+ * - En producción, por defecto es fail-closed (503) si Redis falla.
+ * - Si RATE_LIMIT_FAIL_OPEN=true, permite requests aunque Redis falle.
+ * - Elimina el riesgo de rate limit por servidor (multi-instancia) cuando Redis está disponible.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -27,11 +27,13 @@ const DEFAULT_CONFIG: RateLimitConfig = {
 
 const REDIS_PREFIX = 'ratelimit:'
 
+function isFailOpenEnabled(): boolean {
+    return process.env.RATE_LIMIT_FAIL_OPEN === 'true'
+}
+
 /**
- * Rate limiting middleware con Redis (OBLIGATORIO)
+ * Rate limiting middleware con Redis
  * Returns null if request is allowed, or a NextResponse with 429 status if rate limited
- *
- * IMPORTANTE: Lanza error si Redis no está disponible en producción
  */
 export async function rateLimit(
     request: NextRequest,
@@ -40,13 +42,14 @@ export async function rateLimit(
     const identifier = await getIdentifier(request)
     const now = Date.now()
     const redis = getRedisClient()
+    const failOpenEnabled = isFailOpenEnabled()
 
-    // Redis es OBLIGATORIO en producción
+    // Redis unavailable
     if (!redis) {
         const errorMessage = 'Redis is required for rate limiting. Configure REDIS_URL in environment variables.'
 
-        // En producción, fallar hard
-        if (process.env.NODE_ENV === 'production') {
+        // En producción, fallar hard salvo fail-open
+        if (process.env.NODE_ENV === 'production' && !failOpenEnabled) {
             logger.error('Rate limiting unavailable (Redis missing)', undefined, { errorMessage })
             return NextResponse.json(
                 {
@@ -58,9 +61,12 @@ export async function rateLimit(
             )
         }
 
-        // En desarrollo, solo advertir
-        logger.warn('Rate limiting disabled in development (Redis missing)', { errorMessage })
-        return null // Permitir request en desarrollo sin Redis
+        logger.warn('Rate limiting degraded: allowing request without Redis', {
+            errorMessage,
+            failOpenEnabled,
+            nodeEnv: process.env.NODE_ENV
+        })
+        return null
     }
 
     // Usar Redis para rate limiting
@@ -123,8 +129,8 @@ export async function rateLimit(
     } catch (error) {
         logger.error('Redis rate limit error', error)
 
-        // En producción, fail closed (denegar request)
-        if (process.env.NODE_ENV === 'production') {
+        // En producción, fail closed salvo fail-open
+        if (process.env.NODE_ENV === 'production' && !failOpenEnabled) {
             return NextResponse.json(
                 {
                     success: false,
@@ -135,8 +141,10 @@ export async function rateLimit(
             )
         }
 
-        // En desarrollo, permitir
-        logger.warn('Allowing request in development despite Redis rate limit error')
+        logger.warn('Rate limiting degraded: allowing request despite Redis error', {
+            failOpenEnabled,
+            nodeEnv: process.env.NODE_ENV
+        })
         return null
     }
 }

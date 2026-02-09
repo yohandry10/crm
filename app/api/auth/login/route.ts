@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth-rate-limit'
 import { z } from 'zod'
 import { createRequestLogger } from '@/lib/logger'
+import { ensureUserBootstrap } from '@/lib/auth-bootstrap'
 
 const loginSchema = z.object({
     email: z.string().email('Email inválido'),
@@ -108,12 +109,25 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Self-healing: garantiza perfil/organizacion para usuarios legacy
+        try {
+            await ensureUserBootstrap({
+                userId: data.user.id,
+                email: data.user.email,
+                fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null,
+                avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null,
+                createOrganizationIfMissing: true,
+            })
+        } catch (bootstrapError) {
+            log.error('Login bootstrap failed', bootstrapError)
+        }
+
         // Obtener perfil para saber si es platform admin
         const { data: profile } = await supabase
             .from('profiles')
             .select('is_platform_admin, full_name')
             .eq('id', data.user.id)
-            .single()
+            .maybeSingle()
 
         // Crear response con nueva sesión
         const response = NextResponse.json({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseRouteClient } from "@/lib/supabase-auth"
+import { isRedisHealthy } from "@/lib/redis"
 
 /**
  * Health check endpoint
@@ -37,9 +38,27 @@ export async function GET() {
             response_time_ms: authTime
         }
 
+        // Check redis service (rate limiting / cache)
+        const redisStart = Date.now()
+        const redisConfigured = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST)
+        const failOpen = process.env.RATE_LIMIT_FAIL_OPEN === "true"
+
+        let redisStatus: string
+        if (!redisConfigured) {
+            redisStatus = failOpen ? "degraded" : "down"
+        } else {
+            const redisHealthy = await isRedisHealthy()
+            redisStatus = redisHealthy ? "healthy" : (failOpen ? "degraded" : "down")
+        }
+
+        health.services.redis = {
+            status: redisStatus,
+            response_time_ms: Date.now() - redisStart
+        }
+
         // Overall status
-        const allHealthy = Object.values(health.services).every(s => s.status === "healthy")
-        health.status = allHealthy ? "healthy" : "degraded"
+        const hasDown = Object.values(health.services).some(s => s.status === "down")
+        health.status = hasDown ? "degraded" : "healthy"
 
         // ❌ REMOVIDO: No escribir a BD sin autenticación
         // Esto era un vector de ataque (spam a la tabla)

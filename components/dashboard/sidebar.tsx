@@ -61,7 +61,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
             .from('profiles')
             .select('full_name, current_organization_id')
             .eq('id', authUser.id)
-            .single()
+            .maybeSingle()
 
           // Get role from organization_members
           let role = 'member'
@@ -71,7 +71,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
               .select('role')
               .eq('user_id', authUser.id)
               .eq('organization_id', profile.current_organization_id)
-              .single()
+              .maybeSingle()
             if (membership?.role) {
               role = membership.role
             }

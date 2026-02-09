@@ -2,6 +2,7 @@ import { createSupabaseRouteHandler } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createRequestLogger } from '@/lib/logger'
+import { ensureUserBootstrap } from '@/lib/auth-bootstrap'
 
 export async function GET(request: NextRequest) {
     const log = createRequestLogger(request)
@@ -38,43 +39,42 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL('/login?error=auth_failed', request.url))
         }
 
-        // Si es un usuario nuevo (OAuth), crear perfil
+        // Asegurar bootstrap del usuario autenticado
         if (session?.user) {
-            const { data: existingProfile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', session.user.id)
-                .single()
+            const invitationToken = session.user.user_metadata?.invitation_token as string | undefined
+            const fullName =
+                session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                session.user.email?.split('@')[0] ||
+                null
+            const avatarUrl =
+                session.user.user_metadata?.avatar_url ||
+                session.user.user_metadata?.picture ||
+                null
 
-            if (!existingProfile) {
-                // Crear perfil para usuario nuevo (OAuth)
-                const { error: profileError } = await supabase.from('profiles').insert({
-                    id: session.user.id,
+            try {
+                // 1) Ensure profile exists first, but avoid creating a personal org
+                // yet if the user comes from an invitation.
+                await ensureUserBootstrap({
+                    userId: session.user.id,
                     email: session.user.email,
-                    full_name: session.user.user_metadata?.full_name || 
-                               session.user.user_metadata?.name ||
-                               session.user.email?.split('@')[0],
-                    avatar_url: session.user.user_metadata?.avatar_url ||
-                                session.user.user_metadata?.picture,
-                    role: 'user',
+                    fullName,
+                    avatarUrl,
+                    createOrganizationIfMissing: !invitationToken,
                 })
-
-                if (profileError) {
-                    log.error('Error creating profile for OAuth user', profileError)
-                    // No fallar, el usuario puede continuar
-                }
-
-                // Crear configuración inicial
-                const { error: settingsError } = await supabase.from('user_settings').insert({
-                    user_id: session.user.id,
-                })
-
-                if (settingsError) {
-                    log.error('Error creating user settings for OAuth user', settingsError)
-                }
+            } catch (bootstrapError) {
+                log.error('Error bootstrapping user after OAuth', bootstrapError)
             }
 
-            const invitationToken = session.user.user_metadata?.invitation_token as string | undefined
+            // Crear configuración inicial (best-effort)
+            try {
+                await supabase
+                    .from('user_settings')
+                    .upsert({ user_id: session.user.id }, { onConflict: 'user_id' })
+            } catch (settingsError) {
+                log.error('Error creating user settings for OAuth user', settingsError)
+            }
+
             if (invitationToken) {
                 const { data: acceptResult, error: acceptError } = await supabase.rpc(
                     'accept_organization_invitation',
@@ -86,6 +86,20 @@ export async function GET(request: NextRequest) {
                         error: acceptError?.message || acceptResult?.error,
                     })
                 }
+            }
+
+            try {
+                // 2) Final reconciliation: if invitation failed or user still has no org,
+                // create a personal workspace to avoid broken sessions.
+                await ensureUserBootstrap({
+                    userId: session.user.id,
+                    email: session.user.email,
+                    fullName,
+                    avatarUrl,
+                    createOrganizationIfMissing: true,
+                })
+            } catch (bootstrapError) {
+                log.error('Error reconciling user bootstrap after OAuth', bootstrapError)
             }
         }
 

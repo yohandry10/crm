@@ -63,7 +63,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
                 .from('profiles')
                 .select('current_organization_id')
                 .eq('id', user.id)
-                .single();
+                .maybeSingle();
 
             let currentOrg = orgs.find(o => o.id === profile?.current_organization_id) || orgs[0];
             let currentMembership = memberships?.find(m => m.organization_id === currentOrg?.id);

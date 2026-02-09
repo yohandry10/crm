@@ -158,14 +158,16 @@ export default function SignupPage() {
 
       if (authData.user) {
         // Create profile
-        await supabase.from("profiles").upsert({
+        const { error: profileError } = await supabase.from("profiles").upsert({
           id: authData.user.id,
           email: formData.email,
           full_name: formData.fullName,
-          company_name: formData.companyName,
-          role: "user",
           current_organization_id: invitation?.organization_id || null,
         })
+
+        if (profileError) {
+          console.error("Error creating profile on signup:", profileError)
+        }
       }
 
       if (inviteToken) {

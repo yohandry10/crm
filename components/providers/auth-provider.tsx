@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from("profiles")
           .select("full_name, current_organization_id")
           .eq("id", authUser.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from("organization_members")
           .select("role, organization_id")
@@ -79,11 +79,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle()
       ])
 
-      const profileData = profileResult.data
-      const membership = membershipResult.data
+      let profileData = profileResult.data
+      let membership = membershipResult.data
 
       // 3. Determine organization ID
-      const orgId = profileData?.current_organization_id || membership?.organization_id || null
+      let orgId = profileData?.current_organization_id || membership?.organization_id || null
+
+      // Self-healing for legacy users missing profile/org records
+      if (!profileData || !orgId) {
+        try {
+          const bootstrapRes = await fetch("/api/auth/bootstrap", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          })
+
+          if (bootstrapRes.ok) {
+            const [profileReload, membershipReload] = await Promise.all([
+              supabase
+                .from("profiles")
+                .select("full_name, current_organization_id")
+                .eq("id", authUser.id)
+                .maybeSingle(),
+              supabase
+                .from("organization_members")
+                .select("role, organization_id")
+                .eq("user_id", authUser.id)
+                .eq("is_active", true)
+                .limit(1)
+                .maybeSingle(),
+            ])
+
+            profileData = profileReload.data
+            membership = membershipReload.data
+            orgId = profileData?.current_organization_id || membership?.organization_id || null
+          }
+        } catch (bootstrapError) {
+          console.warn("Auth bootstrap fallback failed:", bootstrapError)
+        }
+      }
+
       setOrganizationId(orgId)
 
       // 4. Build user profile
