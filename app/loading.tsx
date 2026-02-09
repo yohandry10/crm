@@ -6,7 +6,7 @@ export default function Loading() {
       <div className="relative flex flex-col items-center">
         <div className="relative w-32 h-32 mb-6">
           <Image
-            src="/logo.png"
+            src="/logo-white.png"
             alt="NEON SYSTEM"
             fill
             className="object-contain"

@@ -136,7 +136,7 @@ export function GlobalLoader() {
                 />
 
                 <Image
-                  src="/logo.png"
+                  src="/logo-white.png"
                   alt="NEON SYSTEM"
                   fill
                   className="object-contain p-2"

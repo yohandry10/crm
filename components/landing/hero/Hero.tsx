@@ -35,7 +35,7 @@ export function Hero() {
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
             {/* Background with Gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-cyan-50 via-white to-white z-0" />
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-white z-0" />
 
             {/* Quantum 3D Scene - Rendered BEHIND content but above background */}
             <div className="absolute inset-y-0 right-0 w-full md:w-1/2 z-0 opacity-80 md:opacity-100 pointer-events-none">
@@ -49,10 +49,10 @@ export function Hero() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.3 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-50 border border-cyan-100 mb-8"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200 mb-8"
                     >
-                        <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-                        <span className="text-sm text-cyan-700 font-medium">Tecnología de Alto Rendimiento</span>
+                        <span className="w-2 h-2 rounded-full bg-gray-800 animate-pulse" />
+                        <span className="text-xs sm:text-sm text-gray-700 font-medium text-center">Tecnología de Alto Rendimiento</span>
                     </motion.div>
 
                     <motion.h1
@@ -62,7 +62,7 @@ export function Hero() {
                         className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6 text-gray-900"
                     >
                         El futuro de la <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-600">gestión empresarial</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-700 to-gray-900">gestión empresarial</span>
                     </motion.h1>
 
                     <motion.p
@@ -82,9 +82,9 @@ export function Hero() {
                     >
                         <MagneticButton
                             href="/signup"
-                            className="group relative inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold overflow-hidden shadow-lg shadow-cyan-500/25"
+                            className="group relative inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold overflow-hidden shadow-lg shadow-gray-900/25"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600" />
+                            <div className="absolute inset-0 bg-black" />
                             <span className="relative text-white flex items-center gap-2">Comenzar Gratis<ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
                         </MagneticButton>
                         <Link

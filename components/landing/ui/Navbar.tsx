@@ -20,7 +20,7 @@ export function Navbar() {
   const navLinks = [
     { name: "Soluciones", href: "#soluciones" },
     { name: "Características", href: "#caracteristicas" },
-    { name: "Precios", href: "/pricing" },
+    { name: "Precios", href: "#precios" },
   ]
 
   return (
@@ -34,20 +34,20 @@ export function Navbar() {
       className="fixed top-0 left-0 right-0 z-50 py-6"
     >
       <div
-        className={`absolute inset-0 transition-all duration-300 ${
-          scrolled ? "bg-white/95 backdrop-blur-xl shadow-md" : "bg-transparent"
-        }`}
+        className={`absolute inset-0 transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-md" : "bg-transparent"
+          }`}
       />
       <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center">
 
           {/* Logo Section - INTACTO */}
-          <Link href="/" className="flex items-center gap-2 group mr-4">
+          {/* Logo Section - Increased Size */}
+          <Link href="/" className="flex items-center gap-2 group mr-auto shrink-0">
             <div
-              className="relative h-28 w-28 md:h-32 md:w-32 transition-transform duration-300 hover:scale-105"
+              className="relative h-32 w-48 md:h-44 md:w-80 transition-transform duration-300 hover:scale-105"
             >
               <Image
-                src="/logo.png"
+                src="/logo-white.png"
                 alt="Neon System Logo"
                 fill
                 className="object-contain object-left"
@@ -57,15 +57,16 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation - SOLO AJUSTES DE ESPACIADO/ORDEN VISUAL */}
-          <div className="hidden lg:flex items-center gap-8 ml-2">
+          {/* Desktop Navigation - Absolute Center */}
+          <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {navLinks.map((item) => (
               <a
                 key={item.name}
                 href={item.href}
-                className="text-base font-medium text-gray-600 hover:text-cyan-600 transition-colors relative group"
+                className="text-base font-medium text-gray-600 hover:text-gray-900 transition-colors relative group"
               >
                 {item.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-cyan-500 transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-800 transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </div>
@@ -82,7 +83,7 @@ export function Navbar() {
               href="/signup"
               className="relative group px-6 py-2.5 rounded-full text-sm font-medium overflow-hidden hidden sm:block"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600" />
+              <span className="absolute inset-0 bg-black" />
               <span className="relative text-white flex items-center gap-2">
                 Empezar Gratis
                 <ArrowRight className="w-4 h-4" />
@@ -114,7 +115,7 @@ export function Navbar() {
                 <a
                   key={item.name}
                   href={item.href}
-                  className="block text-base font-medium text-gray-600 hover:text-cyan-600 py-2"
+                  className="block text-base font-medium text-gray-600 hover:text-gray-900 py-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}
@@ -126,7 +127,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="block w-full text-center bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full py-3 font-medium shadow-lg shadow-cyan-500/25"
+                  className="block w-full text-center bg-black text-white rounded-full py-3 font-medium shadow-lg shadow-gray-900/25"
                 >
                   Empezar Gratis
                 </Link>

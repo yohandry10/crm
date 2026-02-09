@@ -11,7 +11,7 @@ interface NavigationLoadingContextType {
 
 const NavigationLoadingContext = createContext<NavigationLoadingContextType>({
   isLoading: false,
-  setIsLoading: () => {},
+  setIsLoading: () => { },
 })
 
 export function useNavigationLoading() {
@@ -47,7 +47,7 @@ export function NavigationLoadingProvider({ children }: { children: ReactNode })
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-gradient-to-r from-cyan-500 to-blue-600"
+            className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-gradient-to-r from-gray-700 to-gray-900"
             style={{ willChange: 'transform' }}
           >
             <motion.div
@@ -79,7 +79,7 @@ export function NavigationProgress() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999]">
-      <div className="h-0.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-cyan-500 animate-pulse" />
+      <div className="h-0.5 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700 animate-pulse" />
     </div>
   )
 }

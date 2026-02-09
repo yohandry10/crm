@@ -13,6 +13,7 @@ import { Hero } from "./hero/Hero"
 import { Features } from "./features/Features"
 import { CallToAction } from "./ui/CallToAction"
 import { Footer } from "./ui/Footer"
+import { Pricing } from "./pricing/Pricing"
 
 export default function LandingPage() {
   const [loading, setLoading] = useState(true)
@@ -38,6 +39,7 @@ export default function LandingPage() {
         <Navbar />
         <Hero />
         <Features />
+        <Pricing />
         <CallToAction />
         <Footer />
       </div>

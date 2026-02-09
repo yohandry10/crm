@@ -20,7 +20,7 @@ export default function SignupPage() {
   const searchParams = useSearchParams()
   const inviteToken = searchParams?.get("token")
   const loginRedirectUrl = inviteToken ? `/login?redirect=${encodeURIComponent(`/signup?token=${inviteToken}`)}` : "/login"
-  
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -43,7 +43,7 @@ export default function SignupPage() {
         validateInvitation(getSupabaseBrowserClient())
       }
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inviteToken])
 
   const validateInvitation = async (supabase: SupabaseClient) => {
@@ -242,7 +242,7 @@ export default function SignupPage() {
           {/* Logo */}
           <Link href="/" className="flex justify-center mb-6">
             <div className="relative w-20 h-20">
-              <Image src="/logo.png" alt="NEON SYSTEM" fill className="object-contain" sizes="80px" priority />
+              <Image src="/logo-white.png" alt="NEON SYSTEM" fill className="object-contain" sizes="80px" priority />
             </div>
           </Link>
 
@@ -251,7 +251,7 @@ export default function SignupPage() {
               {invitation ? "Acepta tu Invitación" : "Crear Cuenta"}
             </h1>
             <p className="text-gray-500 text-sm">
-              {invitation 
+              {invitation
                 ? `Te invitaron a unirte a ${Array.isArray(invitation.organizations) ? invitation.organizations[0]?.name : invitation.organizations.name}`
                 : "Comienza gratis, sin tarjeta"
               }
