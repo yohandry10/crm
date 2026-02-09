@@ -61,7 +61,7 @@ export default function SalesPage() {
             if (!res.ok) throw new Error('Update failed')
 
             // Optional: Refresh to get updated totals/metadata if needed
-        } catch (error) {
+        } catch {
             // Revert on error
             setOpportunities(originalOpps)
             toast.error("Error al mover la oportunidad")
@@ -111,7 +111,7 @@ export default function SalesPage() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0">
                     {loading ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="flex flex-col items-center gap-4">
@@ -120,7 +120,7 @@ export default function SalesPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full p-8 overflow-hidden bg-gradient-to-br from-zinc-50/50 to-white/50 dark:from-zinc-950 dark:to-zinc-900/50">
+                        <div className="h-full min-h-0 p-8 bg-gradient-to-br from-zinc-50/50 to-white/50 dark:from-zinc-950 dark:to-zinc-900/50">
                             <KanbanBoard
                                 stages={stages}
                                 opportunities={opportunities}

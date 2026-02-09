@@ -30,7 +30,7 @@ export function KanbanBoard({
     onEditOpportunity,
     onAddOpportunity
 }: KanbanBoardProps) {
-    const [draggedId, setDraggedId] = useState<string | null>(null)
+    const [, setDraggedId] = useState<string | null>(null)
 
     const handleDragStart = (e: React.DragEvent, id: string) => {
         setDraggedId(id)
@@ -46,14 +46,21 @@ export function KanbanBoard({
     const handleDrop = (e: React.DragEvent, stageId: string) => {
         e.preventDefault()
         const id = e.dataTransfer.getData("text/plain")
-        if (id && id !== draggedId) {
+        if (!id) {
+            setDraggedId(null)
+            return
+        }
+
+        const currentStageId = opportunities.find((opp) => opp.id === id)?.stage_id
+        if (currentStageId !== stageId) {
             onMoveOpportunity(id, stageId)
         }
+
         setDraggedId(null)
     }
 
     return (
-        <div className="flex h-full gap-6 overflow-x-auto pb-6 px-2 snap-x snap-mandatory">
+        <div className="flex h-full gap-6 overflow-x-auto pb-6 px-2 pr-6 snap-x snap-mandatory">
             {stages.map((stage) => {
                 const stageOpps = opportunities.filter(o => o.stage_id === stage.id)
                 const totalValue = stageOpps.reduce((sum, o) => sum + Number(o.expected_revenue), 0)
@@ -61,7 +68,7 @@ export function KanbanBoard({
                 return (
                     <div
                         key={stage.id}
-                        className="flex-shrink-0 w-[340px] flex flex-col snap-start group select-none"
+                        className="flex-shrink-0 w-[300px] xl:w-[310px] flex flex-col snap-start group select-none"
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, stage.id)}
                     >
