@@ -7,6 +7,7 @@ import Image from "next/image"
 import { motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, Lock, User, Building2, AlertCircle, ArrowRight, Loader2, CheckCircle, Shield } from "lucide-react"
+import { getClientAppBaseUrl } from "@/lib/client-app-url"
 
 interface Invitation {
   id: string
@@ -133,6 +134,8 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
+      const callbackUrl = new URL("/auth/callback", getClientAppBaseUrl())
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -142,7 +145,7 @@ export default function SignupPage() {
             company_name: formData.companyName,
             invitation_token: inviteToken || undefined,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: callbackUrl.toString(),
         },
       })
 

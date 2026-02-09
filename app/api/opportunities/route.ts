@@ -113,7 +113,9 @@ export async function POST(request: NextRequest) {
                 .from('pipeline_stages')
                 .select('id, win_probability')
                 .eq('name', stageInfo.name)
-                .single()
+                .eq('organization_id', organizationId)
+                .limit(1)
+                .maybeSingle()
 
             if (existingStage) {
                 finalStageId = existingStage.id
@@ -123,6 +125,7 @@ export async function POST(request: NextRequest) {
                 const { data: newStage, error: stageError } = await supabase
                     .from('pipeline_stages')
                     .insert({
+                        organization_id: organizationId,
                         name: stageInfo.name,
                         position: stageInfo.position,
                         win_probability: stageInfo.probability,
@@ -145,9 +148,10 @@ export async function POST(request: NextRequest) {
             const { data: defaultStage } = await supabase
                 .from('pipeline_stages')
                 .select('id, win_probability')
+                .eq('organization_id', organizationId)
                 .order('position', { ascending: true })
                 .limit(1)
-                .single()
+                .maybeSingle()
 
             if (defaultStage) {
                 finalStageId = defaultStage.id
@@ -157,6 +161,7 @@ export async function POST(request: NextRequest) {
                 const { data: newStage, error: stageError } = await supabase
                     .from('pipeline_stages')
                     .insert({
+                        organization_id: organizationId,
                         name: 'Prospección',
                         position: 1,
                         win_probability: 10,
@@ -179,7 +184,8 @@ export async function POST(request: NextRequest) {
                 .from('contacts')
                 .select('id')
                 .eq('id', contact_id)
-                .single()
+                .eq('organization_id', organizationId)
+                .maybeSingle()
 
             if (!contact) {
                 return NextResponse.json({ success: false, error: "El contacto seleccionado no existe o no pertenece a tu organización" }, { status: 400 })
@@ -192,6 +198,8 @@ export async function POST(request: NextRequest) {
         const { data, error } = await supabase
             .from('opportunities')
             .insert({
+                organization_id: organizationId,
+                created_by: user.id,
                 name,
                 contact_id,
                 stage_id: finalStageId,

@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, Lock, AlertCircle, ArrowRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { getClientAppBaseUrl } from "@/lib/client-app-url"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -70,9 +71,12 @@ export default function LoginPage() {
     if (!supabase) return
     setLoading(true)
     try {
+      const callbackUrl = new URL("/auth/callback", getClientAppBaseUrl())
+      callbackUrl.searchParams.set("redirect", redirect)
+
       await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}` }
+        options: { redirectTo: callbackUrl.toString() }
       })
     } catch {
       setError("Error con Google")

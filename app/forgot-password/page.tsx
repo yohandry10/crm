@@ -6,6 +6,7 @@ import Image from "next/image"
 import { motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, AlertCircle, ArrowLeft, Loader2, CheckCircle } from "lucide-react"
+import { getClientAppBaseUrl } from "@/lib/client-app-url"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -33,8 +34,10 @@ export default function ForgotPasswordPage() {
     setError("")
 
     try {
+      const resetUrl = new URL("/reset-password", getClientAppBaseUrl())
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: resetUrl.toString(),
       })
 
       if (error) throw error
