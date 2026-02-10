@@ -74,6 +74,10 @@ export function getRedisConnection() {
  */
 export const defaultQueueConfig: QueueOptions = {
   connection: getRedisConnection(),
+  // Upstash (y otros Redis gestionados) no suelen permitir "noeviction".
+  // BullMQ hace un INFO y emite un console.warn ruidoso si la policy != noeviction.
+  // Esto no cambia el comportamiento de Redis, pero evita logs ruidosos y una llamada extra.
+  skipVersionCheck: true,
   defaultJobOptions: {
     attempts: 3, // Reintentar hasta 3 veces
     backoff: {
@@ -102,6 +106,8 @@ export const defaultQueueConfig: QueueOptions = {
  */
 export const defaultWorkerConfig: WorkerOptions = {
   connection: getRedisConnection(),
+  // Evita INFO/version check (y el warning de eviction policy).
+  skipVersionCheck: true,
   concurrency: 5, // Procesar hasta 5 jobs simultáneamente por worker
   lockDuration: 30000, // 30 segundos de lock por job
 }
