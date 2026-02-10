@@ -67,6 +67,34 @@ export async function GET(request: NextRequest) {
       failed: await queue.getFailedCount(),
     }
 
+    // If there's nothing to do, avoid starting a Worker at all.
+    // In serverless, spinning up a Worker just to immediately close it can
+    // trigger noisy Redis connection-close errors in some providers.
+    if (countsBefore.waiting === 0 && countsBefore.active === 0 && countsBefore.delayed === 0) {
+      // Release lock (best-effort).
+      if (redis) {
+        try {
+          const current = await redis.get(lockKey)
+          if (current === lockValue) {
+            await redis.del(lockKey)
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        completed: 0,
+        failed: 0,
+        duration_ms: Date.now() - start,
+        countsBefore,
+        countsAfter: countsBefore,
+        skipped: true,
+        reason: "Queue empty",
+      })
+    }
+
     let completed = 0
     let failed = 0
 
@@ -97,8 +125,8 @@ export async function GET(request: NextRequest) {
       await sleep(500)
     }
 
-    // Stop the worker. Force close to avoid serverless timeouts with long-running jobs.
-    await worker.close(true)
+    // Stop the worker. Prefer graceful close to avoid noisy "connection is closed" errors.
+    await worker.close()
 
     const countsAfter = {
       waiting: await queue.getWaitingCount(),
