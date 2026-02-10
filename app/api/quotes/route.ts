@@ -7,10 +7,13 @@ import { z } from 'zod'
 import crypto from 'crypto'
 
 const quoteItemSchema = z.object({
-    product_id: z.string().uuid("ID de producto inválido").optional().nullable(),
+    product_id: z.preprocess(
+        (val) => (val === '' || val === 'none' ? null : val),
+        z.string().uuid("ID de producto inválido").optional().nullable()
+    ),
     description: z.string().min(1, "Descripción requerida"),
-    quantity: z.number().positive("Cantidad debe ser positiva"),
-    unit_price: z.number().min(0, "Precio no puede ser negativo")
+    quantity: z.coerce.number().positive("Cantidad debe ser positiva"),
+    unit_price: z.coerce.number().min(0, "Precio no puede ser negativo")
 })
 
 const quoteSchema = z.object({

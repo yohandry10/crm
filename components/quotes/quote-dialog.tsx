@@ -78,7 +78,7 @@ export function QuoteDialog({
             valid_until: "",
             notes: "",
             terms: "",
-            items: [{ description: "", quantity: 1, unit_price: 0 }],
+            items: [{ product_id: null, description: "", quantity: 1, unit_price: 0 }],
         },
     })
 
@@ -121,7 +121,7 @@ export function QuoteDialog({
                 notes: quote.notes || "",
                 terms: quote.terms || "",
                 items: quote.items?.map((i: any) => ({
-                    product_id: i.product_id || "",
+                    product_id: i.product_id || null,
                     description: i.description,
                     quantity: i.quantity,
                     unit_price: i.unit_price
@@ -134,7 +134,7 @@ export function QuoteDialog({
                 valid_until: "",
                 notes: "",
                 terms: "",
-                items: [{ product_id: "", description: "", quantity: 1, unit_price: 0 }],
+                items: [{ product_id: null, description: "", quantity: 1, unit_price: 0 }],
             })
         }
     }, [open, quote, form])
@@ -145,6 +145,10 @@ export function QuoteDialog({
             const payload = {
                 ...values,
                 opportunity_id: values.opportunity_id === "none" ? null : values.opportunity_id,
+                items: values.items.map((item) => ({
+                    ...item,
+                    product_id: item.product_id ? item.product_id : null,
+                })),
             }
 
             const response = await fetch(
@@ -236,7 +240,7 @@ export function QuoteDialog({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => append({ product_id: "", description: "", quantity: 1, unit_price: 0 })}
+                                    onClick={() => append({ product_id: null, description: "", quantity: 1, unit_price: 0 })}
                                 >
                                     <Plus className="h-3 w-3 mr-1" /> Agregar Ítem
                                 </Button>
@@ -268,7 +272,7 @@ export function QuoteDialog({
                                                                             <CommandItem
                                                                                 value="item-libre"
                                                                                 onSelect={() => {
-                                                                                    form.setValue(`items.${index}.product_id`, "", { shouldValidate: true })
+                                                                                    form.setValue(`items.${index}.product_id`, null, { shouldValidate: true })
                                                                                 }}
                                                                             >
                                                                                 <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
