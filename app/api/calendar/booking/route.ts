@@ -4,6 +4,7 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { sendEmail, isEmailConfigured } from "@/lib/email"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -56,6 +57,16 @@ function getAllowedOrigin(request: NextRequest): string | null {
   if (origin && allowed.includes(origin)) return origin
   if (!origin && allowed.includes(hostOrigin)) return hostOrigin
   return null
+}
+
+function escapeHtml(value: unknown): string {
+  const str = String(value ?? "")
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;")
 }
 
 // GET: List booking configs or get available slots
@@ -265,7 +276,88 @@ export async function POST(request: NextRequest) {
 
       if (eventError) throw eventError
 
-      // TODO: Send confirmation email
+      // Send confirmation email (best-effort).
+      if (isEmailConfigured()) {
+        try {
+          const [{ data: org }, { data: ownerProfile }] = await Promise.all([
+            supabaseAdmin
+              .from("organizations")
+              .select("name")
+              .eq("id", config.organization_id)
+              .single(),
+            supabaseAdmin
+              .from("profiles")
+              .select("email, full_name")
+              .eq("id", config.owner_id)
+              .single(),
+          ])
+
+          const startLabel = slotStart.toLocaleString("es-ES", {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+          const endLabel = slotEnd.toLocaleString("es-ES", {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+
+          const orgName = org?.name || "Nuestro equipo"
+          const bookingName = config.name || "Reserva"
+
+          // Attendee confirmation
+          await sendEmail({
+            to: validation.data.email,
+            subject: `Confirmación: ${bookingName}`,
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 640px; margin: 0 auto; padding: 20px;">
+                <h2 style="margin: 0 0 8px 0;">Reserva confirmada</h2>
+                <p style="margin: 0 0 14px 0; color: #334155;">
+                  Hola ${escapeHtml(validation.data.name)}, tu reserva con <strong>${escapeHtml(orgName)}</strong> está confirmada.
+                </p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
+                  <p style="margin: 0 0 6px 0;"><strong>Tipo:</strong> ${escapeHtml(bookingName)}</p>
+                  <p style="margin: 0 0 6px 0;"><strong>Inicio:</strong> ${escapeHtml(startLabel)}</p>
+                  <p style="margin: 0;"><strong>Fin:</strong> ${escapeHtml(endLabel)}</p>
+                </div>
+                <p style="margin: 14px 0 0 0; font-size: 12px; color: #64748b;">
+                  Event ID: ${escapeHtml(event.id)}
+                </p>
+              </div>
+            `,
+          })
+
+          // Owner notification (optional)
+          if (ownerProfile?.email) {
+            await sendEmail({
+              to: ownerProfile.email,
+              subject: `Nueva reserva: ${bookingName}`,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; max-width: 640px; margin: 0 auto; padding: 20px;">
+                  <h2 style="margin: 0 0 8px 0;">Nueva reserva</h2>
+                  <p style="margin: 0 0 10px 0; color: #334155;">
+                    ${escapeHtml(validation.data.name)} (${escapeHtml(validation.data.email)}) reservó <strong>${escapeHtml(bookingName)}</strong>.
+                  </p>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
+                    <p style="margin: 0 0 6px 0;"><strong>Inicio:</strong> ${escapeHtml(startLabel)}</p>
+                    <p style="margin: 0;"><strong>Fin:</strong> ${escapeHtml(endLabel)}</p>
+                  </div>
+                  <p style="margin: 14px 0 0 0; font-size: 12px; color: #64748b;">
+                    Event ID: ${escapeHtml(event.id)}
+                  </p>
+                </div>
+              `,
+            })
+          }
+        } catch {
+          // Email failures should not break booking creation.
+        }
+      }
 
       const response = NextResponse.json({
         success: true,

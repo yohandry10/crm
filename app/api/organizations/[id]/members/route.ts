@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedClientAndUser } from "@/lib/supabase-auth"
 import { inviteMemberSchema } from "@/lib/schemas"
+import { sendEmail, invitationEmailTemplate, isEmailConfigured } from "@/lib/email"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import crypto from "crypto"
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ success: false, error: "Validation failed" }, { status: 400 })
         }
 
-        const { email, role, message } = validation.data
+        const { email, role } = validation.data
 
         // Check if already member
         const { data: existingUser } = await supabase
@@ -114,16 +115,47 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                 email,
                 role,
                 invited_by: user.id,
-                message,
             })
             .select()
             .single()
 
         if (error) throw error
 
-        // TODO: Send invitation email
+        // Send invitation email (best-effort).
+        const token = data?.token as string | undefined
+        const inviteBaseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin || "http://localhost:3000"
+        const inviteLink = token ? `${inviteBaseUrl}/signup?token=${token}` : `${inviteBaseUrl}/signup`
 
-        return NextResponse.json({ success: true, data, message: "Invitación enviada" })
+        let emailSent = false
+        if (token && isEmailConfigured()) {
+            try {
+                const [{ data: org }, { data: inviter }] = await Promise.all([
+                    supabase.from("organizations").select("name").eq("id", id).single(),
+                    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+                ])
+
+                const result = await sendEmail({
+                    to: email,
+                    subject: `Invitación a ${org?.name || "tu organización"}`,
+                    html: invitationEmailTemplate({
+                        organizationName: org?.name || "la organización",
+                        inviterName: inviter?.full_name || undefined,
+                        role,
+                        inviteLink,
+                    }),
+                })
+                emailSent = result.success
+            } catch {
+                emailSent = false
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            data,
+            message: emailSent ? "Invitación enviada por email" : "Invitación creada",
+            meta: { inviteLink, emailSent },
+        })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/organizations/[id]/members", method: "POST", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })

@@ -14,13 +14,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   getAllFeatureFlags,
-  isFeatureEnabled,
   activateKillSwitch,
   deactivateKillSwitch,
   getFeatureFlag,
   FEATURE_FLAGS,
 } from '@/lib/feature-flags'
-import { getAuthenticatedContext } from '@/lib/supabase-auth'
+import { requirePlatformAdmin } from '@/lib/auth-helpers'
 import { createRequestLogger } from '@/lib/logger'
 
 /**
@@ -29,23 +28,7 @@ import { createRequestLogger } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   const log = createRequestLogger(request)
   try {
-    // Verificar autenticación (solo admins)
-    const { user } = await getAuthenticatedContext()
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
-
-    // TODO: Verificar que el usuario es admin
-    // if (!user.is_admin) {
-    //   return NextResponse.json(
-    //     { success: false, error: 'No autorizado' },
-    //     { status: 403 }
-    //   )
-    // }
+    await requirePlatformAdmin()
 
     const flags = getAllFeatureFlags()
 
@@ -74,7 +57,6 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Error al obtener feature flags',
-        details: error.message,
       },
       { status: 500 }
     )
@@ -87,15 +69,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   try {
-    // Verificar autenticación (solo admins)
-    const { user } = await getAuthenticatedContext()
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
+    const { user } = await requirePlatformAdmin()
 
     const body = await request.json()
     const { action, flagKey } = body
@@ -151,7 +125,6 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: 'Error al actualizar feature flag',
-        details: error.message,
       },
       { status: 500 }
     )

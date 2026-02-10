@@ -10,6 +10,7 @@
 import { Queue } from 'bullmq'
 import { defaultQueueConfig, QUEUE_NAMES, JOB_CONFIGS, ensureRedisAvailable } from './queue-config'
 import { logger } from '../logger'
+import { kickBackgroundProcessing } from "../realtime-kick"
 
 /**
  * Tipos de datos que se envían a la cola
@@ -108,6 +109,9 @@ export async function addWorkflowJob(data: WorkflowJobData) {
   )
 
   logger.info('Workflow enqueued', { workflowId: data.workflowId, jobId: job.id, priority })
+
+  // Near real-time kick (best-effort). If not configured, cron will drain later.
+  await kickBackgroundProcessing("workflow:enqueued")
 
   return job
 }

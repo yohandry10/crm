@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, memo } from "react"
+import { useCallback, memo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -8,7 +8,7 @@ import {
   X, Home, Users, FileText, Settings,
   Calendar, Package, Mail, Target, CheckSquare,
   TrendingUp, Receipt, Briefcase, Layers, Link2,
-  Kanban, FileBarChart
+  FileBarChart
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,8 +31,7 @@ const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Contactos", href: "/contacts", icon: Users },
   { name: "Leads", href: "/leads", icon: Target },
-  { name: "Pipeline", href: "/pipeline", icon: Kanban },
-  { name: "Oportunidades", href: "/sales", icon: Briefcase },
+  { name: "Oportunidades", href: "/pipeline", icon: Briefcase },
   { name: "Cotizaciones", href: "/quotes", icon: FileText },
   { name: "Facturación", href: "/invoicing", icon: Receipt },
   { name: "Productos", href: "/products", icon: Package },
@@ -115,11 +114,6 @@ UserCard.displayName = "UserCard"
 
 export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Memoized close handler
   const handleClose = useCallback(() => {

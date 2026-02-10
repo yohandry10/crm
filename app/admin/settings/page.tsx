@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,7 @@ import { toast } from "sonner"
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState({
     defaultTrialDays: 2,
     allowSelfSignup: false,
@@ -20,15 +21,57 @@ export default function AdminSettingsPage() {
   })
   const [activeTab, setActiveTab] = useState("general")
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSettings() {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/admin/settings", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        })
+        const json = await res.json()
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || `HTTP ${res.status}`)
+        }
+
+        if (!cancelled) {
+          setSettings((prev) => ({ ...prev, ...json.data }))
+        }
+      } catch (err: any) {
+        // Don't block the page; just show defaults and allow retry via Save.
+        toast.error(err?.message || "No se pudo cargar la configuración")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadSettings()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const saveSettings = async () => {
-    setLoading(true)
+    setSaving(true)
     try {
-      // TODO: Save to database
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `HTTP ${res.status}`)
+      }
+
+      setSettings((prev) => ({ ...prev, ...json.data }))
       toast.success("Configuración guardada")
-    } catch {
-      toast.error("Error al guardar")
+    } catch (err: any) {
+      toast.error(err?.message || "Error al guardar")
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
@@ -119,8 +162,8 @@ export default function AdminSettingsPage() {
             />
           </div>
 
-          <Button onClick={saveSettings} disabled={loading} className="bg-cyan-600 hover:bg-cyan-700 text-white">
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={saveSettings} disabled={loading || saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            {(loading || saving) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Guardar Cambios
           </Button>
         </div>
@@ -184,8 +227,8 @@ export default function AdminSettingsPage() {
             )}
           </div>
 
-          <Button onClick={saveSettings} disabled={loading} className="bg-cyan-600 hover:bg-cyan-700 text-white">
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={saveSettings} disabled={loading || saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            {(loading || saving) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Guardar Cambios
           </Button>
         </div>
@@ -218,8 +261,8 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          <Button onClick={saveSettings} disabled={loading} className="bg-cyan-600 hover:bg-cyan-700 text-white">
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={saveSettings} disabled={loading || saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            {(loading || saving) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Guardar Cambios
           </Button>
         </div>
@@ -268,8 +311,8 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          <Button onClick={saveSettings} disabled={loading} className="bg-cyan-600 hover:bg-cyan-700 text-white">
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={saveSettings} disabled={loading || saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            {(loading || saving) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Guardar Cambios
           </Button>
         </div>

@@ -20,12 +20,32 @@ export function getRedisConnection() {
   const redisHost = process.env.REDIS_HOST || 'localhost'
   const redisPort = parseInt(process.env.REDIS_PORT || '6379')
   const redisPassword = process.env.REDIS_PASSWORD
+  const redisUsername = process.env.REDIS_USERNAME
 
   // Si hay URL completa, usarla
-  if (redisUrl) {
+  if (redisUrl && redisUrl.includes('://')) {
+    const url = new URL(redisUrl)
+    const passwordFromUrl = url.password ? decodeURIComponent(url.password) : undefined
+    const usernameFromUrl = url.username ? decodeURIComponent(url.username) : undefined
+    const isTls = url.protocol === 'rediss:'
+
     return {
-      host: redisUrl.includes('://') ? new URL(redisUrl).hostname : redisHost,
-      port: redisUrl.includes('://') ? parseInt(new URL(redisUrl).port || '6379') : redisPort,
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      // Allow explicit env override, but default to what is embedded in REDIS_URL (Upstash).
+      username: redisUsername || usernameFromUrl || undefined,
+      password: redisPassword || passwordFromUrl || undefined,
+      // Upstash uses TLS (rediss://). BullMQ/ioredis needs this option when not using URL string directly.
+      tls: isTls ? {} : undefined,
+    }
+  }
+
+  if (redisUrl) {
+    // Non-URL (legacy) value: fall back to host/port env variables.
+    return {
+      host: redisHost,
+      port: redisPort,
+      username: redisUsername,
       password: redisPassword,
     }
   }
@@ -34,6 +54,7 @@ export function getRedisConnection() {
   return {
     host: redisHost,
     port: redisPort,
+    username: redisUsername,
     password: redisPassword,
   }
 }

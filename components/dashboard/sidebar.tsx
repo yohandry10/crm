@@ -8,7 +8,7 @@ import {
   X, Home, Users, FileText, Settings,
   Calendar, Package, Mail, Target, CheckSquare,
   TrendingUp, Receipt, Briefcase, Layers, Link2,
-  Kanban, FileBarChart
+  FileBarChart
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -21,8 +21,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Contactos", href: "/contacts", icon: Users },
   { name: "Leads", href: "/leads", icon: Target },
-  { name: "Pipeline", href: "/pipeline", icon: Kanban },
-  { name: "Oportunidades", href: "/sales", icon: Briefcase },
+  { name: "Oportunidades", href: "/pipeline", icon: Briefcase },
   { name: "Cotizaciones", href: "/quotes", icon: FileText },
   { name: "Facturación", href: "/invoicing", icon: Receipt },
   { name: "Productos", href: "/products", icon: Package },
@@ -42,11 +41,6 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     async function loadUser() {

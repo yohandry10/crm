@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { processWebhookEvents } from "@/lib/events"
 import { createRequestLogger } from "@/lib/logger"
+import crypto from "crypto"
+import { getRedisClient } from "@/lib/redis"
 
 /**
  * Cron job endpoint to process pending webhook events
@@ -17,7 +19,37 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
+        // Avoid concurrent processors (cron + realtime kicks).
+        const redis = getRedisClient()
+        const lockKey = "cron:process-events:lock"
+        const lockValue = crypto.randomUUID()
+        const lockTtlMs = 55_000
+
+        if (redis) {
+            const acquired = await redis.set(lockKey, lockValue, "PX", lockTtlMs, "NX")
+            if (!acquired) {
+                return NextResponse.json({
+                    success: true,
+                    skipped: true,
+                    reason: "Already running",
+                    timestamp: new Date().toISOString(),
+                })
+            }
+        }
+
         await processWebhookEvents()
+
+        // Release lock (best-effort).
+        if (redis) {
+            try {
+                const current = await redis.get(lockKey)
+                if (current === lockValue) {
+                    await redis.del(lockKey)
+                }
+            } catch {
+                // ignore
+            }
+        }
 
         return NextResponse.json({
             success: true,

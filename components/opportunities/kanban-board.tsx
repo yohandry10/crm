@@ -184,6 +184,7 @@ const KanbanColumn = memo(function KanbanColumn({
   onEdit,
   onDelete,
 }: KanbanColumnProps) {
+  const isHexColor = typeof stage.color === "string" && /^#[0-9A-Fa-f]{6}$/.test(stage.color)
   return (
     <div
       className={cn(
@@ -197,7 +198,10 @@ const KanbanColumn = memo(function KanbanColumn({
       {/* Column Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={cn("w-3 h-3 rounded-full", stage.color)} />
+          <div
+            className={cn("w-3 h-3 rounded-full", isHexColor ? "" : stage.color)}
+            style={isHexColor ? { backgroundColor: stage.color } : undefined}
+          />
           <h3 className="font-medium text-sm">{stage.name}</h3>
           <Badge variant="secondary" className="text-xs">
             {opportunities.length}

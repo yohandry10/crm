@@ -6,25 +6,19 @@
  * IMPORTANTE: Esta ruta debe estar protegida para solo administradores
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { getBullBoard } from '@/lib/queues/bull-board'
+import { NextResponse } from 'next/server'
+import { requirePlatformAdmin } from '@/lib/auth-helpers'
 
 // Importar el adaptador específico para Next.js
 // Nota: Bull Board no tiene adaptador nativo para Next.js App Router,
 // así que servimos el HTML directamente
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const board = getBullBoard()
+    await requirePlatformAdmin()
 
-    // Obtener el path de la request
-    const url = new URL(request.url)
-    const path = url.pathname.replace('/api/admin/bull-board', '') || '/'
-
-    // Bull Board genera HTML estático
-    // Para Next.js App Router, necesitamos servir el HTML directamente
-    const { setQueues, replaceQueues, addQueue, removeQueue, ...uiConfig } =
-      board
+    // Bull Board genera HTML estático.
+    // Para Next.js App Router, servimos un HTML informativo por ahora.
 
     // HTML básico del dashboard
     // En producción, considera usar el adaptador oficial o una solución más robusta

@@ -30,9 +30,10 @@ export const PLAN_PRICES: Record<string, { monthly: string; yearly: string }> = 
 
 // Precios en centavos (para modo sin Stripe)
 export const PLAN_AMOUNTS: Record<string, { monthly: number; yearly: number }> = {
-  starter: { monthly: 9900, yearly: 99900 }, // S/ 99, S/ 999
-  professional: { monthly: 19900, yearly: 199900 }, // S/ 199, S/ 1999
-  enterprise: { monthly: 49900, yearly: 499900 }, // S/ 499, S/ 4999
+  // Pricing "de mercado" (PEN) con anual = 2 meses gratis.
+  starter: { monthly: 4900, yearly: 49000 }, // S/ 49, S/ 490
+  professional: { monthly: 9900, yearly: 99000 }, // S/ 99, S/ 990
+  enterprise: { monthly: 19900, yearly: 199000 }, // S/ 199, S/ 1990
 }
 
 export interface CreateCheckoutParams {

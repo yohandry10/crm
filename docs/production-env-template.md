@@ -1,119 +1,83 @@
-# Production Environment Variables Template
+# Production Environment Variables (Vercel)
 
-# ====================================
-# SUPABASE
-# ====================================
+Este template es para **Vercel Production**. No pegues secretos en repos públicos.
+
+## Obligatorias
+
+```env
+# Base URL de tu app (sin slash final)
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
 SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
 
-# ====================================
-# APPLICATION
-# ====================================
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-NODE_ENV=production
+# Seguridad (genera con: openssl rand -base64 32)
+ENCRYPTION_KEY=base64-32-bytes-here
 
-# ====================================
-# PAYMENTS (CULQI)
-SMTP_FROM_EMAIL=no-reply@your-domain.com
-SMTP_FROM_NAME=CRM AI Peru
+# Cron protection (para /api/cron/*)
+CRON_SECRET=hex-or-random-string
 
-# ====================================
-# MONITORING & LOGGING
-# ====================================
-SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
-SENTRY_ORG=your-org
-SENTRY_PROJECT=crm-ai-peru
+# CORS (producción: solo dominios finales)
+ALLOWED_ORIGINS=https://your-app.vercel.app
 
-# DataDog (optional)
-DD_API_KEY=xxxxx
-DD_APP_KEY=xxxxx
+# CORS para endpoints públicos embebibles (si aplica)
+PUBLIC_FORMS_ALLOWED_ORIGINS=https://your-app.vercel.app
+PUBLIC_PAY_ALLOWED_ORIGINS=https://your-app.vercel.app
+PUBLIC_BOOKING_ALLOWED_ORIGINS=https://your-app.vercel.app
 
-# ====================================
-# RATE LIMITING
-# ====================================
-# Use Redis for distributed rate limiting in production
-REDIS_URL=redis://xxxxx:6379
-REDIS_PASSWORD=xxxxx
+# Email (Resend)
+RESEND_API_KEY=re_xxx
+EMAIL_FROM=CRM <no-reply@your-domain.com>
+```
 
-# ====================================
-# AI / LLM (Optional)
-# ====================================
-OPENAI_API_KEY=sk-xxxxx
-ANTHROPIC_API_KEY=sk-xxxxx
+## Recomendadas (producción)
 
-# ====================================
-# SECURITY
-# ====================================
-# Generate with: openssl rand -base64 32
-NEXTAUTH_SECRET=xxxxx
-ENCRYPTION_KEY=xxxxx
+```env
+# Redis (Upstash recomendado para BullMQ / rate-limit distribuido)
+REDIS_URL=rediss://default:<password>@<host>:6379
 
-# CORS allowed origins (comma-separated)
-ALLOWED_ORIGINS=https://your-domain.com,https://admin.your-domain.com
-# Production Environment Variables Template
+# Si Redis cae, permitir requests (rate limit degradado)
+RATE_LIMIT_FAIL_OPEN=true
 
-# ====================================
-# SUPABASE
-# ====================================
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
-SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
+# Admin allowlist (opcional)
+PLATFORM_ADMIN_EMAILS=admin1@domain.com,admin2@domain.com
+PLATFORM_ADMIN_USER_IDS=
+```
 
-# ====================================
-# APPLICATION
-# ====================================
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-NODE_ENV=production
+## Opcionales por módulo
 
-# ====================================
-# PAYMENTS (CULQI)
-SMTP_FROM_EMAIL=no-reply@your-domain.com
-SMTP_FROM_NAME=CRM AI Peru
+```env
+# Sentry (opcional)
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+SENTRY_RELEASE=vercel
+NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 
-# ====================================
-# MONITORING & LOGGING
-# ====================================
-SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
-SENTRY_ORG=your-org
-SENTRY_PROJECT=crm-ai-peru
+# Stripe (opcional)
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_SUCCESS_URL=
+STRIPE_CANCEL_URL=
+STRIPE_PRICE_STARTER_MONTHLY=
+STRIPE_PRICE_STARTER_YEARLY=
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=
+STRIPE_PRICE_PROFESSIONAL_YEARLY=
+STRIPE_PRICE_ENTERPRISE_MONTHLY=
+STRIPE_PRICE_ENTERPRISE_YEARLY=
 
-# DataDog (optional)
-DD_API_KEY=xxxxx
-DD_APP_KEY=xxxxx
+# WhatsApp (opcional)
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
 
-# ====================================
-# RATE LIMITING
-# ====================================
-# Use Redis for distributed rate limiting in production
-REDIS_URL=redis://xxxxx:6379
-REDIS_PASSWORD=xxxxx
+# OpenAI (opcional)
+OPENAI_API_KEY=
 
-# ====================================
-# AI / LLM (Optional)
-# ====================================
-OPENAI_API_KEY=sk-xxxxx
-ANTHROPIC_API_KEY=sk-xxxxx
+# Observabilidad OTEL (opcional)
+OTEL_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_SERVICE_NAME=crm
+```
 
-# ====================================
-# SECURITY
-# ====================================
-# Generate with: openssl rand -base64 32
-NEXTAUTH_SECRET=xxxxx
-ENCRYPTION_KEY=xxxxx
-
-# CORS allowed origins (comma-separated)
-ALLOWED_ORIGINS=https://your-domain.com,https://admin.your-domain.com
-
-# ====================================
-# FEATURE FLAGS
-# ====================================
-ENABLE_AI_FEATURES=true
-ENABLE_CULQI_PAYMENTS=true
-ENABLE_WHATSAPP_INTEGRATION=false
-ENABLE_MONITORING=true
-
-# ====================================
-# WEBHOOKS
-# ====================================
-WEBHOOK_SECRET=xxxxx # For signing outgoing webhooks

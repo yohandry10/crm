@@ -149,7 +149,7 @@ export function useKeyboardShortcuts() {
             break
           case "s":
             e2.preventDefault()
-            router.push("/sales")
+            router.push("/pipeline")
             break
           case "t":
             e2.preventDefault()

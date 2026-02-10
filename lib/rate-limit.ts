@@ -1,13 +1,12 @@
 /**
  * Rate Limiting Global usando Redis
  *
- * Redis-first rate limiting with optional fail-open mode.
- * Resuelve: AUTH-001 del reporte forense sin tumbar toda la app por caidas de Redis.
+ * Redis-first rate limiting with an in-memory fallback.
  *
  * IMPORTANTE:
- * - En producción, por defecto es fail-closed (503) si Redis falla.
- * - Si RATE_LIMIT_FAIL_OPEN=true, permite requests aunque Redis falle.
- * - Elimina el riesgo de rate limit por servidor (multi-instancia) cuando Redis está disponible.
+ * - Redis es recomendado para rate limiting consistente en multi-instancia (Vercel).
+ * - Si Redis no está disponible, usamos un fallback en memoria por instancia para evitar tumbar la app.
+ * - RATE_LIMIT_FAIL_OPEN=true permite continuar incluso si el fallback también falla por alguna razón.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -26,9 +25,58 @@ const DEFAULT_CONFIG: RateLimitConfig = {
 }
 
 const REDIS_PREFIX = 'ratelimit:'
+const memoryStore = new Map<string, { count: number; resetTime: number }>()
 
 function isFailOpenEnabled(): boolean {
     return process.env.RATE_LIMIT_FAIL_OPEN === 'true'
+}
+
+function getRateLimitKey(request: NextRequest, identifier: string): string {
+    // Bucket per path+method to prevent different endpoints from sharing the same counter.
+    // This reduces accidental throttling across unrelated APIs.
+    const bucket = `${request.method}:${request.nextUrl.pathname}`
+    return `${REDIS_PREFIX}${bucket}:${identifier}`
+}
+
+function inMemoryRateLimit(key: string, config: RateLimitConfig): NextResponse | null {
+    const now = Date.now()
+    const existing = memoryStore.get(key)
+
+    let entry: { count: number; resetTime: number }
+    if (existing) {
+        if (now > existing.resetTime) {
+            entry = { count: 1, resetTime: now + config.interval }
+        } else {
+            entry = { count: existing.count + 1, resetTime: existing.resetTime }
+        }
+    } else {
+        entry = { count: 1, resetTime: now + config.interval }
+    }
+
+    memoryStore.set(key, entry)
+
+    if (entry.count > config.maxRequests) {
+        const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
+        return NextResponse.json(
+            {
+                success: false,
+                error: 'Too many requests',
+                message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`
+            },
+            {
+                status: 429,
+                headers: {
+                    'Retry-After': retryAfter.toString(),
+                    'X-RateLimit-Limit': config.maxRequests.toString(),
+                    'X-RateLimit-Remaining': '0',
+                    'X-RateLimit-Reset': entry.resetTime.toString(),
+                    'X-RateLimit-Backend': 'memory'
+                }
+            }
+        )
+    }
+
+    return null
 }
 
 /**
@@ -46,32 +94,32 @@ export async function rateLimit(
 
     // Redis unavailable
     if (!redis) {
-        const errorMessage = 'Redis is required for rate limiting. Configure REDIS_URL in environment variables.'
-
-        // En producción, fallar hard salvo fail-open
-        if (process.env.NODE_ENV === 'production' && !failOpenEnabled) {
-            logger.error('Rate limiting unavailable (Redis missing)', undefined, { errorMessage })
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Service temporarily unavailable',
-                    message: 'Rate limiting service is not configured. Please contact support.'
-                },
-                { status: 503 }
-            )
-        }
-
-        logger.warn('Rate limiting degraded: allowing request without Redis', {
+        const errorMessage = 'Redis not available for rate limiting. Falling back to in-memory limiter.'
+        logger.warn('Rate limiting degraded (Redis missing)', {
             errorMessage,
             failOpenEnabled,
             nodeEnv: process.env.NODE_ENV
         })
-        return null
+
+        const key = getRateLimitKey(request, identifier)
+        try {
+            return inMemoryRateLimit(key, config)
+        } catch (error) {
+            logger.error('In-memory rate limit fallback error', error)
+            return failOpenEnabled ? null : NextResponse.json(
+                {
+                    success: false,
+                    error: 'Service temporarily unavailable',
+                    message: 'Rate limiting service encountered an error. Please try again.'
+                },
+                { status: 503 }
+            )
+        }
     }
 
     // Usar Redis para rate limiting
     try {
-        const key = `${REDIS_PREFIX}${identifier}`
+        const key = getRateLimitKey(request, identifier)
         const data = await redis.get(key)
 
         let entry: { count: number; resetTime: number }
@@ -129,9 +177,17 @@ export async function rateLimit(
     } catch (error) {
         logger.error('Redis rate limit error', error)
 
-        // En producción, fail closed salvo fail-open
-        if (process.env.NODE_ENV === 'production' && !failOpenEnabled) {
-            return NextResponse.json(
+        logger.warn('Rate limiting degraded (Redis error)', {
+            failOpenEnabled,
+            nodeEnv: process.env.NODE_ENV
+        })
+
+        const key = getRateLimitKey(request, identifier)
+        try {
+            return inMemoryRateLimit(key, config)
+        } catch (fallbackError) {
+            logger.error('In-memory rate limit fallback error after Redis error', fallbackError)
+            return failOpenEnabled ? null : NextResponse.json(
                 {
                     success: false,
                     error: 'Service temporarily unavailable',
@@ -140,12 +196,6 @@ export async function rateLimit(
                 { status: 503 }
             )
         }
-
-        logger.warn('Rate limiting degraded: allowing request despite Redis error', {
-            failOpenEnabled,
-            nodeEnv: process.env.NODE_ENV
-        })
-        return null
     }
 }
 

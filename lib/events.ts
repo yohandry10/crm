@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { logger } from './logger'
+import { kickBackgroundProcessing } from "./realtime-kick"
 
 export type EventType =
     | 'contact.created'
@@ -60,6 +61,9 @@ export async function emitEvent(
         }
 
         logger.debug('Event emitted', { event_type: event.event_type, source: event.source })
+
+        // Near real-time trigger (best-effort). Requires CF worker URL configured.
+        await kickBackgroundProcessing(`event:${event.event_type}`)
     } catch (error) {
         logger.error('Error in emitEvent', error, { event_type: event.event_type, source: event.source })
         // Don't throw - event emission should not break primary operations

@@ -47,6 +47,7 @@ async function processWorkflowJob(
     })
 
     const startTime = Date.now()
+    let executionId: string | undefined
 
   try {
     // 1. Crear cliente de Supabase con service role
@@ -81,17 +82,14 @@ async function processWorkflowJob(
     const { data: execution, error: executionError } = await supabase
       .from('workflow_executions')
       .insert({
-        workflow_id: workflowId,
+        // NOTE: Align with DB schema (supabase/migrations/001_base_schema.sql)
         organization_id: organizationId,
+        workflow_id: workflowId,
         contact_id: contactId || null,
-        triggered_by: userId || null,
         status: 'running',
-        started_at: new Date().toISOString(),
-        metadata: {
-          jobId: job.id,
-          source: job.data.metadata?.source || 'manual',
-          ...payload,
-        },
+        executed_actions: null,
+        error_message: null,
+        executed_at: new Date().toISOString(),
       })
       .select('id')
       .single()
@@ -100,7 +98,7 @@ async function processWorkflowJob(
       throw new Error('Error creando registro de ejecución')
     }
 
-    const executionId = execution.id
+    executionId = execution.id
 
     // 4. Ejecutar las acciones del workflow
     const actions = workflow.actions || []
@@ -180,17 +178,15 @@ async function processWorkflowJob(
     }
 
     // 5. Actualizar registro de ejecución
-    const finalStatus = errors.length === 0 ? 'completed' : errors.length < actions.length ? 'partial' : 'failed'
+    const finalStatus = errors.length === 0 ? 'success' : errors.length < actions.length ? 'partial' : 'failed'
 
     await supabase
       .from('workflow_executions')
       .update({
         status: finalStatus,
-        completed_at: new Date().toISOString(),
-        actions_executed: executedActions.length,
-        actions_failed: errors.length,
-        execution_log: executedActions,
-        error_log: errors.length > 0 ? errors : null,
+        executed_actions: executedActions,
+        error_message: errors.length > 0 ? errors.join(' | ') : null,
+        executed_at: new Date().toISOString(),
       })
       .eq('id', executionId)
 
@@ -237,7 +233,7 @@ async function processWorkflowJob(
 
     logger.error('Fatal workflow job error', error, { workflowId, organizationId, contactId, userId, duration_ms, jobId: job.id })
 
-    // Intentar actualizar el registro de ejecución con el error
+    // Intentar actualizar el registro de ejecución con el error (best-effort)
     try {
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -245,24 +241,15 @@ async function processWorkflowJob(
         { auth: { persistSession: false } }
       )
 
-      // Buscar la ejecución por jobId en metadata
-      const { data: executions } = await supabase
-        .from('workflow_executions')
-        .select('id')
-        .eq('workflow_id', workflowId)
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      if (executions && executions[0]) {
+      if (executionId) {
         await supabase
           .from('workflow_executions')
           .update({
             status: 'failed',
-            completed_at: new Date().toISOString(),
-            error_log: [error.message],
+            error_message: error.message,
+            executed_at: new Date().toISOString(),
           })
-          .eq('id', executions[0].id)
+          .eq('id', executionId)
       }
     } catch (updateError) {
       logger.error('Failed updating workflow execution record after fatal error', updateError, { workflowId, organizationId })
@@ -280,7 +267,10 @@ async function processWorkflowJob(
  *
  * Este worker procesa jobs de la cola 'workflows'
  */
-export function createWorkflowWorker() {
+export function createWorkflowWorker(options?: {
+  concurrency?: number
+  registerSignalHandlers?: boolean
+}) {
   // Verificar que Redis esté disponible
   ensureRedisAvailable()
 
@@ -290,7 +280,8 @@ export function createWorkflowWorker() {
     {
       ...defaultWorkerConfig,
       // Puedes sobrescribir configuraciones específicas aquí
-      concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5'),
+      concurrency:
+        options?.concurrency ?? parseInt(process.env.WORKER_CONCURRENCY || '5'),
     }
   )
 
@@ -342,19 +333,21 @@ export function createWorkflowWorker() {
   })
 
   // Cleanup graceful al cerrar
-  process.on('SIGTERM', async () => {
-    logger.info('SIGTERM received, closing workflow worker')
-    await worker.close()
-    logger.info('Workflow worker closed')
-    process.exit(0)
-  })
+  if (options?.registerSignalHandlers !== false) {
+    process.on('SIGTERM', async () => {
+      logger.info('SIGTERM received, closing workflow worker')
+      await worker.close()
+      logger.info('Workflow worker closed')
+      process.exit(0)
+    })
 
-  process.on('SIGINT', async () => {
-    logger.info('SIGINT received, closing workflow worker')
-    await worker.close()
-    logger.info('Workflow worker closed')
-    process.exit(0)
-  })
+    process.on('SIGINT', async () => {
+      logger.info('SIGINT received, closing workflow worker')
+      await worker.close()
+      logger.info('Workflow worker closed')
+      process.exit(0)
+    })
+  }
 
   return worker
 }

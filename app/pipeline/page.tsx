@@ -37,7 +37,6 @@ export default function PipelinePage() {
       const res = await fetch("/api/pipeline-stages")
       if (res.ok) {
         const data = await res.json()
-        console.log("Stages from API:", data.data)
         if (data.data && data.data.length > 0) {
           setStages(data.data.map((s: any) => ({
             id: s.id,
@@ -62,9 +61,8 @@ export default function PipelinePage() {
       const res = await fetch(`/api/opportunities?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch")
       const data = await res.json()
-      console.log("Opportunities from API:", data.data)
       setOpportunities(data.data || [])
-    } catch (_error) {
+    } catch {
       toast.error("Error al cargar oportunidades")
     } finally {
       setLoading(false)
@@ -117,7 +115,7 @@ export default function PipelinePage() {
       )
 
       toast.success("Etapa actualizada")
-    } catch (_error) {
+    } catch {
       toast.error("Error al actualizar")
       fetchOpportunities() // Refresh on error
     }
@@ -138,7 +136,7 @@ export default function PipelinePage() {
 
       setOpportunities(prev => prev.filter(opp => opp.id !== opportunityId))
       toast.success("Oportunidad eliminada")
-    } catch (_error) {
+    } catch {
       toast.error("Error al eliminar")
     } finally {
       setOpportunityToDelete(null)

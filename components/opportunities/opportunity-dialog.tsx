@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
-import { DEFAULT_STAGES } from "./kanban-board"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createOpportunitySchema, updateOpportunitySchema } from "@/lib/schemas"
@@ -43,6 +42,7 @@ export function OpportunityDialog({
 }: OpportunityDialogProps) {
   const [loading, setLoading] = useState(false)
   const [contacts, setContacts] = useState<any[]>([])
+  const [stages, setStages] = useState<Array<{ id: string; name: string; win_probability?: number; position?: number }>>([])
 
   const {
     register,
@@ -69,6 +69,7 @@ export function OpportunityDialog({
   useEffect(() => {
     if (open) {
       fetchContacts()
+      fetchStages()
       if (opportunity) {
         reset({
           name: opportunity.name || "",
@@ -93,12 +94,41 @@ export function OpportunityDialog({
     }
   }, [open, opportunity, reset])
 
+  useEffect(() => {
+    // When creating a new opportunity and stages are available, default to the first stage.
+    if (!open) return
+    if (opportunity) return
+    if (!stages.length) return
+
+    const currentStage = watch("stage_id")
+    if (currentStage) return
+
+    const first = [...stages].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))[0]
+    if (!first?.id) return
+    setValue("stage_id", first.id)
+    if (typeof first.win_probability === "number") {
+      setValue("probability", first.win_probability)
+    }
+  }, [open, opportunity, stages, setValue, watch])
+
   const fetchContacts = async () => {
     try {
       const res = await fetch("/api/contacts?limit=100")
       if (res.ok) {
         const data = await res.json()
         setContacts(data.data || [])
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const fetchStages = async () => {
+    try {
+      const res = await fetch("/api/pipeline-stages")
+      if (res.ok) {
+        const data = await res.json()
+        setStages(data.data || [])
       }
     } catch (error) {
       console.error(error)
@@ -144,11 +174,9 @@ export function OpportunityDialog({
   }
 
   const handleStageChange = (stage_id: string) => {
-    const stageData = DEFAULT_STAGES.find(s => s.id === stage_id)
     setValue("stage_id", stage_id)
-    if (stageData) {
-      setValue("probability", stageData.probability)
-    }
+    const stage = stages.find((s) => s.id === stage_id)
+    if (stage && typeof stage.win_probability === "number") setValue("probability", stage.win_probability)
   }
 
   return (
@@ -209,7 +237,7 @@ export function OpportunityDialog({
                   <SelectValue placeholder="Seleccionar etapa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_STAGES.map((stage) => (
+                  {stages.map((stage) => (
                     <SelectItem key={stage.id} value={stage.id}>
                       {stage.name}
                     </SelectItem>

@@ -36,21 +36,21 @@ describe('Stripe Integration', () => {
 
   describe('Plan Pricing (PEN)', () => {
     const PRICES = {
-      starter: 99,
-      professional: 199,
-      enterprise: 499,
+      starter: 49,
+      professional: 99,
+      enterprise: 199,
     }
 
     it('should have correct starter price', () => {
-      expect(PRICES.starter).toBe(99)
+      expect(PRICES.starter).toBe(49)
     })
 
     it('should have correct professional price', () => {
-      expect(PRICES.professional).toBe(199)
+      expect(PRICES.professional).toBe(99)
     })
 
     it('should have correct enterprise price', () => {
-      expect(PRICES.enterprise).toBe(499)
+      expect(PRICES.enterprise).toBe(199)
     })
 
     it('should have ascending price order', () => {

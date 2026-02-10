@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createRequestLogger } from '@/lib/logger'
+import { sendEmail, isEmailConfigured } from '@/lib/email'
+
+function escapeHtml(value: unknown): string {
+  const str = String(value ?? '')
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -179,8 +200,76 @@ export async function POST(
 
     // Enviar notificación por email si está configurado
     if (form.notify_on_submit && form.notify_emails?.length > 0) {
-      // TODO: Implementar envío de email de notificación
-      log.info('[Forms] Notification requested', { notifyEmailsCount: form.notify_emails.length })
+      const notifyEmails = (form.notify_emails as any[])
+        .filter((e) => typeof e === 'string')
+        .map((e) => e.trim())
+        .filter(Boolean)
+
+      if (!isEmailConfigured()) {
+        log.info('[Forms] Notification requested but email not configured', { notifyEmailsCount: notifyEmails.length })
+      } else if (notifyEmails.length > 0) {
+        try {
+          const fieldsById = new Map((fields || []).map((f: any) => [String(f.id), String(f.label || f.id)]))
+          const submittedRows = Object.entries(data || {})
+            .filter(([key]) => key !== '_hp_field')
+            .slice(0, 50)
+            .map(([key, value]) => {
+              const label = fieldsById.get(String(key)) || String(key)
+              return `
+                <tr>
+                  <td style="padding: 8px 10px; border-top: 1px solid #e2e8f0; color: #334155; font-size: 13px; width: 35%;">
+                    ${escapeHtml(label)}
+                  </td>
+                  <td style="padding: 8px 10px; border-top: 1px solid #e2e8f0; color: #0f172a; font-size: 13px;">
+                    ${escapeHtml(formatValue(value))}
+                  </td>
+                </tr>
+              `
+            })
+            .join('')
+
+          const html = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #0f172a; max-width: 680px; margin: 0 auto; padding: 16px;">
+              <h2 style="margin: 0 0 10px 0; font-size: 18px;">Nuevo envío de formulario</h2>
+              <p style="margin: 0 0 6px 0; color: #334155; font-size: 14px;">
+                <strong>Formulario:</strong> ${escapeHtml(form.name)}
+              </p>
+              <p style="margin: 0 0 6px 0; color: #334155; font-size: 14px;">
+                <strong>Submission ID:</strong> ${escapeHtml(submission.id)}
+              </p>
+              ${contactId ? `
+                <p style="margin: 0 0 6px 0; color: #334155; font-size: 14px;">
+                  <strong>Contacto:</strong> ${escapeHtml(contactId)}
+                </p>
+              ` : ''}
+              <div style="margin: 14px 0 10px 0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tbody>
+                    ${submittedRows || `
+                      <tr>
+                        <td style="padding: 10px; color: #64748b; font-size: 13px;">(Sin datos)</td>
+                      </tr>
+                    `}
+                  </tbody>
+                </table>
+              </div>
+              <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px;">
+                IP: ${escapeHtml(ip)} • Referrer: ${escapeHtml(referrer || '-')} • UTM: ${escapeHtml([utm_source, utm_medium, utm_campaign].filter(Boolean).join(' / ') || '-')}
+              </p>
+            </div>
+          `
+
+          const result = await sendEmail({
+            to: notifyEmails,
+            subject: `Nuevo envío: ${form.name}`,
+            html,
+          })
+
+          log.info('[Forms] Notification email result', { success: result.success, notifyEmailsCount: notifyEmails.length })
+        } catch (e) {
+          log.warn('[Forms] Error enviando notificación por email', { error: e })
+        }
+      }
     }
 
     // Emitir evento para workflows

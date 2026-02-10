@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
       { title: "Dashboard", url: "/dashboard", icon: "LayoutDashboard" },
       { title: "Contactos", url: "/contacts", icon: "Users" },
       { title: "Leads", url: "/leads", icon: "Users" },
-      { title: "Pipeline", url: "/pipeline", icon: "BarChart3" },
-      { title: "Oportunidades", url: "/sales", icon: "DollarSign" },
+      { title: "Oportunidades", url: "/pipeline", icon: "DollarSign" },
       { title: "Cotizaciones", url: "/quotes", icon: "FileText" },
       { title: "Facturación", url: "/invoicing", icon: "Receipt" },
       { title: "Productos", url: "/products", icon: "Package" },
@@ -93,18 +92,20 @@ export async function GET(request: NextRequest) {
     // Search opportunities
     const { data: opportunities } = await supabase
       .from("opportunities")
-      .select("id, name, value, stage")
+      .select("id, name, expected_revenue, stage:pipeline_stages(name)")
       .eq("organization_id", organizationId)
       .ilike("name", searchPattern)
       .limit(5)
 
     opportunities?.forEach(o => {
+      const stageName = (o.stage as any)?.name || "Sin etapa"
+      const revenue = Number(o.expected_revenue || 0)
       results.push({
         id: o.id,
         type: "opportunity",
         title: o.name,
-        subtitle: `${o.stage} - S/ ${o.value?.toLocaleString() || 0}`,
-        url: `/sales?id=${o.id}`,
+        subtitle: `${stageName} - S/ ${revenue.toLocaleString()}`,
+        url: `/pipeline?id=${o.id}`,
       })
     })
 

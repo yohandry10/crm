@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
         log.debug("Opportunities list requested", { organizationId })
 
         const searchParams = request.nextUrl.searchParams
+        const search = searchParams.get('search')?.trim() || null
+        const owner_id = searchParams.get('owner_id')?.trim() || null
         const stage_id = searchParams.get('stage_id')
         const contact_id = searchParams.get('contact_id')
         const status = searchParams.get('status')
@@ -46,6 +48,8 @@ export async function GET(request: NextRequest) {
         if (stage_id) query = query.eq('stage_id', stage_id)
         if (contact_id) query = query.eq('contact_id', contact_id)
         if (status) query = query.eq('status', status)
+        if (owner_id) query = query.eq('created_by', owner_id)
+        if (search) query = query.ilike('name', `%${search}%`)
 
         const { data, error, count } = await query
         if (error) throw error

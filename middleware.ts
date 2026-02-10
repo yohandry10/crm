@@ -219,8 +219,16 @@ export async function middleware(request: NextRequest) {
         if (!cronSecret) {
             return NextResponse.json({ success: false, error: 'Cron secret not configured' }, { status: 500 })
         }
+
+        // Support both legacy "Authorization: Bearer <secret>" (Supabase pg_net, scripts)
+        // and "x-cron-secret: <secret>" (simple clients like CF Worker).
         const provided = request.headers.get('x-cron-secret')
-        if (provided !== cronSecret) {
+        const authHeader = request.headers.get('authorization')
+        const authorized =
+            (provided && provided === cronSecret) ||
+            (authHeader && authHeader === `Bearer ${cronSecret}`)
+
+        if (!authorized) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
         }
         return NextResponse.next()

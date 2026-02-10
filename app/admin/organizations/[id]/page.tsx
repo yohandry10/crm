@@ -345,9 +345,9 @@ export default function OrganizationDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a2332] border-white/[0.08]">
-                  <SelectItem value="starter" className="text-slate-300 focus:bg-white/[0.06]">Starter - S/ 99/mes</SelectItem>
-                  <SelectItem value="professional" className="text-slate-300 focus:bg-white/[0.06]">Professional - S/ 199/mes</SelectItem>
-                  <SelectItem value="enterprise" className="text-slate-300 focus:bg-white/[0.06]">Enterprise - S/ 499/mes</SelectItem>
+                  <SelectItem value="starter" className="text-slate-300 focus:bg-white/[0.06]">Starter</SelectItem>
+                  <SelectItem value="professional" className="text-slate-300 focus:bg-white/[0.06]">Professional</SelectItem>
+                  <SelectItem value="enterprise" className="text-slate-300 focus:bg-white/[0.06]">Enterprise</SelectItem>
                 </SelectContent>
               </Select>
             </div>
