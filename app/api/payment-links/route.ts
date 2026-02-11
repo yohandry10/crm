@@ -4,6 +4,12 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import crypto from "crypto"
 
+function getAppBaseUrl(request: NextRequest) {
+    const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
+    if (configured) return configured.replace(/\/+$/, "")
+    return request.nextUrl.origin
+}
+
 /**
  * POST /api/payment-links
  * Generate a public payment link for a quote or invoice
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest) {
 
         if (error) throw error
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const baseUrl = getAppBaseUrl(request)
         const paymentLink = `${baseUrl}/pay/${token}`
 
         return NextResponse.json({
@@ -88,7 +94,7 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const baseUrl = getAppBaseUrl(request)
         const linksWithUrls = data.map(item => ({
             ...item,
             link: `${baseUrl}/pay/${item.token}`
