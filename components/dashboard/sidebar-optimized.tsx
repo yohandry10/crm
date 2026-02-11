@@ -2,6 +2,7 @@
 
 import { useCallback, memo } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -117,11 +118,15 @@ UserCard.displayName = "UserCard"
 
 export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
+  const { theme } = useTheme()
 
   // Memoized close handler
   const handleClose = useCallback(() => {
     onOpenChange(false)
   }, [onOpenChange])
+
+  // Determine logo based on theme: dark mode uses white logo, light mode uses black logo
+  const logoSrc = theme.bgMode === 'dark' ? '/logo-white.png' : '/logo-black.png'
 
   return (
     <>
@@ -149,12 +154,17 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
       >
         {/* Header */}
         <div className="flex h-20 items-center justify-between px-6 border-b border-border">
-          <Link href="/dashboard" className="flex flex-col leading-none" prefetch={true}>
-            <span className="text-xl font-bold text-gray-900">NEON</span>
-            <span className="text-[9px] font-semibold tracking-[0.25em] text-gray-600 uppercase">System</span>
+          <Link href="/dashboard" className="relative h-12 w-32 transition-opacity hover:opacity-80" prefetch={true}>
+            <Image
+              src={logoSrc}
+              alt="Zion Logo"
+              fill
+              className="object-contain object-left"
+              priority
+            />
           </Link>
           <button
-            className="lg:hidden p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+            className="lg:hidden p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             onClick={handleClose}
             aria-label="Cerrar menú"
           >
