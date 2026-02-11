@@ -117,15 +117,11 @@ UserCard.displayName = "UserCard"
 
 export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
   const pathname = usePathname()
-  const { theme } = useTheme()
 
   // Memoized close handler
   const handleClose = useCallback(() => {
     onOpenChange(false)
   }, [onOpenChange])
-
-  // Determine logo based on theme: dark mode uses white logo, light mode uses black logo
-  const logoSrc = theme.bgMode === 'dark' ? '/logo-white.png' : '/logo-black.png'
 
   return (
     <>
@@ -153,12 +149,22 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
       >
         {/* Header */}
         <div className="flex h-20 items-center justify-between px-6 border-b border-border">
-          <Link href="/dashboard" className="flex items-center h-12 w-40 transition-opacity hover:opacity-80" prefetch={true}>
-            <img
-              src={logoSrc}
-              alt="Zion Logo"
-              className="h-full w-full object-contain object-left"
-            />
+          <Link href="/dashboard" className="relative h-10 w-32 transition-opacity hover:opacity-80" prefetch={true}>
+            {/* Logo wrapper to ensure proper positioning */}
+            <div className="relative w-full h-full">
+              {/* Logo for light mode - black text */}
+              <img
+                src="/logo-black.png"
+                alt="Zion Logo"
+                className="absolute inset-0 w-full h-full object-contain object-left dark:hidden"
+              />
+              {/* Logo for dark mode - white text */}
+              <img
+                src="/logo-white.png"
+                alt="Zion Logo"
+                className="absolute inset-0 w-full h-full object-contain object-left hidden dark:block"
+              />
+            </div>
           </Link>
           <button
             className="lg:hidden p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
