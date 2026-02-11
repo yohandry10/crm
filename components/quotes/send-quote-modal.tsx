@@ -187,7 +187,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[95vw] sm:max-w-md w-full break-words">
+            <DialogContent className="max-w-[95vw] sm:max-w-md w-full break-words overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>Enviar Cotización</DialogTitle>
                     <DialogDescription>
@@ -197,7 +197,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
                 {/* Step 1: Choose method */}
                 {!method && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 min-w-0">
                         <p className="text-sm text-muted-foreground">
                             ¿Cómo deseas enviar la cotización a <strong>{quote.contact?.name}</strong>?
                         </p>
@@ -234,7 +234,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
                 {/* Step 2a: Email form */}
                 {method === "email" && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -244,7 +244,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                             ← Cambiar método
                         </Button>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0">
                             <Label>Correo del destinatario</Label>
                             <Input
                                 type="email"
@@ -254,7 +254,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                             />
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0">
                             <Label>Mensaje personalizado</Label>
                             <Textarea
                                 value={message}
@@ -265,7 +265,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                         </div>
 
                         {paymentLink && (
-                            <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs w-full max-w-full overflow-hidden">
+                            <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs w-full max-w-full overflow-hidden min-w-0">
                                 <span className="truncate flex-1 min-w-0">{paymentLink}</span>
                                 <Button
                                     variant="ghost"
@@ -294,7 +294,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
                 {/* Step 2b: WhatsApp form */}
                 {method === "whatsapp" && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -304,7 +304,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                             ← Cambiar método
                         </Button>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0">
                             <Label>Número de WhatsApp (con código de país)</Label>
                             <Input
                                 type="tel"
@@ -317,7 +317,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                             </p>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0">
                             <Label>Mensaje</Label>
                             <Textarea
                                 value={message}
