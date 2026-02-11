@@ -50,6 +50,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (mounted) {
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme))
+
+            // Toggle 'dark' class for Tailwind based on bgMode
+            const root = window.document.documentElement
+            if (theme.bgMode === 'dark') {
+                root.classList.add('dark')
+            } else {
+                root.classList.remove('dark')
+            }
         }
     }, [theme, mounted])
 

@@ -39,8 +39,8 @@ function AppearanceSettings() {
                 key={colorTheme.id}
                 onClick={() => setColorTheme(colorTheme.id)}
                 className={`group relative p-4 rounded-2xl border-2 transition-all hover:scale-105 ${theme.colorTheme === colorTheme.id
-                    ? 'border-gray-900 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-gray-900 shadow-lg'
+                  : 'border-gray-200 hover:border-gray-300'
                   }`}
               >
                 <div className={`h-16 rounded-xl ${colorTheme.previewClass} shadow-inner`} />
@@ -73,12 +73,12 @@ function AppearanceSettings() {
                 className={`group relative p-6 rounded-2xl border-2 transition-all hover:scale-105 ${theme.bgMode === bgMode.id
                     ? 'border-gray-900 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${bgMode.id === 'dark' ? 'dark bg-gray-950' : 'bg-white'}`}
               >
                 <div className={`h-24 rounded-xl ${bgMode.bgClass} border border-gray-200 shadow-inner flex items-center justify-center`}>
                   <span className={`text-xs font-bold ${bgMode.textClass}`}>Aa</span>
                 </div>
-                <p className="mt-3 text-sm font-medium text-gray-900 text-center">{bgMode.name}</p>
+                <p className={`mt-3 text-sm font-medium text-center ${bgMode.id === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{bgMode.name}</p>
                 {theme.bgMode === bgMode.id && (
                   <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
                     ✓

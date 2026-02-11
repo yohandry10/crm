@@ -74,9 +74,9 @@ export const BG_MODES: BgMode[] = [
     {
         id: 'dark',
         name: 'Oscuro',
-        bgClass: 'bg-gray-900',
-        textClass: 'text-gray-100',
-        cardClass: 'bg-gray-800',
+        bgClass: 'bg-background', // Will use --background variable
+        textClass: 'text-foreground', // Will use --foreground variable
+        cardClass: 'bg-card', // Will use --card variable
     },
 ]
 
