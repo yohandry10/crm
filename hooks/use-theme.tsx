@@ -94,9 +94,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     // Prevent hydration mismatch
-    if (!mounted) {
-        return <>{children}</>
-    }
+    // if (!mounted) {
+    //     return <>{children}</>
+    // }
 
     return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
