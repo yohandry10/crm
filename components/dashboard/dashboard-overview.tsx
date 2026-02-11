@@ -33,7 +33,7 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => {
 
   return (
     <div
-      className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:border-gray-200 transition-all duration-300"
+      className="group bg-white dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/50 rounded-2xl p-6 hover:shadow-lg hover:border-gray-200 dark:hover:border-zinc-700 transition-all duration-300"
     >
       <div className="flex items-start justify-between mb-4">
         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradients[index % 4]} flex items-center justify-center shadow-lg`}>
@@ -47,9 +47,9 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => {
           {stat.change}
         </div>
       </div>
-      <p className="text-sm text-gray-500 mb-1">{stat.title}</p>
-      <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-      <p className="text-xs text-gray-400 mt-2">{stat.description}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{stat.title}</p>
+      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{stat.description}</p>
     </div>
   )
 })
@@ -60,18 +60,18 @@ export function DashboardOverviewSkeleton() {
   return (
     <div className="space-y-8" suppressHydrationWarning>
       <div className="space-y-3">
-        <div className="h-9 w-72 bg-gray-100 rounded-lg animate-pulse" />
-        <div className="h-5 w-96 bg-gray-50 rounded animate-pulse" />
+        <div className="h-9 w-72 bg-gray-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
+        <div className="h-5 w-96 bg-gray-50 dark:bg-zinc-800/50 rounded animate-pulse" />
       </div>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((key) => (
-          <div key={key} className="bg-white border border-gray-100 rounded-2xl p-6 animate-pulse">
+          <div key={key} className="bg-white dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/50 rounded-2xl p-6 animate-pulse">
             <div className="flex justify-between mb-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-xl" />
-              <div className="w-16 h-6 bg-gray-50 rounded-full" />
+              <div className="w-12 h-12 bg-gray-100 dark:bg-zinc-800 rounded-xl" />
+              <div className="w-16 h-6 bg-gray-50 dark:bg-zinc-800/50 rounded-full" />
             </div>
-            <div className="h-4 w-24 bg-gray-50 rounded mb-2" />
-            <div className="h-8 w-32 bg-gray-100 rounded" />
+            <div className="h-4 w-24 bg-gray-50 dark:bg-zinc-800/50 rounded mb-2" />
+            <div className="h-8 w-32 bg-gray-100 dark:bg-zinc-800 rounded" />
           </div>
         ))}
       </div>
@@ -98,13 +98,13 @@ export const DashboardOverview = memo(() => {
     <div className="space-y-8" suppressHydrationWarning>
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Bienvenido a{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-600">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-600 dark:from-cyan-400 dark:to-blue-500">
             NEON
           </span>
         </h1>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           Tu centro de control para gestión empresarial inteligente
         </p>
       </div>

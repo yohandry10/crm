@@ -9,18 +9,18 @@ const DashboardOverview = dynamic(
         loading: () => (
             <div className="space-y-8">
                 <div className="space-y-3">
-                    <div className="h-9 w-72 bg-gray-100 rounded-lg animate-pulse" />
-                    <div className="h-5 w-96 bg-gray-50 rounded animate-pulse" />
+                    <div className="h-9 w-72 bg-gray-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
+                    <div className="h-5 w-96 bg-gray-50 dark:bg-zinc-800/50 rounded animate-pulse" />
                 </div>
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {[1, 2, 3, 4].map((key) => (
-                        <div key={key} className="bg-white border border-gray-100 rounded-2xl p-6 animate-pulse">
+                        <div key={key} className="bg-white dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/50 rounded-2xl p-6 animate-pulse">
                             <div className="flex justify-between mb-4">
-                                <div className="w-12 h-12 bg-gray-100 rounded-xl" />
-                                <div className="w-16 h-6 bg-gray-50 rounded-full" />
+                                <div className="w-12 h-12 bg-gray-100 dark:bg-zinc-800 rounded-xl" />
+                                <div className="w-16 h-6 bg-gray-50 dark:bg-zinc-800/50 rounded-full" />
                             </div>
-                            <div className="h-4 w-24 bg-gray-50 rounded mb-2" />
-                            <div className="h-8 w-32 bg-gray-100 rounded" />
+                            <div className="h-4 w-24 bg-gray-50 dark:bg-zinc-800/50 rounded mb-2" />
+                            <div className="h-8 w-32 bg-gray-100 dark:bg-zinc-800 rounded" />
                         </div>
                     ))}
                 </div>
