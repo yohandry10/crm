@@ -40,6 +40,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             throw new ValidationError("Cotización no encontrada")
         }
 
+        const quoteNumber = quote.quote_number || quote.id || quoteId
+
         if (method === 'email') {
             if (!to) {
                 throw new ValidationError("Correo del destinatario requerido")
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 <body>
     <div class="container">
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">📋 Cotización #${quote.quote_number}</h1>
+            <h1 style="margin: 0; font-size: 24px;">📋 Cotización #${quoteNumber}</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">${organization?.name || 'Nuestra Empresa'}</p>
         </div>
         
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             <p>Gracias por tu interés. A continuación te presentamos nuestra cotización:</p>
             
             <div class="quote-info">
-                <p><strong>Número:</strong> ${quote.quote_number}</p>
+                <p><strong>Número:</strong> ${quoteNumber}</p>
                 <p><strong>Fecha:</strong> ${new Date(quote.created_at).toLocaleDateString('es-PE')}</p>
                 ${quote.valid_until ? `<p><strong>Válida hasta:</strong> ${new Date(quote.valid_until).toLocaleDateString('es-PE')}</p>` : ''}
             </div>
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             // Send email
             const result = await sendEmail({
                 to,
-                subject: `Cotización #${quote.quote_number} - ${organization?.name || 'Nueva Cotización'}`,
+                subject: `Cotización #${quoteNumber} - ${organization?.name || 'Nueva Cotización'}`,
                 html: emailHtml
             })
 

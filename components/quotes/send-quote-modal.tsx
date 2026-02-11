@@ -42,6 +42,8 @@ export function SendQuoteModal({ open, onOpenChange, quote, onSent }: SendQuoteM
     const [paymentLink, setPaymentLink] = useState("")
     const [copied, setCopied] = useState(false)
 
+    const getQuoteNumber = (q: Quote) => q.quote_number || q.id?.slice(0, 8) || ""
+
     // Reset form when modal opens
     useEffect(() => {
         if (open && quote) {
@@ -51,10 +53,13 @@ export function SendQuoteModal({ open, onOpenChange, quote, onSent }: SendQuoteM
             setPaymentLink("")
             setCopied(false)
 
+            const quoteNumber = getQuoteNumber(quote)
+            const total = Number(quote.total_amount || 0).toFixed(2)
+
             // Generate default message
             const defaultMessage = `Hola ${quote.contact?.name || ""},
 
-Te envío la cotización #${quote.quote_number} por S/ ${quote.total_amount?.toFixed(2)}.
+Te envío la cotización #${quoteNumber} por S/ ${total}.
 
 Puedes ver los detalles y realizar el pago en el siguiente enlace:
 [LINK]
@@ -177,13 +182,16 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
     if (!quote) return null
 
+    const quoteNumber = getQuoteNumber(quote)
+    const total = Number(quote.total_amount || 0).toFixed(2)
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>Enviar Cotización</DialogTitle>
                     <DialogDescription>
-                        Cotización #{quote.quote_number} • S/ {quote.total_amount?.toFixed(2)}
+                        Cotización #{quoteNumber} • S/ {total}
                     </DialogDescription>
                 </DialogHeader>
 

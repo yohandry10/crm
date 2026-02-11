@@ -36,6 +36,8 @@ export default function QuotesPage() {
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [quoteForPayment, setQuoteForPayment] = useState<any>(null)
 
+    const getQuoteNumber = (q: any) => q?.quote_number || q?.id?.slice(0, 8) || "-"
+
     // Open payment modal
     const handleOpenPaymentModal = (quote: any) => {
         setQuoteForPayment(quote)
@@ -260,10 +262,11 @@ export default function QuotesPage() {
                                 ) : (
                                     filteredQuotes.map((quote) => {
                                         const hasInvoice = Boolean(quote.invoice_id)
+                                        const quoteNumber = getQuoteNumber(quote)
                                         return (
                                         <TableRow key={quote.id}>
                                             <TableCell className="font-medium">
-                                                #{quote.quote_number}
+                                                #{quoteNumber}
                                             </TableCell>
                                             <TableCell>
                                                 {quote.contact?.name || '-'}
@@ -419,7 +422,7 @@ export default function QuotesPage() {
                                                             size="sm"
                                                             className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                                             disabled={deleting === quote.id}
-                                                            onClick={() => handleDeleteQuote(quote.id, quote.quote_number)}
+                                                            onClick={() => handleDeleteQuote(quote.id, quoteNumber)}
                                                             title="Eliminar cotización"
                                                         >
                                                             {deleting === quote.id ? (
