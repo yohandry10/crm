@@ -187,159 +187,75 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-[95vw] sm:max-w-md w-full">
                 <DialogHeader>
                     <DialogTitle>Enviar Cotización</DialogTitle>
                     <DialogDescription>
                         Cotización #{quoteNumber} • S/ {total}
                     </DialogDescription>
                 </DialogHeader>
-
-                {/* Step 1: Choose method */}
-                {!method && (
-                    <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                            ¿Cómo deseas enviar la cotización a <strong>{quote.contact?.name}</strong>?
-                        </p>
-
-                        <Button
-                            variant="outline"
-                            className="w-full justify-start h-14 px-4"
-                            onClick={() => setMethod("email")}
                         >
-                            <Mail className="w-5 h-5 mr-3 text-blue-500" />
-                            <div className="text-left">
-                                <div className="font-medium">Correo Electrónico</div>
-                                <div className="text-xs text-muted-foreground">
-                                    {quote.contact?.email || "Sin email registrado"}
-                                </div>
-                            </div>
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            className="w-full justify-start h-14 px-4"
-                            onClick={() => setMethod("whatsapp")}
-                        >
-                            <MessageCircle className="w-5 h-5 mr-3 text-green-500" />
-                            <div className="text-left">
-                                <div className="font-medium">WhatsApp</div>
-                                <div className="text-xs text-muted-foreground">
-                                    {quote.contact?.phone || "Sin teléfono registrado"}
-                                </div>
-                            </div>
-                        </Button>
-                    </div>
+                {sending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                ) : (
+                    <><Mail className="w-4 h-4 mr-2" /> Enviar por Email</>
                 )}
+            </Button>
+        </div>
+    )
+}
 
-                {/* Step 2a: Email form */}
-                {method === "email" && (
-                    <div className="space-y-4">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => setMethod(null)}
-                        >
-                            ← Cambiar método
-                        </Button>
+{/* Step 2b: WhatsApp form */ }
+{
+    method === "whatsapp" && (
+        <div className="space-y-4">
+            <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setMethod(null)}
+            >
+                ← Cambiar método
+            </Button>
 
-                        <div className="space-y-2">
-                            <Label>Correo del destinatario</Label>
-                            <Input
-                                type="email"
-                                placeholder="cliente@email.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
+            <div className="space-y-2">
+                <Label>Número de WhatsApp (con código de país)</Label>
+                <Input
+                    type="tel"
+                    placeholder="51987654321"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                    Ejemplo: 51 para Perú + número sin espacios
+                </p>
+            </div>
 
-                        <div className="space-y-2">
-                            <Label>Mensaje personalizado</Label>
-                            <Textarea
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                rows={6}
-                                className="text-sm"
-                            />
-                        </div>
+            <div className="space-y-2">
+                <Label>Mensaje</Label>
+                <Textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows={6}
+                    className="text-sm"
+                />
+            </div>
 
-                        {paymentLink && (
-                            <div className="flex items-center gap-2 p-2 bg-muted rounded text-xs">
-                                <span className="truncate flex-1">{paymentLink}</span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleCopyLink}
-                                >
-                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                </Button>
-                            </div>
-                        )}
-
-                        <Button
-                            className="w-full gradient-neon border-0"
-                            onClick={handleSendEmail}
-                            disabled={sending || !email}
-                        >
-                            {sending ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
-                            ) : (
-                                <><Mail className="w-4 h-4 mr-2" /> Enviar por Email</>
-                            )}
-                        </Button>
-                    </div>
+            <Button
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={handleSendWhatsApp}
+                disabled={sending || !phone}
+            >
+                {sending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo...</>
+                ) : (
+                    <><MessageCircle className="w-4 h-4 mr-2" /> Abrir WhatsApp</>
                 )}
-
-                {/* Step 2b: WhatsApp form */}
-                {method === "whatsapp" && (
-                    <div className="space-y-4">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => setMethod(null)}
-                        >
-                            ← Cambiar método
-                        </Button>
-
-                        <div className="space-y-2">
-                            <Label>Número de WhatsApp (con código de país)</Label>
-                            <Input
-                                type="tel"
-                                placeholder="51987654321"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Ejemplo: 51 para Perú + número sin espacios
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Mensaje</Label>
-                            <Textarea
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                rows={6}
-                                className="text-sm"
-                            />
-                        </div>
-
-                        <Button
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            onClick={handleSendWhatsApp}
-                            disabled={sending || !phone}
-                        >
-                            {sending ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo...</>
-                            ) : (
-                                <><MessageCircle className="w-4 h-4 mr-2" /> Abrir WhatsApp</>
-                            )}
-                        </Button>
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
+            </Button>
+        </div>
+    )
+}
+            </DialogContent >
+        </Dialog >
     )
 }
