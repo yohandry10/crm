@@ -2,7 +2,6 @@
 
 import { useCallback, memo } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -154,13 +153,11 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
       >
         {/* Header */}
         <div className="flex h-20 items-center justify-between px-6 border-b border-border">
-          <Link href="/dashboard" className="relative h-12 w-32 transition-opacity hover:opacity-80" prefetch={true}>
-            <Image
+          <Link href="/dashboard" className="flex items-center h-12 w-40 transition-opacity hover:opacity-80" prefetch={true}>
+            <img
               src={logoSrc}
               alt="Zion Logo"
-              fill
-              className="object-contain object-left"
-              priority
+              className="h-full w-full object-contain object-left"
             />
           </Link>
           <button
