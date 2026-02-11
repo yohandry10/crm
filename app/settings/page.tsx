@@ -24,13 +24,13 @@ function AppearanceSettings() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md">
-        <CardHeader className="border-b border-gray-100 bg-white/50">
-          <CardTitle className="flex items-center gap-2 text-xl">
+      <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50">
+          <CardTitle className="flex items-center gap-2 text-xl text-foreground">
             <Palette className="w-5 h-5 text-pink-600" />
             Color del Tema
           </CardTitle>
-          <CardDescription>Elige el color principal para gradientes y acentos</CardDescription>
+          <CardDescription className="text-muted-foreground">Elige el color principal para gradientes y acentos</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           <div className="grid gap-4 md:grid-cols-5">
@@ -39,12 +39,12 @@ function AppearanceSettings() {
                 key={colorTheme.id}
                 onClick={() => setColorTheme(colorTheme.id)}
                 className={`group relative p-4 rounded-2xl border-2 transition-all hover:scale-105 ${theme.colorTheme === colorTheme.id
-                  ? 'border-gray-900 shadow-lg'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-gray-900 dark:border-white shadow-lg'
+                  : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                   }`}
               >
                 <div className={`h-16 rounded-xl ${colorTheme.previewClass} shadow-inner`} />
-                <p className="mt-3 text-sm font-medium text-gray-900 text-center">{colorTheme.name}</p>
+                <p className="mt-3 text-sm font-medium text-gray-900 dark:text-gray-100 text-center">{colorTheme.name}</p>
                 {theme.colorTheme === colorTheme.id && (
                   <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
                     ✓
@@ -56,13 +56,13 @@ function AppearanceSettings() {
         </CardContent>
       </Card>
 
-      <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md">
-        <CardHeader className="border-b border-gray-100 bg-white/50">
-          <CardTitle className="flex items-center gap-2 text-xl">
+      <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50">
+          <CardTitle className="flex items-center gap-2 text-xl text-foreground">
             <Settings className="w-5 h-5 text-blue-600" />
             Fondo del Dashboard
           </CardTitle>
-          <CardDescription>Personaliza el color de fondo principal</CardDescription>
+          <CardDescription className="text-muted-foreground">Personaliza el color de fondo principal</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           <div className="grid gap-4 md:grid-cols-4">
@@ -71,11 +71,11 @@ function AppearanceSettings() {
                 key={bgMode.id}
                 onClick={() => setBgMode(bgMode.id)}
                 className={`group relative p-6 rounded-2xl border-2 transition-all hover:scale-105 ${theme.bgMode === bgMode.id
-                    ? 'border-gray-900 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-gray-900 dark:border-white shadow-lg'
+                  : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                   } ${bgMode.id === 'dark' ? 'dark bg-gray-950' : 'bg-white'}`}
               >
-                <div className={`h-24 rounded-xl ${bgMode.bgClass} border border-gray-200 shadow-inner flex items-center justify-center`}>
+                <div className={`h-24 rounded-xl ${bgMode.bgClass} border border-gray-200 dark:border-gray-800 shadow-inner flex items-center justify-center`}>
                   <span className={`text-xs font-bold ${bgMode.textClass}`}>Aa</span>
                 </div>
                 <p className={`mt-3 text-sm font-medium text-center ${bgMode.id === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{bgMode.name}</p>
@@ -87,8 +87,8 @@ function AppearanceSettings() {
               </button>
             ))}
           </div>
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-sm text-blue-900">
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+            <p className="text-sm text-blue-900 dark:text-blue-300">
               💡 <strong>Tip:</strong> Los cambios se aplican instantáneamente y se guardan automáticamente.
             </p>
           </div>
@@ -150,7 +150,7 @@ function SecuritySettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Lock className="w-5 h-5" />
           Cambiar Contraseña
         </CardTitle>
@@ -396,7 +396,7 @@ export default function SettingsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-1"
           >
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-400 dark:to-white bg-clip-text text-transparent">
               Configuraciones
             </h1>
             <p className="text-muted-foreground text-lg">
@@ -418,7 +418,7 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={{ scale: 1.02, y: -5 }}
-                className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300"
+                className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300"
               >
                 <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity ${item.color}`}>
                   <item.icon className="w-24 h-24 -mr-8 -mt-8 rotate-12" />
@@ -429,11 +429,11 @@ export default function SettingsPage() {
                       <item.icon className={`w-6 h-6 ${item.color}`} />
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors">{item.title}</p>
+                      <p className="font-bold text-gray-900 dark:text-gray-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">{item.title}</p>
                       <p className="text-sm text-muted-foreground">{item.desc}</p>
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-cyan-50 group-hover:text-cyan-600 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center group-hover:bg-cyan-50 dark:group-hover:bg-cyan-900/30 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                     <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
@@ -443,7 +443,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="general" className="space-y-8">
-          <div className="sticky top-20 z-20 bg-white/80 backdrop-blur-xl py-4 -mx-6 px-6 border-b border-gray-200/50">
+          <div className="sticky top-20 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl py-4 -mx-6 px-6 border-b border-gray-200/50 dark:border-gray-800/50">
             <TabsList className="w-full flex justify-start gap-2 bg-transparent p-0 h-auto overflow-x-auto scrollbar-none">
               {[
                 { value: "general", label: "General", icon: Building },
@@ -458,9 +458,9 @@ export default function SettingsPage() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50 data-[state=active]:border-cyan-500 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700 transition-all duration-300 shadow-sm"
+                  className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:border-cyan-500 data-[state=active]:bg-cyan-50 dark:data-[state=active]:bg-cyan-900/20 data-[state=active]:text-cyan-700 dark:data-[state=active]:text-cyan-400 transition-all duration-300 shadow-sm"
                 >
-                  <tab.icon className="w-4 h-4 group-data-[state=active]:text-cyan-600" />
+                  <tab.icon className="w-4 h-4 group-data-[state=active]:text-cyan-600 dark:group-data-[state=active]:text-cyan-400" />
                   <span>{tab.label}</span>
                 </TabsTrigger>
               ))}
@@ -475,12 +475,12 @@ export default function SettingsPage() {
               transition={{ duration: 0.2 }}
             >
               <TabsContent value="general" className="space-y-6 mt-0">
-                <Card className="border-0 shadow-lg shadow-gray-200/40 overflow-hidden bg-white/60 backdrop-blur-md">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white via-transparent to-gray-50/50 pointer-events-none" />
-                  <CardHeader className="relative border-b border-gray-100 bg-white/50">
+                <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white via-transparent to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 pointer-events-none" />
+                  <CardHeader className="relative border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2 text-xl">
+                        <CardTitle className="flex items-center gap-2 text-xl text-foreground">
                           <Building className="w-5 h-5 text-cyan-600" />
                           Información de la Empresa
                         </CardTitle>
@@ -497,7 +497,7 @@ export default function SettingsPage() {
                   <CardContent className="p-8 relative space-y-8">
                     <div className="grid gap-8 md:grid-cols-2">
                       {/* Company Identity */}
-                      <div className="space-y-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                      <div className="space-y-6 bg-gray-50/50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
                         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                           <Building className="w-4 h-4" /> Identidad
                         </h3>
@@ -507,7 +507,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.company_name || ""}
                               onChange={(e) => updateField("company_name", e.target.value)}
-                              className="bg-white border-gray-200 focus:border-cyan-500 focus:ring-cyan-500/20 transition-all font-medium"
+                              className="bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 focus:border-cyan-500 focus:ring-cyan-500/20 transition-all font-medium"
                               placeholder="Ej. NEON System SAC"
                             />
                           </div>
@@ -516,7 +516,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.company_ruc || ""}
                               onChange={(e) => updateField("company_ruc", e.target.value)}
-                              className="bg-white font-mono tracking-wide"
+                              className="bg-white dark:bg-gray-950 font-mono tracking-wide"
                               maxLength={11}
                               placeholder="10765432101"
                             />
@@ -527,7 +527,7 @@ export default function SettingsPage() {
                               value={settings.timezone || "America/Lima"}
                               onValueChange={(v) => updateField("timezone", v)}
                             >
-                              <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="bg-white dark:bg-gray-950"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="America/Lima">🇵🇪 Lima (UTC-5)</SelectItem>
                                 <SelectItem value="America/Bogota">🇨🇴 Bogota (UTC-5)</SelectItem>
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Contact Info */}
-                      <div className="space-y-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                      <div className="space-y-6 bg-gray-50/50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
                         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                           <Phone className="w-4 h-4" /> Contacto
                         </h3>
@@ -550,7 +550,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.company_address || ""}
                               onChange={(e) => updateField("company_address", e.target.value)}
-                              className="bg-white"
+                              className="bg-white dark:bg-gray-950"
                               placeholder="Av. Javier Prado 123"
                             />
                           </div>
@@ -559,7 +559,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.company_phone || ""}
                               onChange={(e) => updateField("company_phone", e.target.value)}
-                              className="bg-white"
+                              className="bg-white dark:bg-gray-950"
                               placeholder="+51 900 000 000"
                             />
                           </div>
@@ -569,7 +569,7 @@ export default function SettingsPage() {
                               type="email"
                               value={settings.company_email || ""}
                               onChange={(e) => updateField("company_email", e.target.value)}
-                              className="bg-white"
+                              className="bg-white dark:bg-gray-950"
                               placeholder="contacto@empresa.com"
                             />
                           </div>
@@ -583,7 +583,7 @@ export default function SettingsPage() {
                         disabled={saving || !hasChanges()}
                         className={`min-w-[150px] transition-all duration-300 shadow-lg ${hasChanges()
                           ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-cyan-500/25 scale-105"
-                          : "bg-gray-100 text-gray-400 border border-gray-200 shadow-none hover:bg-gray-200"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 shadow-none hover:bg-gray-200 dark:hover:bg-gray-700"
                           }`}
                         size="lg"
                       >
@@ -607,9 +607,9 @@ export default function SettingsPage() {
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-6 mt-0">
-                <Card className="border-0 shadow-lg shadow-gray-200/40 overflow-hidden bg-white/60 backdrop-blur-md">
-                  <CardHeader className="border-b border-gray-100 bg-white/50">
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+                  <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50">
+                    <CardTitle className="flex items-center gap-2 text-xl text-foreground">
                       <Receipt className="w-5 h-5 text-purple-600" />
                       Series y Facturación
                     </CardTitle>
@@ -618,18 +618,18 @@ export default function SettingsPage() {
                   <CardContent className="p-8 space-y-8">
                     <div className="grid gap-6 md:grid-cols-3">
                       {[
-                        { label: "Serie Factura", field: "serie_factura", placeholder: "F001", color: "text-blue-600", bg: "bg-blue-50" },
-                        { label: "Serie Boleta", field: "serie_boleta", placeholder: "B001", color: "text-green-600", bg: "bg-green-50" },
-                        { label: "Serie Nota Crédito", field: "serie_nota_credito", placeholder: "FC01", color: "text-orange-600", bg: "bg-orange-50" },
+                        { label: "Serie Factura", field: "serie_factura", placeholder: "F001", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20" },
+                        { label: "Serie Boleta", field: "serie_boleta", placeholder: "B001", color: "text-green-600", bg: "bg-green-50 dark:bg-green-900/20" },
+                        { label: "Serie Nota Crédito", field: "serie_nota_credito", placeholder: "FC01", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-900/20" },
                       ].map((item) => (
-                        <div key={item.field} className="relative group p-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all">
+                        <div key={item.field} className="relative group p-4 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-950 hover:shadow-md transition-all">
                           <div className={`absolute -top-3 left-4 px-2 py-0.5 rounded text-xs font-bold ${item.bg} ${item.color}`}>
                             {item.label}
                           </div>
                           <Input
                             value={settings[item.field as keyof OrganizationSettings] as string || ""}
                             onChange={(e) => updateField(item.field as keyof OrganizationSettings, e.target.value.toUpperCase())}
-                            className="text-center font-mono text-2xl tracking-widest border-0 focus-visible:ring-0 px-0 h-10 font-bold bg-transparent text-gray-800 placeholder:text-gray-200"
+                            className="text-center font-mono text-2xl tracking-widest border-0 focus-visible:ring-0 px-0 h-10 font-bold bg-transparent text-gray-800 dark:text-gray-100 placeholder:text-gray-200 dark:placeholder:text-gray-800"
                             placeholder={item.placeholder}
                             maxLength={4}
                           />
@@ -638,14 +638,14 @@ export default function SettingsPage() {
                       ))}
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                    <div className="grid gap-6 md:grid-cols-2 bg-gray-50/50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
                       <div className="space-y-2">
                         <Label>Moneda Principal</Label>
                         <Select
                           value={settings.default_currency || "PEN"}
                           onValueChange={(v) => updateField("default_currency", v)}
                         >
-                          <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="bg-white dark:bg-gray-950"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="PEN">S/ Sol Peruano</SelectItem>
                             <SelectItem value="USD">$ Dólar Americano</SelectItem>
@@ -659,7 +659,7 @@ export default function SettingsPage() {
                             type="number"
                             value={settings.default_tax_rate ?? ""}
                             onChange={(e) => updateField("default_tax_rate", e.target.value ? Number(e.target.value) : null)}
-                            className="bg-white pl-8"
+                            className="bg-white dark:bg-gray-950 pl-8"
                             placeholder="18"
                           />
                           <span className="absolute left-3 top-2.5 text-gray-400 font-bold">%</span>
@@ -678,9 +678,9 @@ export default function SettingsPage() {
               </TabsContent>
 
               <TabsContent value="payments" className="space-y-6 mt-0">
-                <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md">
-                  <CardHeader className="border-b border-gray-100 bg-white/50">
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+                  <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50">
+                    <CardTitle className="flex items-center gap-2 text-xl text-foreground">
                       <Wallet className="w-5 h-5 text-cyan-600" />
                       Medios de Pago
                     </CardTitle>
@@ -688,33 +688,33 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="p-8 space-y-8">
 
-                    <div className="flex items-start gap-6 bg-blue-50/30 p-6 rounded-2xl border border-blue-100/50">
-                      <div className="w-20 h-20 rounded-xl bg-white border border-gray-200 flex items-center justify-center p-2 shrink-0 shadow-sm">
+                    <div className="flex items-start gap-6 bg-blue-50/30 dark:bg-blue-900/10 p-6 rounded-2xl border border-blue-100/50 dark:border-blue-900/30">
+                      <div className="w-20 h-20 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 flex items-center justify-center p-2 shrink-0 shadow-sm">
                         {settings.logo_url ? (
                           <img src={settings.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
                         ) : (
-                          <Building className="w-8 h-8 text-gray-300" />
+                          <Building className="w-8 h-8 text-gray-300 dark:text-gray-600" />
                         )}
                       </div>
                       <div className="flex-1 space-y-3">
-                        <Label className="text-base font-semibold text-blue-900">Logo Corporativo</Label>
+                        <Label className="text-base font-semibold text-blue-900 dark:text-blue-300">Logo Corporativo</Label>
                         <Input
                           value={settings.logo_url || ""}
                           onChange={(e) => updateField("logo_url", e.target.value)}
-                          className="bg-white"
+                          className="bg-white dark:bg-gray-950"
                           placeholder="https://ejemplo.com/logo.png"
                         />
-                        <p className="text-xs text-blue-600/70">Este logo aparecerá en la cabecera de tus facturas y correos.</p>
+                        <p className="text-xs text-blue-600/70 dark:text-blue-400/70">Este logo aparecerá en la cabecera de tus facturas y correos.</p>
                       </div>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
                       <div className="relative group overflow-hidden bg-gradient-to-br from-purple-500/5 to-purple-600/5 border border-purple-100 rounded-2xl p-6 hover:shadow-lg hover:shadow-purple-500/10 transition-all">
                         <div className="flex items-center gap-3 mb-6">
-                          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 shadow-inner">
+                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-inner">
                             <Phone className="w-5 h-5" />
                           </div>
-                          <h4 className="font-bold text-lg text-purple-900">Yape</h4>
+                          <h4 className="font-bold text-lg text-purple-900 dark:text-purple-100">Yape</h4>
                         </div>
                         <div className="space-y-4">
                           <div className="space-y-1.5">
@@ -722,7 +722,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.yape_phone || ""}
                               onChange={(e) => updateField("yape_phone", e.target.value)}
-                              className="bg-white/80 border-purple-100 focus:border-purple-500"
+                              className="bg-white/80 dark:bg-gray-950/50 border-purple-100 dark:border-purple-900 focus:border-purple-500"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -730,7 +730,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.yape_qr_url || ""}
                               onChange={(e) => updateField("yape_qr_url", e.target.value)}
-                              className="bg-white/80 border-purple-100 focus:border-purple-500 text-xs"
+                              className="bg-white/80 dark:bg-gray-950/50 border-purple-100 dark:border-purple-900 focus:border-purple-500 text-xs"
                               placeholder="https://..."
                             />
                           </div>
@@ -742,7 +742,7 @@ export default function SettingsPage() {
                           <div className="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center text-cyan-600 shadow-inner">
                             <QrCode className="w-5 h-5" />
                           </div>
-                          <h4 className="font-bold text-lg text-cyan-900">Plin</h4>
+                          <h4 className="font-bold text-lg text-cyan-900 dark:text-cyan-100">Plin</h4>
                         </div>
                         <div className="space-y-4">
                           <div className="space-y-1.5">
@@ -750,7 +750,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.plin_phone || ""}
                               onChange={(e) => updateField("plin_phone", e.target.value)}
-                              className="bg-white/80 border-cyan-100 focus:border-cyan-500"
+                              className="bg-white/80 dark:bg-gray-950/50 border-cyan-100 dark:border-cyan-900 focus:border-cyan-500"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -758,7 +758,7 @@ export default function SettingsPage() {
                             <Input
                               value={settings.plin_qr_url || ""}
                               onChange={(e) => updateField("plin_qr_url", e.target.value)}
-                              className="bg-white/80 border-cyan-100 focus:border-cyan-500 text-xs"
+                              className="bg-white/80 dark:bg-gray-950/50 border-cyan-100 dark:border-cyan-900 focus:border-cyan-500 text-xs"
                               placeholder="https://..."
                             />
                           </div>
@@ -766,10 +766,10 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-2xl p-8 border border-gray-200">
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-8 border border-gray-200 dark:border-gray-800">
                       <div className="flex items-center gap-3 mb-6">
                         <Landmark className="w-6 h-6 text-gray-400" />
-                        <h4 className="font-bold text-gray-700">Cuenta Bancaria Principal</h4>
+                        <h4 className="font-bold text-gray-700 dark:text-gray-300">Cuenta Bancaria Principal</h4>
                       </div>
                       <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
@@ -778,7 +778,7 @@ export default function SettingsPage() {
                             value={settings.bank_name || ""}
                             onValueChange={(v) => updateField("bank_name", v)}
                           >
-                            <SelectTrigger className="bg-white"><SelectValue placeholder="Selecciona" /></SelectTrigger>
+                            <SelectTrigger className="bg-white dark:bg-gray-950"><SelectValue placeholder="Selecciona" /></SelectTrigger>
                             <SelectContent>
                               {["BCP", "Interbank", "BBVA", "Scotiabank", "BanBif", "Pichincha", "Otro"].map(b => (
                                 <SelectItem key={b} value={b}>{b}</SelectItem>
@@ -791,7 +791,7 @@ export default function SettingsPage() {
                           <Input
                             value={settings.bank_holder || ""}
                             onChange={(e) => updateField("bank_holder", e.target.value)}
-                            className="bg-white"
+                            className="bg-white dark:bg-gray-950"
                           />
                         </div>
                         <div className="space-y-2">
