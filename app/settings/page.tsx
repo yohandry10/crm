@@ -18,6 +18,86 @@ import { toast } from "sonner"
 import { resetAllTutorials, resetWelcomeTour } from "@/components/tutorials"
 import { useTheme } from "@/hooks/use-theme"
 
+// Appearance Settings Component
+function AppearanceSettings() {
+  const { theme, setColorTheme, setBgMode, colorThemes, bgModes } = useTheme()
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md">
+        <CardHeader className="border-b border-gray-100 bg-white/50">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Palette className="w-5 h-5 text-pink-600" />
+            Color del Tema
+          </CardTitle>
+          <CardDescription>Elige el color principal para gradientes y acentos</CardDescription>
+        </CardHeader>
+        <CardContent className="p-8">
+          <div className="grid gap-4 md:grid-cols-5">
+            {colorThemes.map((colorTheme) => (
+              <button
+                key={colorTheme.id}
+                onClick={() => setColorTheme(colorTheme.id)}
+                className={`group relative p-4 rounded-2xl border-2 transition-all hover:scale-105 ${theme.colorTheme === colorTheme.id
+                    ? 'border-gray-900 shadow-lg'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <div className={`h-16 rounded-xl ${colorTheme.previewClass} shadow-inner`} />
+                <p className="mt-3 text-sm font-medium text-gray-900 text-center">{colorTheme.name}</p>
+                {theme.colorTheme === colorTheme.id && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
+                    ✓
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md">
+        <CardHeader className="border-b border-gray-100 bg-white/50">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Settings className="w-5 h-5 text-blue-600" />
+            Fondo del Dashboard
+          </CardTitle>
+          <CardDescription>Personaliza el color de fondo principal</CardDescription>
+        </CardHeader>
+        <CardContent className="p-8">
+          <div className="grid gap-4 md:grid-cols-4">
+            {bgModes.map((bgMode) => (
+              <button
+                key={bgMode.id}
+                onClick={() => setBgMode(bgMode.id)}
+                className={`group relative p-6 rounded-2xl border-2 transition-all hover:scale-105 ${theme.bgMode === bgMode.id
+                    ? 'border-gray-900 shadow-lg'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <div className={`h-24 rounded-xl ${bgMode.bgClass} border border-gray-200 shadow-inner flex items-center justify-center`}>
+                  <span className={`text-xs font-bold ${bgMode.textClass}`}>Aa</span>
+                </div>
+                <p className="mt-3 text-sm font-medium text-gray-900 text-center">{bgMode.name}</p>
+                {theme.bgMode === bgMode.id && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
+                    ✓
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <p className="text-sm text-blue-900">
+              💡 <strong>Tip:</strong> Los cambios se aplican instantáneamente y se guardan automáticamente.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // Security Settings Component
 function SecuritySettings() {
   const [currentPassword, setCurrentPassword] = useState("")
