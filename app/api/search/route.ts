@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       { title: "Campañas", url: "/marketing", icon: "Megaphone" },
       { title: "Tareas", url: "/tasks", icon: "CheckSquare" },
       { title: "Calendario", url: "/calendar", icon: "Calendar" },
-      { title: "Inventario", url: "/inventory", icon: "Boxes" },
+      { title: "Inventario", url: "/products?tab=inventory", icon: "Boxes" },
       { title: "Analytics", url: "/analytics", icon: "PieChart" },
       { title: "Reportes", url: "/reports", icon: "BarChart" },
       { title: "Workflows", url: "/workflows", icon: "GitFork" },

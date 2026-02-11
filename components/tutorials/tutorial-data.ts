@@ -247,7 +247,7 @@ export const moduleTutorials: Record<string, ModuleTutorial> = {
       },
       {
         title: "Inventario (Productos Físicos)",
-        description: "Para productos físicos, el sistema controla stock: entradas, salidas, stock mínimo y alertas de reposición. Ve el módulo de Inventario para más detalle.",
+        description: "Para productos físicos, el sistema controla stock: entradas, salidas, stock mínimo y alertas de reposición. Ve la pestaña de Inventario dentro de Productos para más detalle.",
         tip: "Configura alertas cuando el stock llegue al mínimo."
       },
       {

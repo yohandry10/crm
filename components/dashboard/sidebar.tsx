@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   X, Home, Users, FileText, Settings,
   Calendar, Package, Mail, Target, CheckSquare,
-  TrendingUp, Receipt, Briefcase, Layers, Link2,
+  TrendingUp, Receipt, Briefcase, Link2,
   FileBarChart
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -29,7 +29,6 @@ const navigation = [
   { name: "Formularios", href: "/forms", icon: FileText },
   { name: "Tareas", href: "/tasks", icon: CheckSquare },
   { name: "Calendario", href: "/calendar", icon: Calendar },
-  { name: "Inventario", href: "/inventory", icon: Layers },
   { name: "Analytics", href: "/analytics", icon: TrendingUp },
   { name: "Reportes", href: "/reports/builder", icon: FileBarChart },
   { name: "Workflows", href: "/workflows", icon: Settings },
