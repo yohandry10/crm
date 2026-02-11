@@ -285,7 +285,7 @@ export default function ReportBuilderPage() {
             transition={{ delay: 0.1 }}
             className="lg:col-span-1"
           >
-            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden h-full">
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden h-full">
               <CardHeader className="border-b border-gray-100 bg-white/50">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Target className="w-5 h-5 text-purple-500" />
@@ -459,7 +459,7 @@ export default function ReportBuilderPage() {
             transition={{ delay: 0.2 }}
             className="lg:col-span-2"
           >
-            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden min-h-[500px]">
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden min-h-[500px]">
               <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 bg-white/50">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-cyan-500" />
@@ -489,7 +489,7 @@ export default function ReportBuilderPage() {
                     {/* Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {reportData.summary?.map((s: any, i: number) => (
-                        <Card key={i} className="bg-white/80 border-0 shadow-sm">
+                        <Card key={i} className="bg-white/80 dark:bg-zinc-900/70 border-0 shadow-sm">
                           <CardContent className="pt-6">
                             <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
                             <p className="text-3xl font-bold text-gray-900">{s.value}</p>
@@ -500,7 +500,7 @@ export default function ReportBuilderPage() {
 
                     {/* Table */}
                     {reportData.rows && (
-                      <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm bg-white/80">
+                      <div className="border border-gray-100 dark:border-zinc-800/50 rounded-xl overflow-hidden shadow-sm bg-white/80 dark:bg-zinc-900/70">
                         <div className="overflow-x-auto">
                           <table className="w-full">
                             <thead className="bg-gray-50/80">
@@ -541,7 +541,7 @@ export default function ReportBuilderPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
+            <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden">
               <CardHeader className="border-b border-gray-100 bg-white/50">
                 <CardTitle className="text-lg">Reportes Guardados</CardTitle>
               </CardHeader>
@@ -550,7 +550,7 @@ export default function ReportBuilderPage() {
                   {savedReports.map((report) => (
                     <Card
                       key={report.id}
-                      className="cursor-pointer border-gray-100 hover:border-cyan-400 hover:shadow-md transition-all group bg-white/80"
+                      className="cursor-pointer border-gray-100 dark:border-zinc-800/50 hover:border-cyan-400 hover:shadow-md transition-all group bg-white/80 dark:bg-zinc-900/70"
                       onClick={() => setConfig(report)}
                     >
                       <CardContent className="pt-6">

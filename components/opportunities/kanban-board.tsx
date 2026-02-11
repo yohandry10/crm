@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useCallback, memo } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -257,46 +257,33 @@ const OpportunityCard = memo(function OpportunityCard({
       draggable
       onDragStart={(e) => onDragStart(e, opportunity.id)}
       onClick={() => onEdit(opportunity)}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '10px 12px',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        border: '1px solid #e5e7eb',
-        cursor: 'grab',
-        marginBottom: '8px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-      }}
+      className="flex flex-col p-3 bg-white dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/50 rounded-lg cursor-grab mb-2 shadow-sm hover:shadow-md transition-all"
     >
       {/* Row 1: Title + Badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="font-semibold text-[13px] overflow-hidden text-ellipsis whitespace-nowrap flex-1 text-gray-900 dark:text-gray-100">
           {opportunity.name}
         </span>
-        <span style={{
-          backgroundColor: probability >= 75 ? '#dcfce7' : probability >= 50 ? '#fef9c3' : '#f1f5f9',
-          color: probability >= 75 ? '#16a34a' : probability >= 50 ? '#ca8a04' : '#64748b',
-          fontSize: '11px',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          marginLeft: '8px',
-          fontWeight: 500
-        }}>
+        <span className={cn(
+          "text-[11px] px-1.5 py-0.5 rounded ml-2 font-medium",
+          probability >= 75 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
+          probability >= 50 ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400" :
+          "bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400"
+        )}>
           {probability}%
         </span>
       </div>
 
       {/* Row 2: Price + Contact */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#16a34a', fontWeight: 600 }}>
-          <DollarSign style={{ width: 12, height: 12, marginRight: 2 }} />
+      <div className="flex justify-between items-center text-xs">
+        <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+          <DollarSign className="w-3 h-3 mr-0.5" />
           S/ {(opportunity.expected_revenue || opportunity.value || 0).toLocaleString()}
         </div>
         {opportunity.contact_name && (
-          <div style={{ display: 'flex', alignItems: 'center', color: '#6b7280', fontSize: '11px' }}>
-            <User style={{ width: 11, height: 11, marginRight: 2 }} />
-            <span style={{ maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="flex items-center text-gray-500 dark:text-gray-400 text-[11px]">
+            <User className="w-3 h-3 mr-0.5" />
+            <span className="max-w-[70px] overflow-hidden text-ellipsis whitespace-nowrap">
               {opportunity.contact_name}
             </span>
           </div>
@@ -305,8 +292,8 @@ const OpportunityCard = memo(function OpportunityCard({
 
       {/* Row 3: Date */}
       {opportunity.expected_close_date && (
-        <div style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
-          <Calendar style={{ width: 11, height: 11, marginRight: 3 }} />
+        <div className="flex items-center text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+          <Calendar className="w-3 h-3 mr-1" />
           {new Date(opportunity.expected_close_date).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
         </div>
       )}
