@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       .eq("token", token)
       .single()
 
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup?token=${token}`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
+    const inviteLink = `${baseUrl}/signup?token=${token}`
 
     // Send email if configured
     let emailSent = false

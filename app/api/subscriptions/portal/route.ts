@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { createCustomerPortalSession, isStripeConfigured } from "@/lib/stripe"
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const { organization, role } = await getAuthenticatedContext()
 
@@ -28,7 +28,7 @@ export async function POST() {
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
     
     const session = await createCustomerPortalSession(
       organization.stripe_customer_id,

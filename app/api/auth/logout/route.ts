@@ -21,14 +21,15 @@ export async function POST(request: Request) {
     }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || new URL(request.url).origin
     try {
         const supabase = await createSupabaseRouteHandler()
         await supabase.auth.signOut()
         
         // Redirigir a login
-        return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'))
+        return NextResponse.redirect(new URL('/login', baseUrl))
     } catch {
-        return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'))
+        return NextResponse.redirect(new URL('/login', baseUrl))
     }
 }

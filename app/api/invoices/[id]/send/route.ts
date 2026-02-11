@@ -74,7 +74,7 @@ export async function POST(
     const formatCurrency = (amount: number) => amount.toFixed(2)
 
     // Build email
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
     const viewLink = `${appUrl}/invoicing/${invoice.id}`
     const downloadLink = `${appUrl}/api/invoices/${invoice.id}/pdf`
 
