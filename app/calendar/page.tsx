@@ -43,7 +43,7 @@ export default function CalendarPage() {
     useEffect(() => {
         fetchEvents()
         fetchBookings()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentDate])
 
     const fetchBookings = async () => {
@@ -110,9 +110,9 @@ export default function CalendarPage() {
     return (
         <DashboardLayout>
             <div className="flex flex-col h-[calc(100vh-4rem)]">
-                <div className="flex items-center justify-between pb-6 border-b">
+                <div className="flex items-center justify-between p-6 border-b border-border">
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-tight">Calendario</h1>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendario</h1>
                         <p className="text-muted-foreground">
                             Agenda reuniones, llamadas y eventos importantes
                         </p>
@@ -122,7 +122,7 @@ export default function CalendarPage() {
                         <Button variant="outline" size="icon" onClick={fetchEvents}>
                             <RefreshCw className="h-4 w-4" />
                         </Button>
-                        <Button onClick={handleAddEvent} className="gradient-neon border-0">
+                        <Button onClick={handleAddEvent} className="gradient-neon border-0 text-white">
                             <Plus className="mr-2 h-4 w-4" />
                             Nuevo Evento
                         </Button>
@@ -130,14 +130,14 @@ export default function CalendarPage() {
                 </div>
 
                 {/* Booking público */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-4">
-                    <div className="col-span-1 lg:col-span-3 bg-white border border-gray-200 rounded-xl p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-6 py-4">
+                    <div className="col-span-1 lg:col-span-3 bg-card dark:bg-zinc-900 border border-border dark:border-zinc-800 rounded-xl p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                             <div>
-                                <h2 className="text-lg font-semibold">Enlaces públicos de booking</h2>
+                                <h2 className="text-lg font-semibold text-foreground">Enlaces públicos de booking</h2>
                                 <p className="text-sm text-muted-foreground">Genera un link para que tus clientes agenden reuniones.</p>
                             </div>
-                            <Button size="sm" onClick={handleCreateBookingLink} disabled={loadingBookings}>
+                            <Button size="sm" onClick={handleCreateBookingLink} disabled={loadingBookings} variant="outline">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Nuevo enlace
                             </Button>
@@ -149,16 +149,16 @@ export default function CalendarPage() {
                                 <p className="text-sm text-muted-foreground">Aún no tienes enlaces de booking.</p>
                             ) : (
                                 bookingConfigs.map((config) => (
-                                    <div key={config.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-3">
+                                    <div key={config.id} className="flex items-center justify-between border border-border dark:border-zinc-800 rounded-lg p-3 bg-background dark:bg-zinc-950/50">
                                         <div>
-                                            <p className="font-medium">{config.name}</p>
+                                            <p className="font-medium text-foreground">{config.name}</p>
                                             <p className="text-xs text-muted-foreground">
                                                 {config.available_hours?.start} - {config.available_hours?.end} · {config.duration} min · {Array.isArray(config.available_days) ? config.available_days.length : 0} días
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <a
-                                                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                                                className="text-sm text-primary hover:underline flex items-center gap-1"
                                                 href={`/book/${config.id}`}
                                                 target="_blank"
                                                 rel="noreferrer"
