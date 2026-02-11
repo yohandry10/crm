@@ -187,7 +187,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[95vw] sm:max-w-md w-full">
+            <DialogContent className="max-w-[95vw] sm:max-w-md w-full break-words">
                 <DialogHeader>
                     <DialogTitle>Enviar Cotización</DialogTitle>
                     <DialogDescription>
@@ -260,7 +260,7 @@ Puedes ver los detalles y realizar el pago en el siguiente enlace:
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 rows={6}
-                                className="text-sm"
+                                className="text-sm break-all"
                             />
                         </div>
 
