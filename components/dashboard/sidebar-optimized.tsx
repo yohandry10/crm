@@ -149,7 +149,7 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
       >
         {/* Header */}
         <div className="flex h-20 items-center justify-between px-6 border-b border-border">
-          <Link href="/dashboard" className="relative h-10 w-32 transition-opacity hover:opacity-80" prefetch={true}>
+          <Link href="/dashboard" className="relative h-16 w-52 transition-opacity hover:opacity-80 -ml-2" prefetch={true}>
             {/* Logo wrapper to ensure proper positioning */}
             <div className="relative w-full h-full">
               {/* Logo for light mode - black text */}
