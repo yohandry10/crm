@@ -56,29 +56,29 @@ const WidgetContent = memo(function WidgetContent({ type, data }: { type: Widget
     case "stats-revenue":
       return (
         <div>
-          <div className="text-2xl font-bold">S/ {(data?.revenue || 0).toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">+{data?.growth || 0}% vs mes anterior</p>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">S/ {(data?.revenue || 0).toLocaleString()}</div>
+          <p className="text-xs text-muted-foreground dark:text-gray-400">+{data?.growth || 0}% vs mes anterior</p>
         </div>
       )
     case "stats-contacts":
       return (
         <div>
-          <div className="text-2xl font-bold">{data?.total || 0}</div>
-          <p className="text-xs text-muted-foreground">+{data?.new || 0} este mes</p>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{data?.total || 0}</div>
+          <p className="text-xs text-muted-foreground dark:text-gray-400">+{data?.new || 0} este mes</p>
         </div>
       )
     case "stats-leads":
       return (
         <div>
-          <div className="text-2xl font-bold">{data?.active || 0}</div>
-          <p className="text-xs text-muted-foreground">{data?.qualified || 0} calificados</p>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{data?.active || 0}</div>
+          <p className="text-xs text-muted-foreground dark:text-gray-400">{data?.qualified || 0} calificados</p>
         </div>
       )
     case "stats-tasks":
       return (
         <div>
-          <div className="text-2xl font-bold">{data?.pending || 0}</div>
-          <p className="text-xs text-muted-foreground">{data?.overdue || 0} vencidas</p>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{data?.pending || 0}</div>
+          <p className="text-xs text-muted-foreground dark:text-gray-400">{data?.overdue || 0} vencidas</p>
         </div>
       )
     case "list-pending-tasks":
@@ -86,8 +86,8 @@ const WidgetContent = memo(function WidgetContent({ type, data }: { type: Widget
         <div className="space-y-2">
           {(data?.tasks || []).slice(0, 5).map((task: any) => (
             <div key={task.id} className="flex items-center justify-between text-sm">
-              <span className="truncate">{task.title}</span>
-              <span className="text-xs text-muted-foreground">{task.due_date}</span>
+              <span className="truncate text-gray-700 dark:text-gray-300">{task.title}</span>
+              <span className="text-xs text-muted-foreground dark:text-gray-500">{task.due_date}</span>
             </div>
           ))}
           {(!data?.tasks || data.tasks.length === 0) && (
@@ -100,8 +100,8 @@ const WidgetContent = memo(function WidgetContent({ type, data }: { type: Widget
         <div className="space-y-2">
           {(data?.contacts || []).slice(0, 5).map((contact: any) => (
             <div key={contact.id} className="flex items-center justify-between text-sm">
-              <span className="truncate">{contact.name}</span>
-              <span className="text-xs text-muted-foreground">{contact.company}</span>
+              <span className="truncate text-gray-700 dark:text-gray-300">{contact.name}</span>
+              <span className="text-xs text-muted-foreground dark:text-gray-500">{contact.company}</span>
             </div>
           ))}
           {(!data?.contacts || data.contacts.length === 0) && (

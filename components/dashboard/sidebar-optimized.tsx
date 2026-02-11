@@ -68,12 +68,12 @@ const NavLink = memo(({
         "group flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200",
         isCurrent
           ? `${getGradientClass()} text-white shadow-md shadow-gray-900/25`
-          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
       )}
     >
       <item.icon className={cn(
         "w-5 h-5 transition-colors",
-        isCurrent ? "text-white" : "text-gray-400 group-hover:text-gray-600"
+        isCurrent ? "text-white" : "text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300"
       )} />
       {item.name}
     </Link>
@@ -91,8 +91,8 @@ const UserCard = memo(() => {
   const { getGradientClass } = useTheme()
 
   return (
-    <div className="p-4 border-t border-gray-100">
-      <div className="bg-gray-50 rounded-xl p-4">
+    <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl ${getGradientClass()} flex items-center justify-center flex-shrink-0`}>
             <span className="text-sm font-bold text-white">
@@ -100,11 +100,11 @@ const UserCard = memo(() => {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {loading ? 'Cargando...' : (profile?.full_name || profile?.email || 'Usuario')}
+            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+              {loading ? 'Cargando...' : (profile?.full_name || 'Usuario')}
             </p>
-            <p className="text-xs text-gray-500 truncate capitalize">
-              {loading ? '...' : (profile?.role || 'user')}
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {loading ? '...' : (profile?.email || '')}
             </p>
           </div>
         </div>
@@ -142,13 +142,13 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
       <aside
         suppressHydrationWarning
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out flex flex-col",
+          "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-200 ease-in-out flex flex-col",
           "lg:translate-x-0 lg:fixed",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex h-20 items-center justify-between px-6 border-b border-gray-100">
+        <div className="flex h-20 items-center justify-between px-6 border-b border-border">
           <Link href="/dashboard" className="flex flex-col leading-none" prefetch={true}>
             <span className="text-xl font-bold text-gray-900">NEON</span>
             <span className="text-[9px] font-semibold tracking-[0.25em] text-gray-600 uppercase">System</span>
