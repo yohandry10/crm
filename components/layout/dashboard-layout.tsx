@@ -9,6 +9,7 @@ import { useCRMPrefetch } from "@/hooks/use-route-prefetch"
 import { useKeyboardShortcuts } from "@/components/keyboard"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { useTheme } from "@/hooks/use-theme"
 
 // Lazy load componentes pesados que no son críticos para la primera carga
 const TrialBanner = dynamic(
@@ -47,6 +48,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // ✅ Use cached auth data from AuthProvider
   const { organizationId } = useAuth()
 
+  // ✅ Use theme for dynamic styling
+  const { getBgClass, getTextClass } = useTheme()
+
   // Prefetch rutas frecuentes en segundo plano
   useCRMPrefetch()
 
@@ -66,7 +70,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className={`min-h-screen ${getBgClass()} ${getTextClass()}`}>
       <SidebarOptimized open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
       <div className="lg:pl-72">

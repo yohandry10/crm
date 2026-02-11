@@ -7,6 +7,7 @@ import { NavigationLoadingProvider } from "@/components/providers/navigation-loa
 import { AuthProvider } from "@/components/providers/auth-provider"
 import { SWRProvider } from "@/components/providers/swr-provider"
 import { GlobalChatbotWrapper } from "@/components/chatbot/global-chatbot-wrapper"
+import { ThemeProvider } from "@/hooks/use-theme"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -37,10 +38,12 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <SWRProvider>
           <AuthProvider>
-            <NavigationLoadingProvider>
-              {children}
-            </NavigationLoadingProvider>
-            <GlobalChatbotWrapper />
+            <ThemeProvider>
+              <NavigationLoadingProvider>
+                {children}
+              </NavigationLoadingProvider>
+              <GlobalChatbotWrapper />
+            </ThemeProvider>
           </AuthProvider>
         </SWRProvider>
       </body>

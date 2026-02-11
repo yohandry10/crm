@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
-import { Settings, User, Bell, Database, Key, Phone, Building, Loader2, Users, CreditCard, ArrowRight, HelpCircle, RotateCcw, Eye, EyeOff, Lock, Wallet, QrCode, Landmark, Link2, Receipt } from "lucide-react"
+import { Settings, User, Bell, Database, Key, Phone, Building, Loader2, Users, CreditCard, ArrowRight, HelpCircle, RotateCcw, Eye, EyeOff, Lock, Wallet, QrCode, Landmark, Link2, Receipt, Palette } from "lucide-react"
 import { toast } from "sonner"
 import { resetAllTutorials, resetWelcomeTour } from "@/components/tutorials"
+import { useTheme } from "@/hooks/use-theme"
 
 // Security Settings Component
 function SecuritySettings() {
@@ -366,6 +367,7 @@ export default function SettingsPage() {
             <TabsList className="w-full flex justify-start gap-2 bg-transparent p-0 h-auto overflow-x-auto scrollbar-none">
               {[
                 { value: "general", label: "General", icon: Building },
+                { value: "apariencia", label: "Apariencia", icon: Palette },
                 { value: "billing", label: "Facturación", icon: Settings },
                 { value: "payments", label: "Medios de Pago", icon: Wallet },
                 { value: "security", label: "Seguridad", icon: Lock },
@@ -518,6 +520,10 @@ export default function SettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="apariencia" className="space-y-6 mt-0">
+                <AppearanceSettings />
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-6 mt-0">

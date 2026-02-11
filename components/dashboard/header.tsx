@@ -11,6 +11,7 @@ import { Menu, Bell, Search, User, LogOut, Settings, UserCircle, Command } from 
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { GlobalSearch, useGlobalSearch } from "@/components/search/global-search"
+import { useTheme } from "@/hooks/use-theme"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -34,6 +35,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch()
   const supabaseRef = useRef<SupabaseClient | null>(null)
   const router = useRouter()
+  const { getGradientClass } = useTheme()
 
   useEffect(() => {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {
@@ -116,7 +118,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white">
+              <span className={`absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full ${getGradientClass()} flex items-center justify-center text-[10px] font-bold text-white`}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -140,7 +142,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     notifications.map((n) => (
                       <div key={n.id} className={cn(
                         "p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors",
-                        !n.is_read && "bg-cyan-50/50"
+                        !n.is_read && "bg-gray-50"
                       )}>
                         <p className="text-sm font-medium text-gray-900">{n.title}</p>
                         <p className="text-xs text-gray-500 mt-1">{n.message}</p>
