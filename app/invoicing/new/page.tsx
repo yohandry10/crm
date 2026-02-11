@@ -64,7 +64,7 @@ export default function NewInvoicePage() {
     })
 
     const watchItems = form.watch("items")
-    const subtotal = watchItems.reduce((sum, item) => 
+    const subtotal = watchItems.reduce((sum, item) =>
         sum + (Number(item.quantity) * Number(item.unit_price)), 0
     )
     const tax = subtotal * 0.18
@@ -112,9 +112,9 @@ export default function NewInvoicePage() {
     }
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-PE', { 
-            style: 'currency', 
-            currency: 'PEN' 
+        return new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency: 'PEN'
         }).format(amount)
     }
 
@@ -194,12 +194,12 @@ export default function NewInvoicePage() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {fields.map((field, index) => (
-                                    <div key={field.id} className="flex gap-4 items-end">
+                                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-start sm:items-end border-b sm:border-0 pb-4 sm:pb-0 mb-4 sm:mb-0">
                                         <FormField
                                             control={form.control}
                                             name={`items.${index}.description`}
                                             render={({ field }) => (
-                                                <FormItem className="flex-1">
+                                                <FormItem className="w-full sm:flex-1">
                                                     <FormLabel className={index > 0 ? "sr-only" : ""}>Descripción</FormLabel>
                                                     <FormControl>
                                                         <Input placeholder="Descripción del producto/servicio" {...field} />
@@ -208,41 +208,44 @@ export default function NewInvoicePage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.quantity`}
-                                            render={({ field }) => (
-                                                <FormItem className="w-24">
-                                                    <FormLabel className={index > 0 ? "sr-only" : ""}>Cantidad</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" min="1" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.unit_price`}
-                                            render={({ field }) => (
-                                                <FormItem className="w-32">
-                                                    <FormLabel className={index > 0 ? "sr-only" : ""}>Precio Unit.</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" min="0" step="0.01" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => remove(index)}
-                                            disabled={fields.length === 1}
-                                        >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                        <div className="flex w-full sm:w-auto gap-2 items-end">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.quantity`}
+                                                render={({ field }) => (
+                                                    <FormItem className="w-24">
+                                                        <FormLabel className={index > 0 ? "sr-only" : ""}>Cantidad</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="number" min="1" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.unit_price`}
+                                                render={({ field }) => (
+                                                    <FormItem className="w-32">
+                                                        <FormLabel className={index > 0 ? "sr-only" : ""}>Precio Unit.</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="number" min="0" step="0.01" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => remove(index)}
+                                                disabled={fields.length === 1}
+                                                className="mb-[2px]"
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 ))}
 
@@ -274,7 +277,7 @@ export default function NewInvoicePage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormControl>
-                                                <Textarea 
+                                                <Textarea
                                                     placeholder="Notas adicionales para el cliente..."
                                                     {...field}
                                                 />

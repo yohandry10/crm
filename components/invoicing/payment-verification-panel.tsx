@@ -129,9 +129,9 @@ export function PaymentVerificationPanel({ onPaymentVerified }: PaymentVerificat
                         {payments.map((payment) => (
                             <div
                                 key={payment.id}
-                                className="flex items-center justify-between p-4 bg-white rounded-lg border border-amber-100 shadow-sm"
+                                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white rounded-lg border border-amber-100 shadow-sm gap-4 sm:gap-0"
                             >
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-start sm:items-center gap-4 w-full sm:w-auto">
                                     {/* Proof Image Preview */}
                                     <button
                                         onClick={() => setPreviewImage(payment.proof_url)}
@@ -159,8 +159,8 @@ export function PaymentVerificationPanel({ onPaymentVerified }: PaymentVerificat
                                     </button>
 
                                     {/* Payment Info */}
-                                    <div>
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <span className="font-semibold text-lg">
                                                 {formatCurrency(payment.amount)}
                                             </span>
@@ -180,7 +180,7 @@ export function PaymentVerificationPanel({ onPaymentVerified }: PaymentVerificat
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -222,7 +222,6 @@ export function PaymentVerificationPanel({ onPaymentVerified }: PaymentVerificat
                 </CardContent>
             </Card>
 
-            {/* Image Preview Dialog */}
             <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>

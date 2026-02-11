@@ -99,7 +99,7 @@ export function QuoteDialog({
                 supabase.from('contacts').select('id, name').order('name'),
                 supabase.from('opportunities').select('id, name').eq('status', 'open').order('name')
             ])
-            
+
             if (contactsRes.data) setContacts(contactsRes.data)
             if (oppsRes.data) setOpportunities(oppsRes.data)
 
@@ -110,7 +110,7 @@ export function QuoteDialog({
                 .order('name')
             if (productsData) setProducts(productsData)
         }
-        
+
         loadData().catch(console.error)
         if (quote) {
             // Fetch items if editing (not implemented fully in this snippet for brevity, assuming new quote mostly)
@@ -246,103 +246,107 @@ export function QuoteDialog({
                                 </Button>
                             </div>
 
-                            <div className="space-y-2 max-h-[200px] overflow-y-auto p-1">
+                            <div className="space-y-4 max-h-[300px] overflow-y-auto p-1">
                                 {fields.map((field, index) => (
-                                    <div key={field.id} className="flex gap-2 items-end">
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.product_id`}
-                                            render={({ field }) => {
-                                                const selected = products.find((p) => p.id === field.value)
-                                                return (
-                                                    <FormItem className="w-44">
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                                    {selected ? selected.name : "Producto..."}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-[320px] p-0">
-                                                                <Command>
-                                                                    <CommandInput placeholder="Buscar producto..." />
-                                                                    <CommandList>
-                                                                        <CommandEmpty>No se encontraron productos.</CommandEmpty>
-                                                                        <CommandGroup>
-                                                                            <CommandItem
-                                                                                value="item-libre"
-                                                                                onSelect={() => {
-                                                                                    form.setValue(`items.${index}.product_id`, null, { shouldValidate: true })
-                                                                                }}
-                                                                            >
-                                                                                <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
-                                                                                Item libre
-                                                                            </CommandItem>
-                                                                            {products.map((product) => (
+                                    <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-end border-b sm:border-0 pb-4 sm:pb-0 mb-4 sm:mb-0">
+                                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:flex-1">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.product_id`}
+                                                render={({ field }) => {
+                                                    const selected = products.find((p) => p.id === field.value)
+                                                    return (
+                                                        <FormItem className="w-full sm:w-44">
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                                                                        {selected ? selected.name : "Producto..."}
+                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-[320px] p-0">
+                                                                    <Command>
+                                                                        <CommandInput placeholder="Buscar producto..." />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>No se encontraron productos.</CommandEmpty>
+                                                                            <CommandGroup>
                                                                                 <CommandItem
-                                                                                    key={product.id}
-                                                                                    value={`${product.name} ${product.sku || ""}`}
+                                                                                    value="item-libre"
                                                                                     onSelect={() => {
-                                                                                        form.setValue(`items.${index}.product_id`, product.id, { shouldValidate: true })
-                                                                                        form.setValue(`items.${index}.description`, product.name, { shouldValidate: true })
-                                                                                        form.setValue(`items.${index}.unit_price`, Number(product.unit_price || 0), { shouldValidate: true })
+                                                                                        form.setValue(`items.${index}.product_id`, null, { shouldValidate: true })
                                                                                     }}
                                                                                 >
-                                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === product.id ? "opacity-100" : "opacity-0")} />
-                                                                                    {product.name}{product.sku ? ` (${product.sku})` : ""}
+                                                                                    <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
+                                                                                    Item libre
                                                                                 </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
+                                                                                {products.map((product) => (
+                                                                                    <CommandItem
+                                                                                        key={product.id}
+                                                                                        value={`${product.name} ${product.sku || ""}`}
+                                                                                        onSelect={() => {
+                                                                                            form.setValue(`items.${index}.product_id`, product.id, { shouldValidate: true })
+                                                                                            form.setValue(`items.${index}.description`, product.name, { shouldValidate: true })
+                                                                                            form.setValue(`items.${index}.unit_price`, Number(product.unit_price || 0), { shouldValidate: true })
+                                                                                        }}
+                                                                                    >
+                                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === product.id ? "opacity-100" : "opacity-0")} />
+                                                                                        {product.name}{product.sku ? ` (${product.sku})` : ""}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </FormItem>
+                                                    )
+                                                }}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.description`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormControl>
+                                                            <Input placeholder="Descripción" {...field} />
+                                                        </FormControl>
                                                     </FormItem>
-                                                )
-                                            }}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.description`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Input placeholder="Descripción" {...field} />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.quantity`}
-                                            render={({ field }) => (
-                                                <FormItem className="w-20">
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Cant." {...field} />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.unit_price`}
-                                            render={({ field }) => (
-                                                <FormItem className="w-24">
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Precio" {...field} />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => remove(index)}
-                                            disabled={fields.length === 1}
-                                        >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="flex w-full sm:w-auto gap-2 items-center sm:items-end">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.quantity`}
+                                                render={({ field }) => (
+                                                    <FormItem className="w-20">
+                                                        <FormControl>
+                                                            <Input type="number" placeholder="Cant." {...field} />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.unit_price`}
+                                                render={({ field }) => (
+                                                    <FormItem className="w-24">
+                                                        <FormControl>
+                                                            <Input type="number" placeholder="Precio" {...field} />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => remove(index)}
+                                                disabled={fields.length === 1}
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -350,7 +354,6 @@ export function QuoteDialog({
                                 Total: {formatCurrency(totalAmount)}
                             </div>
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
