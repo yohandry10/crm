@@ -249,7 +249,7 @@ export default function ReportBuilderPage() {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
                 Constructor de Reportes
               </h1>
               <p className="text-lg text-muted-foreground">
@@ -286,24 +286,24 @@ export default function ReportBuilderPage() {
             className="lg:col-span-1"
           >
             <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden h-full">
-              <CardHeader className="border-b border-gray-100 bg-white/50">
-                <CardTitle className="text-xl flex items-center gap-2">
+              <CardHeader className="border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30">
+                <CardTitle className="text-xl flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <Target className="w-5 h-5 text-purple-500" />
                   Configuración
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 p-6">
                 <div className="space-y-2">
-                  <Label>Nombre del reporte</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Nombre del reporte</Label>
                   <Input
                     value={config.name}
                     onChange={(e) => setConfig({ ...config, name: e.target.value })}
-                    className="bg-white/50 border-gray-200 focus:border-purple-500 focus:ring-purple-500"
+                    className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 focus:border-purple-500 focus:ring-purple-500 text-gray-900 dark:text-gray-100"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Entidad</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Entidad</Label>
                   <Select
                     value={config.entity}
                     onValueChange={(v) => setConfig({
@@ -313,7 +313,7 @@ export default function ReportBuilderPage() {
                       groupBy: GROUP_BY[v as keyof typeof GROUP_BY][0].id,
                     })}
                   >
-                    <SelectTrigger className="bg-white/50 border-gray-200">
+                    <SelectTrigger className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-gray-100">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -330,7 +330,7 @@ export default function ReportBuilderPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tipo de gráfico</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Tipo de gráfico</Label>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { id: "bar", icon: BarChart3 },
@@ -343,7 +343,7 @@ export default function ReportBuilderPage() {
                         variant={config.type === t.id ? "default" : "outline"}
                         size="sm"
                         onClick={() => setConfig({ ...config, type: t.id as any })}
-                        className={config.type === t.id ? "bg-gray-900 text-white hover:bg-gray-800" : "bg-white/50 hover:bg-white"}
+                        className={config.type === t.id ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200" : "bg-white/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-800 text-gray-900 dark:text-gray-100"}
                       >
                         <t.icon className="w-4 h-4" />
                       </Button>
@@ -352,7 +352,7 @@ export default function ReportBuilderPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Métricas</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Métricas</Label>
                   <div className="flex flex-wrap gap-2">
                     {METRICS[config.entity as keyof typeof METRICS]?.map((m) => (
                       <Badge
@@ -373,12 +373,12 @@ export default function ReportBuilderPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Agrupar por</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Agrupar por</Label>
                   <Select
                     value={config.groupBy}
                     onValueChange={(v) => setConfig({ ...config, groupBy: v })}
                   >
-                    <SelectTrigger className="bg-white/50 border-gray-200">
+                    <SelectTrigger className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-gray-100">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -392,12 +392,12 @@ export default function ReportBuilderPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Período</Label>
+                  <Label className="text-gray-900 dark:text-gray-100">Período</Label>
                   <Select
                     value={config.dateRange}
                     onValueChange={(v) => setConfig({ ...config, dateRange: v })}
                   >
-                    <SelectTrigger className="bg-white/50 border-gray-200">
+                    <SelectTrigger className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-gray-100">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -410,9 +410,9 @@ export default function ReportBuilderPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-gray-100">
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Filtros</Label>
+                    <Label className="text-gray-900 dark:text-gray-100">Filtros</Label>
                     <Button variant="ghost" size="sm" onClick={addFilter} className="hover:text-cyan-600">
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -427,7 +427,7 @@ export default function ReportBuilderPage() {
                           filters[i].field = e.target.value
                           setConfig({ ...config, filters })
                         }}
-                        className="flex-1 h-8 bg-white/50 text-xs"
+                        className="flex-1 h-8 bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 text-xs text-gray-900 dark:text-gray-100"
                       />
                       <Input
                         placeholder="Valor"
@@ -437,7 +437,7 @@ export default function ReportBuilderPage() {
                           filters[i].value = e.target.value
                           setConfig({ ...config, filters })
                         }}
-                        className="flex-1 h-8 bg-white/50 text-xs"
+                        className="flex-1 h-8 bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-700 text-xs text-gray-900 dark:text-gray-100"
                       />
                       <Button variant="ghost" size="icon" onClick={() => removeFilter(i)} className="h-8 w-8 text-red-400 hover:text-red-600">
                         <Trash2 className="w-3 h-3" />
@@ -460,8 +460,8 @@ export default function ReportBuilderPage() {
             className="lg:col-span-2"
           >
             <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden min-h-[500px]">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 bg-white/50">
-                <CardTitle className="text-xl flex items-center gap-2">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30">
+                <CardTitle className="text-xl flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <BarChart3 className="w-5 h-5 text-cyan-500" />
                   Resultados
                 </CardTitle>
@@ -491,8 +491,8 @@ export default function ReportBuilderPage() {
                       {reportData.summary?.map((s: any, i: number) => (
                         <Card key={i} className="bg-white/80 dark:bg-zinc-900/70 border-0 shadow-sm">
                           <CardContent className="pt-6">
-                            <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
-                            <p className="text-3xl font-bold text-gray-900">{s.value}</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{s.label}</p>
+                            <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{s.value}</p>
                           </CardContent>
                         </Card>
                       ))}
@@ -503,20 +503,20 @@ export default function ReportBuilderPage() {
                       <div className="border border-gray-100 dark:border-zinc-800/50 rounded-xl overflow-hidden shadow-sm bg-white/80 dark:bg-zinc-900/70">
                         <div className="overflow-x-auto">
                           <table className="w-full">
-                            <thead className="bg-gray-50/80">
+                            <thead className="bg-gray-50/80 dark:bg-zinc-900/50">
                               <tr>
                                 {reportData.columns?.map((col: string) => (
-                                  <th key={col} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  <th key={col} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     {col}
                                   </th>
                                 ))}
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                               {reportData.rows.map((row: any, i: number) => (
                                 <tr key={i} className="hover:bg-cyan-50/20 transition-colors">
                                   {reportData.columns?.map((col: string) => (
-                                    <td key={col} className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
+                                    <td key={col} className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                       {row[col]}
                                     </td>
                                   ))}
@@ -542,8 +542,8 @@ export default function ReportBuilderPage() {
             transition={{ delay: 0.3 }}
           >
             <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden">
-              <CardHeader className="border-b border-gray-100 bg-white/50">
-                <CardTitle className="text-lg">Reportes Guardados</CardTitle>
+              <CardHeader className="border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30">
+                <CardTitle className="text-lg text-gray-900 dark:text-gray-100">Reportes Guardados</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid md:grid-cols-3 gap-4">
@@ -555,7 +555,7 @@ export default function ReportBuilderPage() {
                     >
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="font-semibold text-gray-900 group-hover:text-cyan-700 transition-colors">{report.name}</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors">{report.name}</p>
                           <Badge variant="outline" className="bg-white">{report.type}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground flex items-center gap-2">
