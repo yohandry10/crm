@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/tooltip"
 import { GlobalSearch, useGlobalSearch } from "@/components/search/global-search"
 import { useTheme } from "@/hooks/use-theme"
+import { useSubscription } from "@/hooks/use-subscription"
+
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -42,6 +44,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   const supabaseRef = useRef<SupabaseClient | null>(null)
   const router = useRouter()
   const { getGradientClass } = useTheme()
+  const { subscription, shouldShowBadge } = useSubscription()
+
 
   useEffect(() => {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {
@@ -116,20 +120,25 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
 
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="hidden md:flex items-center px-3 py-1.5 rounded-full bg-blue-50/50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium border border-blue-100/50 dark:border-blue-800/30">
-                  <Clock className="w-3.5 h-3.5 mr-1.5" />
-                  <span>Periodo de prueba: 2 días restantes</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Tu periodo de prueba termina pronto</p>
-                <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 dark:text-blue-400 font-bold" onClick={() => router.push('/settings/billing')}>
-                  Ver Planes
-                </Button>
-              </TooltipContent>
-            </Tooltip>
+            {shouldShowBadge && subscription && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`hidden md:flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${subscription.daysRemaining <= 2
+                    ? "bg-yellow-50/50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-100/50 dark:border-yellow-800/30"
+                    : "bg-blue-50/50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-100/50 dark:border-blue-800/30"
+                    }`}>
+                    <Clock className="w-3.5 h-3.5 mr-1.5" />
+                    <span>Periodo de prueba: {subscription.daysRemaining} {subscription.daysRemaining === 1 ? 'día restante' : 'días restantes'}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Tu periodo de prueba termina pronto</p>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 dark:text-blue-400 font-bold" onClick={() => router.push('/settings/billing')}>
+                    Ver Planes
+                  </Button>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </TooltipProvider>
 
           <div className="relative">

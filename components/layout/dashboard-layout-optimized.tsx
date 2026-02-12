@@ -110,9 +110,9 @@ export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
 
       <div className="lg:pl-72">
         {/* Lazy load trial banner */}
-        {mounted && organizationId && (
+        {mounted && (
           <Suspense fallback={<div className="h-12" />}>
-            <TrialBanner organizationId={organizationId} />
+            <TrialBanner />
           </Suspense>
         )}
 

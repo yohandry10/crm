@@ -72,7 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
       <div className="lg:pl-72">
-        {organizationId && <TrialBanner organizationId={organizationId} />}
+        {organizationId && <TrialBanner />}
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-6 lg:p-8">
@@ -84,9 +84,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <WelcomeTour />
 
       {/* Keyboard shortcuts dialog */}
-      <KeyboardShortcutsDialog 
-        open={shortcutsOpen} 
-        onOpenChange={setShortcutsOpen} 
+      <KeyboardShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
       />
 
       {/* Toast notifications - solo renderizar en cliente */}

@@ -74,7 +74,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <SidebarOptimized open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
       <div className="lg:pl-72">
-        {mounted && organizationId && <TrialBanner organizationId={organizationId} />}
+        {mounted && <TrialBanner />}
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-6 lg:p-8">
