@@ -187,7 +187,7 @@ export default function ProfilePage() {
           </Link>
 
           <div className="space-y-1">
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-200 dark:to-gray-400 bg-clip-text text-transparent">
               Mi Perfil
             </h1>
             <p className="text-lg text-muted-foreground">
@@ -197,22 +197,22 @@ export default function ProfilePage() {
         </motion.div>
 
         <Tabs defaultValue="profile" className="space-y-8">
-          <TabsList className="bg-white/50 backdrop-blur-sm p-1 rounded-full border border-gray-200/50 inline-flex h-auto shadow-sm">
+          <TabsList className="bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm p-1 rounded-full border border-gray-200/50 dark:border-zinc-800/50 inline-flex h-auto shadow-sm">
             <TabsTrigger
               value="profile"
-              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white transition-all"
+              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:text-white dark:text-gray-400 transition-all"
             >
               Perfil
             </TabsTrigger>
             <TabsTrigger
               value="security"
-              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white transition-all"
+              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:text-white dark:text-gray-400 transition-all"
             >
               Seguridad
             </TabsTrigger>
             <TabsTrigger
               value="notifications"
-              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white transition-all"
+              className="rounded-full px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:text-white dark:text-gray-400 transition-all"
             >
               Notificaciones
             </TabsTrigger>
@@ -224,9 +224,9 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-gray-100 bg-white/50">
-                  <CardTitle className="flex items-center gap-2 text-xl">
+              <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/20">
+                  <CardTitle className="flex items-center gap-2 text-xl dark:text-gray-100">
                     <User className="w-5 h-5 text-cyan-500" />
                     Información Personal
                   </CardTitle>
@@ -237,15 +237,15 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-8">
                     <div className="relative group">
                       <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-40 transition-opacity" />
-                      <Avatar className="w-24 h-24 border-4 border-white relative z-10 shadow-md">
+                      <Avatar className="w-24 h-24 border-4 border-white dark:border-zinc-800 relative z-10 shadow-md">
                         <AvatarImage src={profile?.avatar_url || undefined} />
-                        <AvatarFallback className="text-2xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">
+                        <AvatarFallback className="text-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-zinc-800 dark:to-zinc-700 text-gray-700 dark:text-gray-200">
                           {getInitials(profile?.full_name || null)}
                         </AvatarFallback>
                       </Avatar>
                     </div>
                     <div>
-                      <Button variant="outline" size="sm" disabled className="mb-2">
+                      <Button variant="outline" size="sm" disabled className="mb-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-300">
                         <Camera className="w-4 h-4 mr-2" />
                         Cambiar Foto
                       </Button>
@@ -265,7 +265,7 @@ export default function ProfilePage() {
                           id="name"
                           value={profile?.full_name || ""}
                           onChange={(e) => setProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
-                          className="pl-9 bg-white/50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500 transition-all"
+                          className="pl-9 bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500 transition-all dark:text-gray-100"
                           placeholder="Tu nombre"
                         />
                       </div>
@@ -278,7 +278,7 @@ export default function ProfilePage() {
                         <Input
                           id="email"
                           value={profile?.email || ""}
-                          className="pl-9 bg-gray-50/50 border-gray-200"
+                          className="pl-9 bg-gray-50/50 dark:bg-zinc-800/50 border-gray-200 dark:border-zinc-800 dark:text-gray-300"
                           disabled
                         />
                       </div>
@@ -293,7 +293,7 @@ export default function ProfilePage() {
                           id="phone"
                           value={profile?.phone || ""}
                           onChange={(e) => setProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                          className="pl-9 bg-white/50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500 transition-all"
+                          className="pl-9 bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500 transition-all dark:text-gray-100"
                           placeholder="+51 999 123 456"
                         />
                       </div>
@@ -307,7 +307,7 @@ export default function ProfilePage() {
                           id="company"
                           value={profile?.company_name || ""}
                           onChange={(e) => setProfile(prev => prev ? { ...prev, company_name: e.target.value } : null)}
-                          className="pl-9 bg-white/50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500 transition-all"
+                          className="pl-9 bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500 transition-all dark:text-gray-100"
                           placeholder="Tu empresa"
                         />
                       </div>
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                         value={profile?.job_title || ""}
                         onChange={(e) => setProfile(prev => prev ? { ...prev, job_title: e.target.value } : null)}
                         placeholder="Ej: Gerente de Ventas"
-                        className="bg-white/50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500 transition-all"
+                        className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500 transition-all dark:text-gray-100"
                       />
                     </div>
                   </div>
@@ -342,9 +342,9 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-gray-100 bg-white/50">
-                  <CardTitle className="flex items-center gap-2 text-xl">
+              <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/20">
+                  <CardTitle className="flex items-center gap-2 text-xl dark:text-gray-100">
                     <Lock className="w-5 h-5 text-purple-500" />
                     Cambiar Contraseña
                   </CardTitle>
@@ -360,7 +360,7 @@ export default function ProfilePage() {
                         value={passwords.new}
                         onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
                         placeholder="Mínimo 8 caracteres"
-                        className="bg-white/50 border-gray-200 focus:border-purple-500 focus:ring-purple-500 transition-all"
+                        className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-purple-500 focus:ring-purple-500 transition-all dark:text-gray-100"
                       />
                     </div>
 
@@ -372,7 +372,7 @@ export default function ProfilePage() {
                         value={passwords.confirm}
                         onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
                         placeholder="Repite la contraseña"
-                        className="bg-white/50 border-gray-200 focus:border-purple-500 focus:ring-purple-500 transition-all"
+                        className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-purple-500 focus:ring-purple-500 transition-all dark:text-gray-100"
                       />
                     </div>
                   </div>
@@ -394,9 +394,9 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="border-0 shadow-lg shadow-gray-200/40 bg-white/60 backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-gray-100 bg-white/50">
-                  <CardTitle className="flex items-center gap-2 text-xl">
+              <Card className="border-0 shadow-lg shadow-gray-200/40 dark:shadow-none bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/20">
+                  <CardTitle className="flex items-center gap-2 text-xl dark:text-gray-100">
                     <Bell className="w-5 h-5 text-orange-500" />
                     Preferencias de Notificaciones
                   </CardTitle>
@@ -404,14 +404,14 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-8 p-8">
                   <div className="space-y-6">
-                    <h4 className="font-medium text-lg text-gray-900 flex items-center gap-2">
+                    <h4 className="font-medium text-lg text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
                       Notificaciones por Email
                     </h4>
 
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 bg-white/50 hover:bg-white/80 transition-colors">
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30 hover:bg-white/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <div>
-                        <p className="font-medium">Nuevos Leads</p>
+                        <p className="font-medium dark:text-gray-200">Nuevos Leads</p>
                         <p className="text-sm text-muted-foreground">Recibe un email cuando llegue un nuevo lead</p>
                       </div>
                       <Switch
@@ -420,9 +420,9 @@ export default function ProfilePage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 bg-white/50 hover:bg-white/80 transition-colors">
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30 hover:bg-white/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <div>
-                        <p className="font-medium">Tareas Vencidas</p>
+                        <p className="font-medium dark:text-gray-200">Tareas Vencidas</p>
                         <p className="text-sm text-muted-foreground">Recordatorio de tareas próximas a vencer</p>
                       </div>
                       <Switch
@@ -431,9 +431,9 @@ export default function ProfilePage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 bg-white/50 hover:bg-white/80 transition-colors">
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30 hover:bg-white/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <div>
-                        <p className="font-medium">Pagos Recibidos</p>
+                        <p className="font-medium dark:text-gray-200">Pagos Recibidos</p>
                         <p className="text-sm text-muted-foreground">Notificación cuando se registre un pago</p>
                       </div>
                       <Switch
@@ -443,10 +443,10 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t border-gray-100">
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 bg-white/50 hover:bg-white/80 transition-colors">
+                  <div className="pt-6 border-t border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/30 hover:bg-white/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <div>
-                        <p className="font-medium">Notificaciones Push</p>
+                        <p className="font-medium dark:text-gray-200">Notificaciones Push</p>
                         <p className="text-sm text-muted-foreground">Recibe notificaciones en el navegador</p>
                       </div>
                       <Switch
@@ -457,7 +457,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button variant="outline" disabled className="bg-green-50 text-green-700 border-green-200">
+                    <Button variant="outline" disabled className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/30">
                       <Check className="w-4 h-4 mr-2" />
                       Guardado automáticamente
                     </Button>
