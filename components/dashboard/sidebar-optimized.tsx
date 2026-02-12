@@ -147,27 +147,27 @@ export function SidebarOptimized({ open, onOpenChange }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Header */}
-        <div className="flex h-20 items-center justify-between px-6 border-b border-border">
-          <Link href="/dashboard" className="relative h-16 w-52 transition-opacity hover:opacity-80 -ml-2" prefetch={true}>
+        {/* Header - Increased height to accommodate larger logo */}
+        <div className="flex h-40 items-center justify-center px-4 border-b border-border">
+          <Link href="/dashboard" className="relative h-32 w-64 transition-opacity hover:opacity-80" prefetch={true}>
             {/* Logo wrapper to ensure proper positioning */}
             <div className="relative w-full h-full">
               {/* Logo for light mode - black text */}
               <img
                 src="/logo-black.png"
                 alt="Zion Logo"
-                className="absolute inset-0 w-full h-full object-contain object-left dark:hidden"
+                className="absolute inset-0 w-full h-full object-contain dark:hidden"
               />
               {/* Logo for dark mode - white text */}
               <img
                 src="/logo-white.png"
                 alt="Zion Logo"
-                className="absolute inset-0 w-full h-full object-contain object-left hidden dark:block"
+                className="absolute inset-0 w-full h-full object-contain hidden dark:block"
               />
             </div>
           </Link>
           <button
-            className="lg:hidden p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="lg:hidden absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             onClick={handleClose}
             aria-label="Cerrar menú"
           >
