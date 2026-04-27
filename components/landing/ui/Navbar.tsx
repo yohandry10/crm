@@ -47,7 +47,7 @@ export function Navbar() {
               className="relative h-32 w-48 md:h-44 md:w-80 transition-transform duration-300 hover:scale-105"
             >
               <Image
-                src="/logo-white.png"
+                src="/logo-black.png"
                 alt="Neon System Logo"
                 fill
                 className="object-contain object-left"
