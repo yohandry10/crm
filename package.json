@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
-    "dev:full": "docker-compose up -d && next dev",
+    "dev": "next dev --turbo",
+    "dev:full": "docker-compose up -d && next dev --turbo",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f redis",

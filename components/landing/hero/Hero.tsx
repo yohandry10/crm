@@ -33,7 +33,7 @@ function Counter({ value, suffix = "" }: { value: number; suffix?: string }) {
 
 export function Hero() {
     return (
-        <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        <section className="relative min-h-screen flex items-center justify-center pt-20 lg:pt-24 overflow-hidden">
             {/* Background with Gradient */}
             <div className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-white z-0" />
 
@@ -42,14 +42,14 @@ export function Hero() {
                 <QuantumScene />
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-12 items-center">
                 {/* Text Content */}
                 <div className="text-center lg:text-left">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.3 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200 mb-8"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200 mb-6 xl:mb-8"
                     >
                         <span className="w-2 h-2 rounded-full bg-gray-800 animate-pulse" />
                         <span className="text-xs sm:text-sm text-gray-700 font-medium text-center">Tecnología de Alto Rendimiento</span>
@@ -59,7 +59,7 @@ export function Hero() {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.4 }}
-                        className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6 text-gray-900"
+                        className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.08] mb-5 xl:mb-6 text-gray-900"
                     >
                         El futuro de la <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-700 to-gray-900">gestión empresarial</span>
@@ -69,7 +69,7 @@ export function Hero() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.5 }}
-                        className="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto lg:mx-0 mb-10 leading-relaxed"
+                        className="text-base sm:text-lg xl:text-xl text-gray-500 max-w-2xl mx-auto lg:mx-0 mb-8 xl:mb-10 leading-relaxed"
                     >
                         CRM, analytics y automatización unificados en una plataforma diseñada para empresas que buscan escalar sin límites.
                     </motion.p>
@@ -78,7 +78,7 @@ export function Hero() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.6 }}
-                        className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-16"
+                        className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-10 xl:mb-16"
                     >
                         <MagneticButton
                             href="/signup"
@@ -100,7 +100,7 @@ export function Hero() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8, delay: 0.8 }}
-                        className="flex flex-wrap items-center justify-center lg:justify-start gap-12 sm:gap-16 border-t border-gray-100 pt-8"
+                        className="flex flex-wrap items-center justify-center lg:justify-start gap-10 sm:gap-14 xl:gap-16 border-t border-gray-100 pt-6 xl:pt-8"
                     >
                         {[
                             { value: 10, suffix: "K+", label: "Usuarios" },
@@ -108,7 +108,7 @@ export function Hero() {
                             { value: 50, suffix: "+", label: "Integraciones" }
                         ].map((stat, i) => (
                             <div key={i} className="text-center lg:text-left">
-                                <div className="text-3xl font-bold text-gray-900">
+                                <div className="text-2xl sm:text-3xl font-bold text-gray-900">
                                     <Counter value={stat.value} suffix={stat.suffix} />
                                 </div>
                                 <div className="text-sm text-gray-500 mt-1">{stat.label}</div>

@@ -31,33 +31,27 @@ export function Navbar() {
         opacity: scrolled ? 0 : 1
       }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
-      className="fixed top-0 left-0 right-0 z-50 py-6"
+      className="fixed top-0 left-0 right-0 z-50 py-4 md:py-5"
     >
       <div
         className={`absolute inset-0 transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-md" : "bg-transparent"
           }`}
       />
-      <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center">
-
-          {/* Logo Section - INTACTO */}
-          {/* Logo Section - Increased Size */}
+      <div className="relative max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="flex min-h-12 items-center">
           <Link href="/" className="flex items-center gap-2 group mr-auto shrink-0">
-            <div
-              className="relative h-32 w-48 md:h-44 md:w-80 transition-transform duration-300 hover:scale-105"
-            >
+            <div className="relative h-11 w-40 overflow-hidden sm:h-12 sm:w-44 lg:h-14 lg:w-52 transition-transform duration-300 hover:scale-105">
               <Image
                 src="/logo-black.png"
                 alt="Neon System Logo"
                 fill
-                className="object-contain object-left"
+                sizes="(min-width: 1024px) 208px, (min-width: 640px) 176px, 160px"
+                className="object-cover object-center"
                 priority
               />
             </div>
           </Link>
 
-          {/* Desktop Navigation - SOLO AJUSTES DE ESPACIADO/ORDEN VISUAL */}
-          {/* Desktop Navigation - Absolute Center */}
           <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {navLinks.map((item) => (
               <a

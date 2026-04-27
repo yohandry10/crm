@@ -47,52 +47,56 @@ const nextConfig = {
   ],
 
   // ✅ Code splitting más agresivo para reducir bundles
-  webpack: (config, { isServer }) => {
-    // Silenciar warnings conocidos de dependencias server-only (OpenTelemetry usa require() dinámico)
-    config.ignoreWarnings = [
-      ...(config.ignoreWarnings ?? []),
-      /require function is used in a way in which dependencies cannot be statically extracted/i,
-    ]
+  ...(process.env.NODE_ENV === 'production'
+    ? {
+      webpack: (config, { isServer }) => {
+        // Silenciar warnings conocidos de dependencias server-only (OpenTelemetry usa require() dinámico)
+        config.ignoreWarnings = [
+          ...(config.ignoreWarnings ?? []),
+          /require function is used in a way in which dependencies cannot be statically extracted/i,
+        ]
 
-    if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            // Separar vendors grandes
-            supabase: {
-              test: /[\\/]node_modules[\\/](@supabase)[\\/]/,
-              name: 'supabase',
-              priority: 10,
+        if (!isServer) {
+          config.optimization = {
+            ...config.optimization,
+            splitChunks: {
+              chunks: 'all',
+              cacheGroups: {
+                // Separar vendors grandes
+                supabase: {
+                  test: /[\\/]node_modules[\\/](@supabase)[\\/]/,
+                  name: 'supabase',
+                  priority: 10,
+                },
+                charts: {
+                  test: /[\\/]node_modules[\\/](recharts)[\\/]/,
+                  name: 'charts',
+                  priority: 10,
+                },
+                framer: {
+                  test: /[\\/]node_modules[\\/](framer-motion)[\\/]/,
+                  name: 'framer',
+                  priority: 10,
+                },
+                lucide: {
+                  test: /[\\/]node_modules[\\/](lucide-react)[\\/]/,
+                  name: 'lucide',
+                  priority: 10,
+                },
+                // Vendor común más pequeño
+                vendor: {
+                  test: /[\\/]node_modules[\\/]/,
+                  name: 'vendor',
+                  priority: 5,
+                },
+              },
             },
-            charts: {
-              test: /[\\/]node_modules[\\/](recharts)[\\/]/,
-              name: 'charts',
-              priority: 10,
-            },
-            framer: {
-              test: /[\\/]node_modules[\\/](framer-motion)[\\/]/,
-              name: 'framer',
-              priority: 10,
-            },
-            lucide: {
-              test: /[\\/]node_modules[\\/](lucide-react)[\\/]/,
-              name: 'lucide',
-              priority: 10,
-            },
-            // Vendor común más pequeño
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendor',
-              priority: 5,
-            },
-          },
-        },
-      }
+          }
+        }
+        return config
+      },
     }
-    return config
-  },
+    : {}),
 
   // Optimización de imágenes
   images: {
