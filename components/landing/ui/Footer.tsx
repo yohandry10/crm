@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Facebook, Twitter, Instagram, Linkedin, Send } from "lucide-react"
 
 export function Footer() {
     return (
@@ -29,17 +28,17 @@ export function Footer() {
                     {/* Col 2: Product */}
                     <div className="flex flex-col gap-4">
                         <h3 className="font-semibold text-white">Producto</h3>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">CRM Inteligente</Link>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Automatización</Link>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Analytics</Link>
+                        <Link href="/#caracteristicas" className="text-white hover:text-gray-300 text-sm transition-colors">CRM Inteligente</Link>
+                        <Link href="/#caracteristicas" className="text-white hover:text-gray-300 text-sm transition-colors">Automatización</Link>
+                        <Link href="/#precios" className="text-white hover:text-gray-300 text-sm transition-colors">Analytics</Link>
                     </div>
 
                     {/* Col 3: Company */}
                     <div className="flex flex-col gap-4">
                         <h3 className="font-semibold text-white">Compañía</h3>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Sobre Nosotros</Link>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Blog</Link>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Contacto</Link>
+                        <Link href="/#caracteristicas" className="text-white hover:text-gray-300 text-sm transition-colors">Sobre Nosotros</Link>
+                        <Link href="/#precios" className="text-white hover:text-gray-300 text-sm transition-colors">Planes</Link>
+                        <Link href="mailto:contacto@neonsystem.pe" className="text-white hover:text-gray-300 text-sm transition-colors">Contacto</Link>
                     </div>
 
                     {/* Col 4: Legal */}
@@ -47,30 +46,18 @@ export function Footer() {
                         <h3 className="font-semibold text-white">Legal</h3>
                         <Link href="/terms" className="text-white hover:text-gray-300 text-sm transition-colors">Términos</Link>
                         <Link href="/privacy" className="text-white hover:text-gray-300 text-sm transition-colors">Privacidad</Link>
-                        <Link href="#" className="text-white hover:text-gray-300 text-sm transition-colors">Seguridad</Link>
+                        <Link href="/privacy" className="text-white hover:text-gray-300 text-sm transition-colors">Seguridad</Link>
                     </div>
 
-                    {/* Col 5: Newsletter & Socials */}
+                    {/* Col 5: CTA */}
                     <div className="flex flex-col gap-4">
-                        <p className="text-sm font-semibold text-white">Novedades</p>
-                        <div className="flex gap-2 mb-2">
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                className="bg-gray-900 border border-gray-800 text-sm text-white rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white transition-all"
-                            />
-                            <button className="bg-white hover:bg-gray-200 text-black rounded-lg p-2 transition-colors">
-                                <Send className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        {/* Social Icons (Moved here as requested) */}
-                        <div className="flex items-center gap-4 mt-2">
-                            <a href="#" className="text-white hover:text-gray-300 transition-colors"><Twitter className="w-5 h-5" /></a>
-                            <a href="#" className="text-white hover:text-gray-300 transition-colors"><Linkedin className="w-5 h-5" /></a>
-                            <a href="#" className="text-white hover:text-gray-300 transition-colors"><Instagram className="w-5 h-5" /></a>
-                            <a href="#" className="text-white hover:text-gray-300 transition-colors"><Facebook className="w-5 h-5" /></a>
-                        </div>
+                        <p className="text-sm font-semibold text-white">Acceso</p>
+                        <Link href="/signup" className="rounded-lg bg-white px-4 py-2 text-center text-sm font-medium text-black transition-colors hover:bg-gray-200">
+                            Crear cuenta
+                        </Link>
+                        <Link href="/login" className="text-white hover:text-gray-300 text-sm transition-colors">
+                            Iniciar sesión
+                        </Link>
                     </div>
 
                 </div>
