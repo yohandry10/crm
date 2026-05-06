@@ -13,6 +13,12 @@ interface AdminActionParams {
   success: boolean
 }
 
+function toAuditUuid(value?: string | null) {
+  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null
+}
+
 /**
  * Registra acciones de administración de plataforma
  * Estas acciones son críticas y deben ser auditadas
@@ -29,7 +35,7 @@ export async function logAdminAction(params: AdminActionParams) {
       usuario_id: params.userId,
       accion: `ADMIN_${params.action.toUpperCase()}`,
       tabla: params.resource,
-      registro_id: params.resourceId || 'N/A',
+      registro_id: toAuditUuid(params.resourceId),
       datos_nuevos: {
         action: params.action,
         resource: params.resource,
@@ -80,7 +86,7 @@ export async function logSensitiveDataAccess(params: {
       usuario_id: params.userId,
       accion: 'SENSITIVE_DATA_ACCESS',
       tabla: params.dataType,
-      registro_id: `bulk_${params.recordCount}`,
+      registro_id: null,
       datos_nuevos: {
         dataType: params.dataType,
         recordCount: params.recordCount,

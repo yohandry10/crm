@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
-import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
+import { assertCalendarDateRange, hydrateCalendarEventOwners, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
             .from('calendar_events')
-            .select(`*, contact:contacts(id, name), opportunity:opportunities(id, name), owner:profiles(id, full_name, email)`)
+            .select(`*, contact:contacts(id, name), opportunity:opportunities(id, name)`)
             .eq('organization_id', organizationId)
             .order('start_time', { ascending: true })
 
@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
         const { data, error } = await query
         if (error) throw error
 
-        return NextResponse.json({ success: true, data: (data || []).map(serializeCalendarEvent) })
+        const events = await hydrateCalendarEventOwners(supabase, data || [])
+
+        return NextResponse.json({ success: true, data: events.map(serializeCalendarEvent) })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/events", method: "GET", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })

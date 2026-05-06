@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
-import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
+import { assertCalendarDateRange, hydrateCalendarEventOwners, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -39,8 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             .select(`
                 *,
                 contact:contacts(id, name, email),
-                opportunity:opportunities(id, name),
-                owner:profiles(id, full_name, email)
+                opportunity:opportunities(id, name)
             `)
             .eq('id', id)
             .eq('organization_id', organizationId)
@@ -51,7 +50,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             throw new ValidationError("Evento no encontrado")
         }
 
-        return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
+        const [event] = await hydrateCalendarEventOwners(supabase, [data])
+
+        return NextResponse.json({ success: true, data: serializeCalendarEvent(event) })
     } catch (error: any) {
         await logError({
             errorId: crypto.randomUUID(),

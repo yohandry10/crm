@@ -11,6 +11,25 @@ export function serializeCalendarEvent(event: any) {
     }
 }
 
+export async function hydrateCalendarEventOwners(supabase: any, events: any[]) {
+    const ownerIds = Array.from(new Set(events.map((event) => event.owner_id).filter(Boolean)))
+    if (ownerIds.length === 0) return events
+
+    const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", ownerIds)
+
+    if (error) throw error
+
+    const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]))
+
+    return events.map((event) => ({
+        ...event,
+        owner: profilesById.get(event.owner_id) || null,
+    }))
+}
+
 export function assertCalendarDateRange(start: string, end: string) {
     if (new Date(end).getTime() <= new Date(start).getTime()) {
         throw new ValidationError("La fecha de fin debe ser posterior a la fecha de inicio")

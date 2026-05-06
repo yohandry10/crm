@@ -496,6 +496,19 @@ describe('API contracts', () => {
     expect(adminOrganizationRoute).toContain('organizationIdSchema.safeParse')
     expect(adminUsersRoute).toContain('updateUserPermissionsSchema.safeParse')
     expect(adminUsersRoute).toContain('roleFilterSchema.safeParse')
+    expect(adminUsersRoute).toContain('memberFilterQuery')
+    expect(adminUsersRoute).toContain('membershipsByUser')
+    expect(adminUsersRoute).not.toContain('organization_members(\n          role')
+  })
+
+  it('keeps audit record ids UUID-compatible', () => {
+    const auditLogger = readFileSync('lib/audit-logger.ts', 'utf8')
+
+    expect(auditLogger).toContain('function toAuditUuid')
+    expect(auditLogger).toContain('registro_id: toAuditUuid(params.resourceId)')
+    expect(auditLogger).toContain('registro_id: null')
+    expect(auditLogger).not.toContain('registro_id: `bulk_${params.recordCount}`')
+    expect(auditLogger).not.toContain("registro_id: params.resourceId || 'N/A'")
   })
 
   it('uses active Culqi/PagoEfectivo billing paths instead of Stripe routes', () => {
@@ -547,14 +560,19 @@ describe('API contracts', () => {
     expect(eventDialog).toContain("method: event ? 'PUT' : 'POST'")
     expect(calendarEventsRoute).toContain('.from("calendar_events")')
     expect(calendarEventsRoute).toContain('serializeCalendarEvent')
+    expect(calendarEventsRoute).toContain('hydrateCalendarEventOwners')
+    expect(calendarEventsRoute).not.toContain('owner:profiles')
     expect(calendarEventsRoute).toContain('validateCalendarEventReferences')
     expect(calendarEventsRoute).toContain('assertCalendarDateRange')
     expect(legacyEventsRoute).toContain(".from('calendar_events')")
     expect(legacyEventsRoute).not.toContain(".from('events')")
+    expect(legacyEventsRoute).not.toContain('owner:profiles')
     expect(legacyEventRoute).toContain(".from('calendar_events')")
     expect(legacyEventRoute).not.toContain(".from('events')")
+    expect(legacyEventRoute).not.toContain('owner:profiles')
     expect(helper).toContain('start_time: event.start_time')
     expect(helper).toContain('end_time: event.end_time')
+    expect(helper).toContain('hydrateCalendarEventOwners')
   })
 
   it('validates public payment tokens and proof payloads before privileged writes', () => {
@@ -576,6 +594,15 @@ describe('API contracts', () => {
     expect(middleware).toContain("'/api/calendar/booking'")
     expect(middleware).toContain("'/api/public/forms'")
     expect(csrf).toContain('"/api/pay"')
+  })
+
+  it('checks onboarding against the active organization instead of an arbitrary membership', () => {
+    const middleware = readFileSync('middleware.ts', 'utf8')
+
+    expect(middleware).toContain("select('current_organization_id')")
+    expect(middleware).toContain("profile?.current_organization_id")
+    expect(middleware).toContain(".eq('organization_id', profile.current_organization_id)")
+    expect(middleware).not.toContain(".limit(1)\n            .single()")
   })
 
   it('creates payment links only through the hardened token RPC', () => {

@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
-import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from "@/lib/calendar-events"
+import { assertCalendarDateRange, hydrateCalendarEventOwners, serializeCalendarEvent, validateCalendarEventReferences } from "@/lib/calendar-events"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -51,8 +51,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         contact:contacts(id, name, email),
-        opportunity:opportunities(id, name),
-        owner:profiles(id, full_name, email)
+        opportunity:opportunities(id, name)
       `)
       .eq("organization_id", organizationId)
       .order("start_time", { ascending: true })
@@ -74,9 +73,11 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
+    const events = await hydrateCalendarEventOwners(supabase, data || [])
+
     return NextResponse.json({
       success: true,
-      data: data.map(event => ({
+      data: events.map(event => ({
         ...serializeCalendarEvent(event),
         contact: event.contact,
         opportunity: event.opportunity,

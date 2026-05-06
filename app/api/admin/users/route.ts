@@ -38,26 +38,51 @@ export async function GET(request: NextRequest) {
 
     const supabaseAdmin = createSupabaseServiceClient()
 
+    let scopedUserIds: string[] | null = null
+    if (roleFilter || isActiveFilter !== null) {
+      let memberFilterQuery = supabaseAdmin
+        .from("organization_members")
+        .select("user_id")
+
+      if (roleFilter) {
+        memberFilterQuery = memberFilterQuery.eq("role", roleFilter)
+      }
+
+      if (isActiveFilter !== null) {
+        memberFilterQuery = memberFilterQuery.eq("is_active", isActiveFilter === "true")
+      }
+
+      const { data: matchingMembers, error: memberFilterError } = await memberFilterQuery
+      if (memberFilterError) throw memberFilterError
+
+      scopedUserIds = Array.from(new Set((matchingMembers || []).map((member: any) => member.user_id)))
+
+      if (scopedUserIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        })
+      }
+    }
+
     // Construir query
     let query = supabaseAdmin
       .from("profiles")
-      .select(`
-        id, email, full_name, is_platform_admin, created_at,
-        organization_members(
-          role,
-          is_active,
-          organizations(id, name)
-        )
-      `, { count: 'exact' })
+      .select("id, email, full_name, is_platform_admin, created_at", { count: 'exact' })
 
     // Aplicar filtros
     if (search) {
       query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`)
     }
 
-    if (isActiveFilter !== null) {
-      const isActive = isActiveFilter === 'true'
-      query = query.eq('organization_members.is_active', isActive)
+    if (scopedUserIds) {
+      query = query.in("id", scopedUserIds)
     }
 
     // Orden y paginación
@@ -69,22 +94,38 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
-    // Filtrar por rol si es necesario
-    let filteredProfiles = profiles || []
-    if (roleFilter) {
-      filteredProfiles = filteredProfiles.filter(p =>
-        (p.organization_members || []).some((m: any) => m.role === roleFilter)
-      )
+    const profileIds = (profiles || []).map((profile: any) => profile.id)
+    let membershipsByUser = new Map<string, any[]>()
+
+    if (profileIds.length > 0) {
+      const { data: memberships, error: membershipsError } = await supabaseAdmin
+        .from("organization_members")
+        .select(`
+          user_id,
+          role,
+          is_active,
+          organizations(id, name)
+        `)
+        .in("user_id", profileIds)
+
+      if (membershipsError) throw membershipsError
+
+      membershipsByUser = (memberships || []).reduce((map: Map<string, any[]>, membership: any) => {
+        const userMemberships = map.get(membership.user_id) || []
+        userMemberships.push(membership)
+        map.set(membership.user_id, userMemberships)
+        return map
+      }, membershipsByUser)
     }
 
     // Enmascarar emails y procesar datos
-    const users = filteredProfiles.map(p => ({
+    const users = (profiles || []).map(p => ({
       id: p.id,
       email: maskEmail(p.email),
       full_name: p.full_name,
       is_platform_admin: p.is_platform_admin || false,
       created_at: p.created_at,
-      organizations: (p.organization_members || []).map((m: any) => ({
+      organizations: (membershipsByUser.get(p.id) || []).map((m: any) => ({
         id: m.organizations?.id,
         name: m.organizations?.name || "Unknown",
         role: m.role,

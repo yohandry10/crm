@@ -348,13 +348,25 @@ export async function middleware(request: NextRequest) {
 
     // Verificar onboarding completado (excepto para /onboarding y /admin)
     if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/admin')) {
-        const { data: membership } = await supabase
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('current_organization_id')
+            .eq('id', user.id)
+            .maybeSingle()
+
+        let membershipQuery = supabase
             .from('organization_members')
             .select('organization_id, organizations(onboarding_completed)')
             .eq('user_id', user.id)
             .eq('is_active', true)
-            .limit(1)
-            .single()
+
+        if (profile?.current_organization_id) {
+            membershipQuery = membershipQuery.eq('organization_id', profile.current_organization_id)
+        } else {
+            membershipQuery = membershipQuery.order('accepted_at', { ascending: true, nullsFirst: false }).limit(1)
+        }
+
+        const { data: membership } = await membershipQuery.maybeSingle()
 
         if (membership) {
             const org = membership.organizations as any
