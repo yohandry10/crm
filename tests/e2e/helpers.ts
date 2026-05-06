@@ -90,6 +90,7 @@ export const apiGetRoutes = [
 ]
 
 export const adminApiGetRoutes = [
+  "/api/admin/audit-logs",
   "/api/admin/circuit-breakers",
   "/api/admin/feature-flags",
   "/api/admin/organizations",
@@ -111,6 +112,7 @@ export const expectedNonOkGetRoutes = new Map([
 ])
 
 export const userForbiddenGetRoutes = [
+  "/api/admin/audit-logs",
   "/api/admin/circuit-breakers",
   "/api/admin/feature-flags",
   "/api/admin/organizations",

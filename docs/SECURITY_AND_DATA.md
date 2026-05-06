@@ -12,7 +12,7 @@ Este documento resume el estado actual de seguridad, datos y aislamiento tenant 
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
-- Migrations objetivo requeridas por preflight: 094-113.
+- Migrations objetivo requeridas por preflight: 094-114.
 - RLS verificado en tablas sensibles usadas por el CRM.
 - Roles de organizacion vigentes: `owner`, `admin`, `manager`, `member`, `viewer`.
 
@@ -107,6 +107,23 @@ Estado actual:
 - `organizations` no acepta inserts directos de `anon/authenticated`.
 - `user_settings` existe con RLS de usuario propietario.
 
+## Auditoria y trazabilidad
+
+Estado actual:
+
+- Migracion 114 aplicada/registrada en la base objetivo.
+- `auditoria` tiene columnas queryables para soporte/debugging: `event_category`, `severity`, `success`, `request_id`, `ip_address` y `user_agent`.
+- Los logs centralizados guardan usuario, organizacion, timestamp, IP, user-agent, dispositivo aproximado, request id, accion, tabla/recurso, categoria, severidad, exito/fallo y metadata redactada.
+- Acciones criticas conectadas: login exitoso/fallido/bloqueado, logout, pagos, exportaciones, edicion/borrado de productos y cuentas, y consulta admin del visor de auditoria.
+- `/api/admin/audit-logs` esta protegido por `requirePlatformAdmin` y permite filtrar por categoria, severidad, exito, usuario, organizacion, accion, request id y rango temporal.
+- RLS de `auditoria` permite lectura a platform admin, `owner/admin` del tenant correspondiente y logs propios globales cuando no hay organizacion.
+
+Reglas vigentes:
+
+- No persistir secretos en `datos_anteriores`, `datos_nuevos` ni `metadata`; el logger central redacta claves sensibles.
+- Nuevas acciones de borrado, exportacion, pago, cambio de permisos o acceso a datos sensibles deben usar `logAuditEvent`.
+- Los errores de auditoria son best-effort y no deben romper la operacion principal, pero deben quedar visibles en logs de servidor.
+
 ## RBAC y escalamiento horizontal
 
 Estado actual:
@@ -128,6 +145,7 @@ Estado actual:
 - App: `lib/encryption.ts`.
 - DB: `pgcrypto` en migraciones historicas.
 - Logging de cuerpos con secretos fue reducido/sanitizado en rutas auditadas.
+- La auditoria centralizada redacta passwords, secrets, tokens, API keys, credenciales, autorizaciones e idempotency keys antes de escribir en DB.
 
 Reglas vigentes:
 

@@ -38,7 +38,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
 - [x] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted` mediante verificador y suite actual.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
-- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-113.
+- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-114.
 - [x] Migracion 105 aplicada: webhooks no dependen de secreto legacy plaintext obligatorio.
 - [x] Migracion 106 aplicada: facturas aceptan items libres sin `product_id`.
 - [x] Migracion 107 aplicada: permisos explicitos para pagos.
@@ -46,6 +46,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migraciones 109-111 aplicadas: hardening de grants, vistas, funciones trigger y `webhook_events`.
 - [x] Migracion 112 aplicada: `user_settings`, bloqueo de autoprovicionamiento de tenants y verificador DB ampliado.
 - [x] Migracion 113 aplicada: cobertura RBAC para accounts, activities, orders, pipeline stages y lead sources.
+- [x] Migracion 114 aplicada: auditoria centralizada con categorias, severidad, exito/fallo, request id e indices de soporte.
 - [x] Cruce codigo-BD validado: 0 tablas faltantes y 0 RPC faltantes.
 - [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
 - [x] Migracion 096 aplicada y verificada en la base objetivo.
@@ -67,6 +68,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Inbox valida ownership de conversaciones antes de leer/escribir mensajes.
 - [x] Notificaciones se filtran por organizacion activa.
 - [x] Logs de errores sanitizan cuerpos sensibles en rutas auditadas.
+- [x] Logs de acciones criticas centralizados en `auditoria`: auth, pagos, exportaciones, edicion/borrado y consultas admin con IP, dispositivo, usuario, organizacion, timestamp y request id.
 - [x] Webhooks internos pasan CSRF correctamente y el secreto legacy ya no bloquea creacion.
 - [x] Webhooks con service role no aceptan `organization_id` libre desde el body en flujos auditados; usan contexto autenticado o recurso publico validado.
 - [x] Integrations no devuelve configuracion descifrada ni `config_encrypted`.
@@ -83,6 +85,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Usuario regular no puede entrar a `/admin`.
 - [x] Invitaciones y miembros de organizacion probados por matriz de roles para permisos de invite.
 - [x] Escalamiento horizontal por API probado: roles sin `can_manage_all` no gestionan registros ajenos.
+- [x] Platform admin puede consultar `/api/admin/audit-logs`; roles tenant no pueden acceder a esa API.
 
 ### CRM core
 

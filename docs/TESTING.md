@@ -24,12 +24,12 @@ Ultima ejecucion manual local registrada: 2026-05-06.
 Resultado:
 
 - Typecheck: OK.
-- Unit/contracts: 208 passed, 4 skipped.
+- Unit/contracts: 210 passed, 4 skipped.
 - Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
-- E2E focal RBAC/admin local: 39 passed.
+- E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Build: OK.
@@ -54,6 +54,8 @@ Archivos principales:
 - `tests/e2e/role-mutation-guards.spec.ts`: intentos directos de mutacion por API con roles limitados y escalamiento horizontal por registros de otros usuarios.
 - `tests/e2e/multi-tenant-isolation.spec.ts`: aislamiento entre tenants, headers de organizacion, referencias cruzadas y payment links.
 - `tests/e2e/tenant-provisioning.spec.ts`: bloqueo de autoprovicionamiento de organizaciones y bootstrap sin creacion de tenant.
+
+`admin-smoke` y `admin-authorization` cubren tambien `/api/admin/audit-logs`: platform admin recibe 200 y usuarios `user/owner/admin/manager/member/viewer` quedan bloqueados.
 
 ## Usuarios E2E
 
@@ -89,7 +91,7 @@ pnpm test:coverage -- --reporter=basic
 
 Resultado observado:
 
-- Unit/contracts: ultima corrida previa 207 passed, 4 skipped; despues de agregar `tests/unit/events.test.ts`, `pnpm test -- --reporter=basic` queda en 208 passed, 4 skipped.
+- Unit/contracts: `pnpm test -- --reporter=basic` queda en 210 passed, 4 skipped despues de agregar cobertura de auditoria centralizada.
 - Statements: 5.05%.
 - Branches: 27.1%.
 - Functions: 13.44%.
@@ -140,13 +142,14 @@ La matriz valida:
 - Escritura o denegacion en contacts, opportunities, products, quotes, invoices, tickets, campaigns, workflows y calendar events.
 - Escritura o denegacion en accounts y orders.
 - Denegacion explicita de mutaciones no autorizadas en contacts, opportunities, invoices, products, tasks, tickets, workflows, payments, quotes y records ajenos cuando el rol no tiene `can_manage_all`.
+- Acceso a `/api/admin/audit-logs` denegado para todos los roles tenant y permitido solo para platform admin.
 
 ## Cobertura DB/produccion
 
 `pnpm production:verify-db` valida:
 
 - `schema_migrations`.
-- Migraciones criticas 094-112 desde RPC de readiness; `production:check` exige tambien la migracion 113 de cobertura RBAC.
+- Migraciones criticas 094-112 desde RPC de readiness; `production:check` exige tambien las migraciones 113 de cobertura RBAC y 114 de auditoria centralizada.
 - RLS habilitado en tablas sensibles.
 - Funciones RPC requeridas.
 - Alineacion codigo-BD: tablas y RPC usadas por `app/`, `lib/` y `scripts/` existen en Supabase objetivo.
@@ -159,7 +162,7 @@ La matriz valida:
   - sin ejecucion anon/public de RPC sensibles;
   - funciones `SECURITY DEFINER` con `search_path` definido.
 
-Nota: las migraciones 105-113 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
+Nota: las migraciones 105-114 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
 
 ## Validacion de seguridad del 2026-05-06
 

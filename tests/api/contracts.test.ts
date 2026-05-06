@@ -509,13 +509,18 @@ describe('API contracts', () => {
   })
 
   it('keeps audit record ids UUID-compatible', () => {
+    const audit = readFileSync('lib/audit.ts', 'utf8')
     const auditLogger = readFileSync('lib/audit-logger.ts', 'utf8')
 
-    expect(auditLogger).toContain('function toAuditUuid')
-    expect(auditLogger).toContain('registro_id: toAuditUuid(params.resourceId)')
-    expect(auditLogger).toContain('registro_id: null')
-    expect(auditLogger).not.toContain('registro_id: `bulk_${params.recordCount}`')
-    expect(auditLogger).not.toContain("registro_id: params.resourceId || 'N/A'")
+    expect(audit).toContain('function toAuditUuid')
+    expect(audit).toContain('registro_id: toAuditUuid(params.recordId)')
+    expect(audit).toContain('ip_address: context.ipAddress')
+    expect(audit).toContain('user_agent: context.userAgent')
+    expect(audit).toContain('event_category: params.category')
+    expect(audit).toContain('request_id: context.requestId')
+    expect(auditLogger).toContain('logAuditEvent')
+    expect(audit).not.toContain('registro_id: `bulk_${params.recordCount}`')
+    expect(audit).not.toContain("registro_id: params.resourceId || 'N/A'")
   })
 
   it('uses active Culqi/PagoEfectivo billing paths instead of Stripe routes', () => {

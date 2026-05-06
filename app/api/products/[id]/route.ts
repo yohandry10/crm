@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
+import { logAudit } from "@/lib/audit"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
@@ -67,7 +68,7 @@ export async function PUT(
         // Verificar que el producto pertenece a la organización
         const { data: existing, error: checkError } = await supabase
             .from('products')
-            .select('id, created_by')
+            .select('*')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
@@ -86,6 +87,18 @@ export async function PUT(
             .single()
 
         if (error) throw error
+
+        await logAudit({
+            supabase,
+            request,
+            userId: user.id,
+            organizationId,
+            action: "UPDATE_PRODUCT",
+            table: "products",
+            recordId: id,
+            oldData: existing,
+            newData: data,
+        })
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
@@ -106,7 +119,7 @@ export async function DELETE(
         // Verificar que el producto pertenece a la organización
         const { data: existing, error: checkError } = await supabase
             .from('products')
-            .select('id, created_by')
+            .select('*')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
@@ -135,6 +148,17 @@ export async function DELETE(
             .eq('organization_id', organizationId)
 
         if (error) throw error
+
+        await logAudit({
+            supabase,
+            request,
+            userId: user.id,
+            organizationId,
+            action: "DELETE_PRODUCT",
+            table: "products",
+            recordId: id,
+            oldData: existing,
+        })
 
         return NextResponse.json({ success: true })
     } catch (error: any) {

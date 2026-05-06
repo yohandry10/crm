@@ -14,6 +14,7 @@ import {
 import { z } from 'zod'
 import { createRequestLogger } from '@/lib/logger'
 import { ensureUserBootstrap } from '@/lib/auth-bootstrap'
+import { logAuthAudit } from '@/lib/audit'
 
 const loginSchema = z.object({
     email: z.string().email('Email inválido'),
@@ -49,6 +50,13 @@ export async function POST(request: NextRequest) {
         // Verificar rate limit ANTES de intentar login
         const rateLimitCheck = await checkAuthRateLimit(email, ip)
         if (!rateLimitCheck.allowed) {
+            await logAuthAudit({
+                request,
+                action: 'LOGIN_BLOCKED',
+                email,
+                success: false,
+                reason: rateLimitCheck.error,
+            })
             return NextResponse.json(
                 {
                     success: false,
@@ -70,6 +78,13 @@ export async function POST(request: NextRequest) {
             // Registrar intento fallido
             const identifier = getLoginIdentifier(email, ip)
             await recordFailedLogin(identifier)
+            await logAuthAudit({
+                request,
+                action: 'LOGIN_FAILED',
+                email,
+                success: false,
+                reason: error.message,
+            })
 
             // Obtener intentos restantes
             const status = await checkAuthRateLimit(email, ip)
@@ -125,9 +140,18 @@ export async function POST(request: NextRequest) {
         // Obtener perfil para saber si es platform admin
         const { data: profile } = await supabase
             .from('profiles')
-            .select('is_platform_admin, full_name')
+            .select('is_platform_admin, full_name, current_organization_id')
             .eq('id', data.user.id)
             .maybeSingle()
+
+        await logAuthAudit({
+            request,
+            action: 'LOGIN_SUCCESS',
+            userId: data.user.id,
+            organizationId: profile?.current_organization_id || null,
+            email: data.user.email,
+            success: true,
+        })
 
         // Crear response con nueva sesión
         const response = NextResponse.json({

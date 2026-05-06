@@ -13,6 +13,7 @@ import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
 import { getAllowedPaymentGateways, normalizePaymentGateway } from "@/lib/billing-providers"
 import { requireRolePermission } from "@/lib/role-permissions"
+import { logAuditEvent } from "@/lib/audit"
 
 function maskIdempotencyKey(value: string) {
     if (!value) return undefined
@@ -57,11 +58,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     let requestBody: any
+    let auditContext: { supabase: any; userId: string; organizationId: string } | null = null
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
         if (rateLimitResponse) return rateLimitResponse
 
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        auditContext = { supabase, userId: user.id, organizationId }
         await requireRolePermission(supabase, role, "payments", "can_create")
         const log = createRequestLogger(request, organizationId)
         requestBody = await request.json()
@@ -124,6 +127,26 @@ export async function POST(request: NextRequest) {
             idempotency_key: maskIdempotencyKey(idempotencyKey),
         })
 
+        await logAuditEvent({
+            supabase,
+            request,
+            userId: user.id,
+            organizationId,
+            action: "PAYMENT_RECORDED",
+            category: "billing",
+            table: "payments",
+            recordId: rpcResult.payment_id,
+            metadata: {
+                invoice_id,
+                amount,
+                gateway: normalizedGateway,
+                status: paymentStatus,
+                cached: Boolean(rpcResult.cached),
+                idempotency_key: maskIdempotencyKey(idempotencyKey),
+            },
+            success: true,
+        })
+
         if (paymentStatus === 'completed') {
             const { emitEvent } = await import('@/lib/events')
             await emitEvent({
@@ -150,6 +173,25 @@ export async function POST(request: NextRequest) {
             idempotency_key: idempotencyKey
         })
     } catch (error: any) {
+        if (auditContext) {
+            await logAuditEvent({
+                supabase: auditContext.supabase,
+                request,
+                userId: auditContext.userId,
+                organizationId: auditContext.organizationId,
+                action: "PAYMENT_RECORD_FAILED",
+                category: "billing",
+                table: "payments",
+                metadata: {
+                    invoice_id: requestBody?.invoice_id,
+                    amount: requestBody?.amount,
+                    gateway: requestBody?.gateway,
+                    reason: error?.message,
+                },
+                success: false,
+                severity: "warn",
+            })
+        }
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/payments", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }

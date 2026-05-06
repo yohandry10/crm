@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { logAuditEvent } from "@/lib/audit"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -28,11 +29,13 @@ function safeFilename(value: string) {
 }
 
 export async function POST(request: NextRequest) {
+  let auditContext: { supabase: any; userId: string; organizationId: string } | null = null
   try {
     const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
     if (rateLimitResponse) return rateLimitResponse
 
-    await getAuthenticatedContext() // Verify auth
+    const { supabase, user, organizationId } = await getAuthenticatedContext()
+    auditContext = { supabase, userId: user.id, organizationId }
 
     const formatParse = exportFormatSchema.safeParse(request.nextUrl.searchParams.get("format") || undefined)
     if (!formatParse.success) {
@@ -53,6 +56,23 @@ export async function POST(request: NextRequest) {
     const { config, data } = parsed.data
     const format = formatParse.data
     const filename = `${safeFilename(config.name || "reporte")}-${new Date().toISOString().split("T")[0]}`
+
+    await logAuditEvent({
+      supabase,
+      request,
+      userId: user.id,
+      organizationId,
+      action: "EXPORT_REPORT",
+      category: "export",
+      table: "reports",
+      metadata: {
+        format,
+        filename,
+        columns: data.columns.length,
+        rows: data.rows.length,
+      },
+      success: true,
+    })
 
     if (format === "csv") {
       const csv = generateCSV(data.columns, data.rows)
@@ -76,6 +96,20 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error: any) {
+    if (auditContext) {
+      await logAuditEvent({
+        supabase: auditContext.supabase,
+        request,
+        userId: auditContext.userId,
+        organizationId: auditContext.organizationId,
+        action: "EXPORT_REPORT_FAILED",
+        category: "export",
+        table: "reports",
+        metadata: { reason: error?.message },
+        success: false,
+        severity: "warn",
+      })
+    }
     await logError({
       errorId: crypto.randomUUID(),
       endpoint: "/api/reports/export",

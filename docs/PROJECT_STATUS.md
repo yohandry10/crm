@@ -16,6 +16,7 @@ Estado actual:
 - APIs principales autenticadas responden correctamente.
 - Permisos de lectura/escritura reforzados en rutas criticas mediante `role_permissions`.
 - Auditoria RBAC ampliada: APIs de negocio y configuracion revisadas contra permisos reales por rol y propiedad del registro.
+- Auditoria operativa centralizada agregada para soporte/debugging: auth, pagos, exportaciones, ediciones, borrados y consultas admin quedan trazados con IP, user-agent, dispositivo, usuario, organizacion, timestamp, request id, categoria, severidad y exito/fallo.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
 - No hay proveedor externo de automatizaciones activo fuera de los workflows internos del CRM.
@@ -98,6 +99,7 @@ Estado actual:
 - La matriz de roles prueba lectura de modulos y escritura/denegacion en contactos, oportunidades, productos, cotizaciones, facturas, tickets, campanas, workflows y calendario.
 - Los guards de mutacion validan que `viewer/member/manager` no puedan saltarse permisos via API en contactos, productos, oportunidades, facturas, tareas, tickets, workflows y pagos.
 - Se agrego smoke E2E para platform admin en `tests/e2e/admin-smoke.spec.ts`.
+- Se agrego `/api/admin/audit-logs` para consulta filtrada de trazas por platform admin y se incluyo en smoke/authorization E2E.
 
 ### Supabase y migraciones
 
@@ -110,8 +112,9 @@ Estado actual:
 - Migracion `111_webhook_events_authenticated_insert_policy.sql`: restaura la emision de eventos internos para usuarios autenticados solo dentro de su organizacion, sin reabrir inserts anonimos.
 - Migracion `112_tenant_provisioning_and_schema_alignment.sql`: agrega `user_settings` con RLS, revoca insert directo en `organizations` para `anon/authenticated`, amplia `verify_production_readiness()` a todas las tablas/RPC usadas por el codigo y agrega checks contra autoprovicionamiento de tenants.
 - Migracion `113_rbac_resource_coverage.sql`: completa matriz `role_permissions` para `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
+- Migracion `114_centralized_audit_tracing.sql`: agrega columnas/indexes de trazabilidad a `auditoria`, categorias/severidades controladas y RLS de lectura para platform admin, admins/owners del tenant y logs propios globales.
 - Estas correcciones fueron aplicadas contra la base Supabase objetivo durante la validacion local y registradas en `schema_migrations`.
-- `scripts/production-preflight.ts` ahora exige las migraciones 105-113.
+- `scripts/production-preflight.ts` ahora exige las migraciones 105-114.
 - `scripts/production-db-verify.ts` ejecuta `verify_security_hardening()` y valida grants/RPC/search_path.
 
 ### Seguridad auditada en BD
@@ -124,6 +127,7 @@ Estado actual:
 - `emitEvent()` escribe `organization_id` como columna top-level en `webhook_events`, alineado con RLS y con el payload multi-tenant de los modulos.
 - `organizations` ya no acepta inserts directos de `authenticated`; la creacion de tenants depende de funciones/rutas de plataforma con service role y auditoria.
 - `user_settings` existe en la base objetivo y tiene RLS de usuario propietario.
+- `auditoria` quedo preparada como tabla central de trazabilidad para acciones criticas; metadata sensible se redacta antes de persistir.
 
 ### Bugs reales corregidos durante validacion
 
@@ -159,14 +163,14 @@ pnpm build
 Resultado observado:
 
 - Typecheck: OK.
-- Unit/contracts: 208 passed, 4 skipped.
+- Unit/contracts: 210 passed, 4 skipped.
 - Lint: OK; solo queda aviso externo de `baseline-browser-mapping`.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
 - Build: OK.
 - Local health: `GET /api/health` devuelve 200 con database/auth/redis healthy.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
-- E2E focal RBAC/admin local: 39 passed.
+- E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - E2E focal cubre aislamiento tenant en contactos, oportunidades, payment links y cambio de organizacion por header.

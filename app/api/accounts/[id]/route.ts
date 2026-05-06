@@ -6,6 +6,7 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
+import { logAudit } from "@/lib/audit"
 
 const WRITE_LIMIT = RATE_LIMITS.write
 
@@ -28,7 +29,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
         const { data: existingAccount } = await supabase
             .from("accounts")
-            .select("created_by")
+            .select("*")
             .eq("id", id)
             .eq("organization_id", organizationId)
             .maybeSingle()
@@ -45,6 +46,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             .single()
 
         if (error) throw error
+
+        await logAudit({
+            supabase,
+            request,
+            userId: user.id,
+            organizationId,
+            action: "UPDATE_ACCOUNT",
+            table: "accounts",
+            recordId: id,
+            oldData: existingAccount,
+            newData: data,
+        })
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
@@ -74,7 +87,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
         const { data: existingAccount } = await supabase
             .from("accounts")
-            .select("created_by")
+            .select("*")
             .eq("id", id)
             .eq("organization_id", organizationId)
             .maybeSingle()
@@ -89,6 +102,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             .eq("organization_id", organizationId)
 
         if (error) throw error
+
+        await logAudit({
+            supabase,
+            request,
+            userId: user.id,
+            organizationId,
+            action: "DELETE_ACCOUNT",
+            table: "accounts",
+            recordId: id,
+            oldData: existingAccount,
+        })
 
         return NextResponse.json({ success: true })
     } catch (error: any) {
