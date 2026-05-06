@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { sanitizeErrorForClient } from "@/lib/error-handler"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 
 // Public API - no auth required
 export async function GET(request: NextRequest) {
@@ -9,10 +9,7 @@ export async function GET(request: NextRequest) {
     const rate = await rateLimit(request, RATE_LIMITS.read)
     if (rate) return rate
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabase = createSupabaseServiceClient()
 
     const { data, error } = await supabase
       .from("subscription_plans")

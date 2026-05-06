@@ -463,6 +463,8 @@ describe('API contracts', () => {
     expect(publicFormRoute).toContain('status: 403')
     expect(publicPlansRoute).toContain('rateLimit(request, RATE_LIMITS.read)')
     expect(publicPlansRoute).toContain('sanitizeErrorForClient')
+    expect(publicPlansRoute).toContain('createSupabaseServiceClient')
+    expect(publicPlansRoute).not.toContain('createClient(')
     expect(publicPlansRoute).toContain('export async function OPTIONS')
     expect(publicPlansRoute).toContain('Access-Control-Allow-Origin')
     expect(workflowLogsRoute.indexOf("from('workflow_executions')")).toBeLessThan(
