@@ -3,6 +3,7 @@ import {
   ACTIVE_PAYMENT_GATEWAYS,
   getAllowedPaymentGateways,
   getBillingProvider,
+  MANUAL_PAYMENT_GATEWAYS,
   normalizePaymentGateway,
   PLAN_AMOUNTS,
 } from "@/lib/billing-providers"
@@ -29,6 +30,27 @@ describe("billing providers", () => {
     expect(getAllowedPaymentGateways()).toEqual(["culqi", "pagoefectivo"])
 
     vi.unstubAllEnvs()
+  })
+
+  it("defaults to manual gateways when external provider credentials are not selected", () => {
+    expect(getAllowedPaymentGateways({ BILLING_PROVIDER: "manual", PAYMENT_GATEWAYS_ENABLED: "" })).toEqual([
+      ...MANUAL_PAYMENT_GATEWAYS,
+    ])
+    expect(getAllowedPaymentGateways({ BILLING_PROVIDER: undefined, PAYMENT_GATEWAYS_ENABLED: undefined })).toEqual([
+      ...MANUAL_PAYMENT_GATEWAYS,
+    ])
+  })
+
+  it("adds provider gateways to the default allowlist only when explicitly selected", () => {
+    expect(getAllowedPaymentGateways({ BILLING_PROVIDER: "culqi", PAYMENT_GATEWAYS_ENABLED: "" })).toEqual([
+      "culqi",
+      ...MANUAL_PAYMENT_GATEWAYS,
+    ])
+    expect(getAllowedPaymentGateways({ BILLING_PROVIDER: "culqi_pagoefectivo", PAYMENT_GATEWAYS_ENABLED: "" })).toEqual([
+      "culqi",
+      "pagoefectivo",
+      ...MANUAL_PAYMENT_GATEWAYS,
+    ])
   })
 
   it("falls back to manual billing provider for unsupported values", () => {

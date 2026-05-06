@@ -14,6 +14,14 @@ export const ACTIVE_PAYMENT_GATEWAYS = [
   "manual",
 ] as const
 
+export const MANUAL_PAYMENT_GATEWAYS = [
+  "bank_transfer",
+  "cash",
+  "yape",
+  "plin",
+  "manual",
+] as const satisfies readonly ActivePaymentGateway[]
+
 export const BILLING_PROVIDERS = [
   "disabled",
   "manual",
@@ -33,12 +41,25 @@ export function normalizePaymentGateway(value: string): ActivePaymentGateway | n
   return PAYMENT_GATEWAY_SET.has(normalized) ? (normalized as ActivePaymentGateway) : null
 }
 
-export function getAllowedPaymentGateways(): ActivePaymentGateway[] {
-  const configured = process.env.PAYMENT_GATEWAYS_ENABLED?.split(",")
+export function getAllowedPaymentGateways(env: Record<string, string | undefined> = process.env): ActivePaymentGateway[] {
+  const configured = env.PAYMENT_GATEWAYS_ENABLED?.split(",")
     .map((gateway) => normalizePaymentGateway(gateway))
     .filter((gateway): gateway is ActivePaymentGateway => Boolean(gateway))
 
-  return configured?.length ? configured : [...ACTIVE_PAYMENT_GATEWAYS]
+  if (configured?.length) return configured
+
+  const provider = getBillingProvider(env)
+
+  switch (provider) {
+    case "culqi":
+      return ["culqi", ...MANUAL_PAYMENT_GATEWAYS]
+    case "pagoefectivo":
+      return ["pagoefectivo", ...MANUAL_PAYMENT_GATEWAYS]
+    case "culqi_pagoefectivo":
+      return ["culqi", "pagoefectivo", ...MANUAL_PAYMENT_GATEWAYS]
+    default:
+      return [...MANUAL_PAYMENT_GATEWAYS]
+  }
 }
 
 export function getBillingProvider(env: Record<string, string | undefined> = process.env): BillingProvider {

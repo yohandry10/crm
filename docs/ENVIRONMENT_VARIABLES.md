@@ -84,7 +84,7 @@ No documentar Sentry/OpenTelemetry como activo si estas variables y dependencias
 
 ```env
 BILLING_PROVIDER=manual
-PAYMENT_GATEWAYS_ENABLED=culqi,pagoefectivo,yape,plin,bank_transfer,cash,manual
+PAYMENT_GATEWAYS_ENABLED=bank_transfer,cash,yape,plin,manual
 CULQI_PUBLIC_KEY=
 CULQI_SECRET_KEY=
 CULQI_WEBHOOK_SECRET=
@@ -92,7 +92,7 @@ PAGOEFECTIVO_API_KEY=
 PAGOEFECTIVO_WEBHOOK_SECRET=
 ```
 
-Valores soportados de `BILLING_PROVIDER`: `manual`, `disabled`, `culqi`, `pagoefectivo`, `culqi_pagoefectivo`. La configuracion de produccion actual usa `manual`, por lo que no exige credenciales externas. `pnpm production:check` falla si se selecciona un proveedor externo y faltan sus credenciales. La app no usa Stripe como proveedor activo.
+Valores soportados de `BILLING_PROVIDER`: `manual`, `disabled`, `culqi`, `pagoefectivo`, `culqi_pagoefectivo`. La configuracion de produccion actual usa `manual`, por lo que no exige credenciales externas y solo habilita gateways manuales/locales por defecto. `pnpm production:check` falla si se selecciona un proveedor externo y faltan sus credenciales. La app no usa Stripe como proveedor activo.
 
 ## AI
 

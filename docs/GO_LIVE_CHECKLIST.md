@@ -32,7 +32,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 101 agrega RPC read-only para verificacion automatizable de produccion.
 - [x] Migracion 101 aplicada y `production:verify-db` ejecutado en la base objetivo.
 - [x] Migraciones 102-103 aplicadas y verificadas en la base objetivo.
-- [ ] Credenciales reales de Culqi/PagoEfectivo configuradas antes de activar `BILLING_PROVIDER=culqi_pagoefectivo`.
+- [x] Produccion usa `BILLING_PROVIDER=manual`; Culqi/PagoEfectivo quedan desactivados hasta tener credenciales reales.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
 - [ ] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted`.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.

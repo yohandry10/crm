@@ -504,6 +504,46 @@ function checkBillingProvider(checks: ProductionCheck[], env: Env) {
   addCheck(checks, "billing:provider", "pass", `${billingProvider} billing credentials are present`)
 }
 
+function checkPaymentGateways(checks: ProductionCheck[], env: Env) {
+  const billingProvider = env.BILLING_PROVIDER?.trim().toLowerCase() || "manual"
+  const configuredGateways = parseCsv(env.PAYMENT_GATEWAYS_ENABLED).map((gateway) => gateway.toLowerCase())
+  const allowedGateways = new Set(["culqi", "pagoefectivo", "bank_transfer", "cash", "yape", "plin", "manual"])
+  const externalGateways = new Set(["culqi", "pagoefectivo"])
+  const invalidGateways = configuredGateways.filter((gateway) => !allowedGateways.has(gateway))
+
+  if (invalidGateways.length > 0) {
+    addCheck(
+      checks,
+      "billing:gateways",
+      "fail",
+      "PAYMENT_GATEWAYS_ENABLED contains unsupported gateways",
+      `Invalid: ${invalidGateways.join(", ")}`
+    )
+    return
+  }
+
+  const hasExternalGateways = configuredGateways.some((gateway) => externalGateways.has(gateway))
+
+  if ((billingProvider === "manual" || billingProvider === "disabled") && hasExternalGateways) {
+    addCheck(
+      checks,
+      "billing:gateways",
+      "fail",
+      "Manual billing cannot enable external payment gateways without provider credentials"
+    )
+    return
+  }
+
+  addCheck(
+    checks,
+    "billing:gateways",
+    "pass",
+    configuredGateways.length > 0
+      ? "Payment gateway allowlist is compatible with billing provider"
+      : "Payment gateways default to billing-provider-safe allowlist"
+  )
+}
+
 function checkAiProvider(checks: ProductionCheck[], env: Env) {
   const provider = env.AI_PROVIDER?.trim().toLowerCase()
 
@@ -612,6 +652,7 @@ export function evaluateProductionReadiness(env: Env = process.env, cwd = proces
   checkForbiddenReferences(checks, cwd)
   checkForbiddenProductionRoutes(checks, cwd)
   checkBillingProvider(checks, env)
+  checkPaymentGateways(checks, env)
   checkAiProvider(checks, env)
 
   if (env.RATE_LIMIT_FAIL_OPEN === "true") {

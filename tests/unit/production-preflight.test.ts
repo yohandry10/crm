@@ -29,6 +29,7 @@ function completeEnv(overrides: Record<string, string | undefined> = {}) {
     EMAIL_FROM: "CRM <no-reply@example.com>",
     PUBLIC_API_DOCS: "false",
     BILLING_PROVIDER: "manual",
+    PAYMENT_GATEWAYS_ENABLED: "bank_transfer,cash,yape,plin,manual",
     AI_PROVIDER: "local",
     WORKFLOW_PROCESSING_MODE: "cron-drainer",
     VERCEL_PLAN: "hobby",
@@ -87,6 +88,15 @@ describe("production preflight", () => {
     const checks = evaluateProductionReadiness(completeEnv({ BILLING_PROVIDER: "stripe" }), process.cwd())
 
     expect(checks.find((check) => check.id === "billing:provider")?.status).toBe("fail")
+  })
+
+  it("rejects external gateways when billing is manual", () => {
+    const checks = evaluateProductionReadiness(
+      completeEnv({ BILLING_PROVIDER: "manual", PAYMENT_GATEWAYS_ENABLED: "culqi,yape" }),
+      process.cwd()
+    )
+
+    expect(checks.find((check) => check.id === "billing:gateways")?.status).toBe("fail")
   })
 
   it("requires Gemini credentials when Gemini is selected", () => {

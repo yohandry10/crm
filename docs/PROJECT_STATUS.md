@@ -31,7 +31,7 @@ pnpm build
 
 Resultado observado:
 
-- Tests: 194 passed, 4 skipped.
+- Tests: 197 passed, 4 skipped.
 - Typecheck: OK.
 - Lint: OK; solo queda el aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: OK con 0 failures y 0 warnings locales en `BILLING_PROVIDER=manual`.
@@ -55,7 +55,7 @@ Estos claims no deben repetirse hasta corregirlos:
 P0:
 
 - Continuar la revision de `SECURITY DEFINER` en funciones historicas de bajo riesgo o no expuestas como RPC.
-- Configurar credenciales reales de Culqi/PagoEfectivo antes de cambiar `BILLING_PROVIDER` a `culqi`, `pagoefectivo` o `culqi_pagoefectivo`.
+- Mantener `BILLING_PROVIDER=manual` hasta tener credenciales reales para cambiar a `culqi`, `pagoefectivo` o `culqi_pagoefectivo`.
 - Subir coverage por modulo critico y activar umbrales cuando exista una base defendible.
 - Configurar worker persistente si workflows se venden como near-real-time.
 - Marcar plan Vercel compatible (`VERCEL_PLAN=pro` o `enterprise`) o configurar scheduler externo para los crons frecuentes.
