@@ -115,6 +115,7 @@ export async function POST(
 async function testWhatsAppConnection(config: any): Promise<{ success: boolean, message: string, details: any }> {
     try {
         const { api_url, phone_number } = config || {}
+        const url = api_url
 
         if (!api_url || !phone_number) {
             return {
@@ -124,12 +125,41 @@ async function testWhatsAppConnection(config: any): Promise<{ success: boolean, 
             }
         }
 
-        // TODO: Implement actual WhatsApp Business API test
-        // For now, just validate configuration
+        const urlValidation = await validateOutboundWebhookUrl(url)
+        if (!urlValidation.valid) {
+            return {
+                success: false,
+                message: `URL de WhatsApp inválida: ${urlValidation.error}`,
+                details: {}
+            }
+        }
+
+        const authToken = [config?.access_token, config?.token, config?.api_key]
+            .find((value) => typeof value === "string" && value.trim().length > 0)
+
+        const headers: HeadersInit = { Accept: "application/json" }
+        if (authToken) {
+            headers.Authorization = `Bearer ${authToken.trim()}`
+        }
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers,
+            signal: AbortSignal.timeout(5000),
+        })
+
+        if (!response.ok) {
+            return {
+                success: false,
+                message: `WhatsApp API returned status ${response.status}`,
+                details: { status: response.status, phone_number }
+            }
+        }
+
         return {
             success: true,
-            message: "WhatsApp configuration valid (actual API test not implemented yet)",
-            details: { phone_number }
+            message: "WhatsApp connection successful",
+            details: { status: response.status, phone_number }
         }
 
     } catch (error: any) {

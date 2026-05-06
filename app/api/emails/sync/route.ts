@@ -72,9 +72,8 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Check if token is expired and refresh if needed
+    // Fail closed until the provider-specific refresh-token flow is configured.
     if (emailAccount.expires_at && new Date(emailAccount.expires_at) <= new Date()) {
-      // TODO: Implement token refresh
       return NextResponse.json({
         success: false,
         error: "Token expirado, reconecta tu cuenta",

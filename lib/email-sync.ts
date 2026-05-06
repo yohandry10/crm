@@ -198,7 +198,7 @@ export class GmailClient {
   private createRawEmail(params: SendEmailParams): string {
     const boundary = `boundary_${Date.now()}`
     
-    let email = [
+    const email = [
       `To: ${params.to.join(', ')}`,
       params.cc ? `Cc: ${params.cc.join(', ')}` : '',
       params.bcc ? `Bcc: ${params.bcc.join(', ')}` : '',

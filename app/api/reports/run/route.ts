@@ -63,9 +63,6 @@ export async function POST(request: NextRequest) {
 
     log.info("Running report query", { organizationId, entity, groupBy, dateRange, filters })
 
-    // Log the generated SQL query (simulated)
-    // console.log("Query builder state:", query) 
-
     const { data, error } = await query
 
     if (error) {

@@ -14,7 +14,7 @@ Este mapa describe el estado funcional observado desde `app/`, `components/` y `
 | Soporte/trabajo | `/tasks`, `/tickets`, `/inbox` | `/api/tasks/*`, `/api/tickets/*`, `/api/chat/*`, `/api/notes/*`, `/api/notifications` | Inbox usa chat, no `/api/inbox`; tasks/tickets/inbox ya validan referencias de tenant antes de escribir. |
 | Automatizacion/integraciones | `/workflows`, `/workflows/[id]/builder`, `/integrations`, `/settings/webhooks`, `/ai` | `/api/workflows/*`, `/api/jobs/*`, `/api/integrations/*`, `/api/webhooks/*`, `/api/ai/chat`, `/api/mcp/server`, `/api/whatsapp/send`, `/api/emails/sync` | Unificar motores workflow y operacion worker. |
 | Organizacion/admin/settings | `/settings/*`, `/admin/*`, `/onboarding` | `/api/settings`, `/api/team/*`, `/api/subscriptions/*`, `/api/organizations/*`, `/api/admin/*`, `/api/onboarding/complete` | Alta sensibilidad multi-tenant y platform admin. |
-| Operacional | Sin UI directa | `/api/cron/*`, `/api/health`, `/api/upload`, `/api/search`, `/api/docs`, `/api/v1/version`, `/api/debug-env` | Cron y diagnostico requieren proteccion y contrato claro. |
+| Operacional | Sin UI directa | `/api/cron/*`, `/api/health`, `/api/upload`, `/api/search`, `/api/docs`, `/api/v1/version` | Cron y diagnostico requieren proteccion y contrato claro. |
 
 ## Inconsistencias a resolver
 

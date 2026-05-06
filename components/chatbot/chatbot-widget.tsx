@@ -217,7 +217,6 @@ export function ChatbotWidget() {
 
   const fetchAllData = async () => {
     try {
-      console.log("NEON AI: Connecting to Neural Core (Database)...")
       const [
         oppsRes, leadsRes, invoicesRes, quotesRes,
         inventoryRes, productsRes, campaignsRes, tasksRes,

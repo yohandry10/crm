@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 import {
   evaluateProductionReadiness,
   findForbiddenAutomationReferences,
+  findForbiddenProductionRoutes,
   HOBBY_CRON_PATHS,
   hasProductionBlockers,
   REQUIRED_CRON_PATHS,
@@ -112,5 +113,14 @@ describe("production preflight", () => {
     writeFileSync(path.join(cwd, "README.md"), `legacy ${["n", "8", "n"].join("")} reference`)
 
     expect(findForbiddenAutomationReferences(cwd)).toEqual(["README.md"])
+  })
+
+  it("detects production debug route files", () => {
+    const cwd = path.join(tmpdir(), `crm-preflight-debug-${Date.now()}`)
+    const routeDir = path.join(cwd, "app", "api", "debug-env")
+    mkdirSync(routeDir, { recursive: true })
+    writeFileSync(path.join(routeDir, "route.ts"), "export function GET() {}")
+
+    expect(findForbiddenProductionRoutes(cwd)).toEqual(["app/api/debug-env/route.ts"])
   })
 })

@@ -38,7 +38,7 @@ export async function GET(
         // Manually fetch sender profiles to avoid joining auth.users which lacks full_name
         const senderIds = Array.from(new Set(data.map(m => m.sender_id).filter(Boolean))) as string[]
 
-        let profilesMap: Record<string, any> = {}
+        const profilesMap: Record<string, any> = {}
         if (senderIds.length > 0) {
             const { data: profiles } = await supabase
                 .from('profiles')

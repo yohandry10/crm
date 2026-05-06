@@ -1,36 +1,23 @@
-import { createRequire } from "module";
-import tsPlugin from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
-import reactHooksPlugin from "eslint-plugin-react-hooks";
+import { FlatCompat } from "@eslint/eslintrc"
+import { dirname } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const require = createRequire(import.meta.url);
-let nextPlugin;
-try {
-  nextPlugin = require("@next/eslint-plugin-next");
-} catch {
-  nextPlugin = { rules: {} };
-}
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const compat = new FlatCompat({ baseDirectory: __dirname })
 
-export default [
+const eslintConfig = [
   {
-    ignores: [".next/**", ".next-build/**", "coverage/**", "node_modules/**", "*.config.*"],
+    ignores: [".next/**", ".next-build/**", "coverage/**", "node_modules/**"],
   },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     files: ["**/*.ts", "**/*.tsx"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-      "@next/next": nextPlugin,
-      "react-hooks": reactHooksPlugin,
-    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/triple-slash-reference": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -40,9 +27,20 @@ export default [
           varsIgnorePattern: "^_",
         },
       ],
+      "prefer-const": "warn",
+      "react/no-unescaped-entities": "off",
       "@next/next/no-html-link-for-pages": "off",
+      "@next/next/no-img-element": "off",
       "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/immutability": "off",
+      "react-hooks/incompatible-library": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
       "react-hooks/rules-of-hooks": "error",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/static-components": "off",
     },
   },
-];
+]
+
+export default eslintConfig

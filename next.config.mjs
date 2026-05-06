@@ -1,6 +1,5 @@
 // Polyfill ligero para evitar `self` undefined en entornos Node durante build
 if (typeof globalThis.self === 'undefined') {
-  // eslint-disable-next-line no-global-assign
   globalThis.self = globalThis
 }
 
@@ -135,11 +134,6 @@ const nextConfig = {
 
   // Generar source maps solo en desarrollo
   productionBrowserSourceMaps: false,
-
-  // Ignorar ESLint en build (Vercel) para no bloquear por falta de plugin
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
   // ==============================
   // VARIABLES DE ENTORNO

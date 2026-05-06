@@ -65,8 +65,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
                 .eq('id', user.id)
                 .maybeSingle();
 
-            let currentOrg = orgs.find(o => o.id === profile?.current_organization_id) || orgs[0];
-            let currentMembership = memberships?.find(m => m.organization_id === currentOrg?.id);
+            const currentOrg = orgs.find(o => o.id === profile?.current_organization_id) || orgs[0];
+            const currentMembership = memberships?.find(m => m.organization_id === currentOrg?.id);
 
             setState({
                 organization: currentOrg || null,

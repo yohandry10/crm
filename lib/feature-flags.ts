@@ -375,7 +375,7 @@ export function deactivateKillSwitch(flagKey: string): void {
   const flag = FEATURE_FLAGS[flagKey]
   if (flag) {
     flag.killSwitch = false
-    console.log(`🟢 Kill switch desactivado: ${flagKey}`)
+    console.warn(`🟢 Kill switch desactivado: ${flagKey}`)
   }
 }
 

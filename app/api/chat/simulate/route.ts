@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
         // 1. Analyze Sentiment / Intent (Mock AI)
         const lowerContent = content.toLowerCase()
-        let metadata: any = { sentiment: 'neutral' }
-        let tags: string[] = []
+        const metadata: any = { sentiment: 'neutral' }
+        const tags: string[] = []
 
         if (lowerContent.match(/(enoj|mal|pesimo|horrible|queja|denuncia|estafa)/)) {
             metadata.sentiment = 'negative'

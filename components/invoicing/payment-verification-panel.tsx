@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, CheckCircle, XCircle, Image, ExternalLink, Clock } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, Image as ImageIcon, ExternalLink, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import {
@@ -153,7 +153,7 @@ export function PaymentVerificationPanel({ onPaymentVerified }: PaymentVerificat
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-muted flex items-center justify-center">
-                                                <Image className="w-6 h-6 text-muted-foreground" />
+                                                <ImageIcon className="w-6 h-6 text-muted-foreground" />
                                             </div>
                                         )}
                                     </button>

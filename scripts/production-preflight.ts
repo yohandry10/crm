@@ -80,6 +80,12 @@ const EXCLUDED_SCAN_DIRS = new Set([
   "node_modules",
 ])
 
+export const FORBIDDEN_PRODUCTION_ROUTE_FILES = [
+  path.join("app", "api", "debug-env", "route.ts"),
+  path.join("app", "api", "sentry-example-api", "route.ts"),
+  path.join("app", "sentry-example-page", "page.tsx"),
+] as const
+
 function present(value: string | undefined): boolean {
   return Boolean(value && value.trim().length > 0)
 }
@@ -393,6 +399,29 @@ function checkForbiddenReferences(checks: ProductionCheck[], cwd: string) {
   addCheck(checks, "repo:forbidden-automation", "pass", "Removed automation provider references are absent")
 }
 
+export function findForbiddenProductionRoutes(cwd: string): string[] {
+  return FORBIDDEN_PRODUCTION_ROUTE_FILES
+    .filter((relativePath) => existsSync(path.join(cwd, relativePath)))
+    .map((relativePath) => relativePath.split(path.sep).join("/"))
+    .sort()
+}
+
+function checkForbiddenProductionRoutes(checks: ProductionCheck[], cwd: string) {
+  const matches = findForbiddenProductionRoutes(cwd)
+  if (matches.length > 0) {
+    addCheck(
+      checks,
+      "repo:debug-routes",
+      "fail",
+      "Demo/debug routes must not be shipped to production",
+      `Files: ${matches.join(", ")}`
+    )
+    return
+  }
+
+  addCheck(checks, "repo:debug-routes", "pass", "Demo/debug routes are absent")
+}
+
 function checkRedis(checks: ProductionCheck[], env: Env) {
   if (!present(env.REDIS_URL) && !present(env.REDIS_HOST)) {
     addCheck(checks, "redis:configured", "fail", "Redis is required for production rate limits and BullMQ")
@@ -577,6 +606,7 @@ export function evaluateProductionReadiness(env: Env = process.env, cwd = proces
   checkRequiredCrons(checks, env, cwd)
   checkMigrations(checks, cwd)
   checkForbiddenReferences(checks, cwd)
+  checkForbiddenProductionRoutes(checks, cwd)
   checkBillingProvider(checks, env)
   checkAiProvider(checks, env)
 
