@@ -939,6 +939,24 @@ describe('API contracts', () => {
     expect(chatRoute).toContain(".eq('user_id', userId)")
   })
 
+  it('does not show subscription trial banners to platform admins', () => {
+    const authProvider = readFileSync('components/providers/auth-provider.tsx', 'utf8')
+    const subscriptionHook = readFileSync('hooks/use-subscription.ts', 'utf8')
+    const trialBanner = readFileSync('components/subscription/trial-banner.tsx', 'utf8')
+
+    expect(authProvider).toContain('is_platform_admin: boolean')
+    expect(authProvider).toContain('current_organization_id, is_platform_admin')
+    expect(authProvider).toContain('.eq("organization_id", profileData.current_organization_id)')
+    expect(authProvider).toContain('is_platform_admin: Boolean(profileData?.is_platform_admin)')
+    expect(subscriptionHook).toContain('profile?.is_platform_admin || !organizationId')
+    expect(subscriptionHook).toContain("!profile?.is_platform_admin && status && !isDismissed")
+    expect(subscriptionHook).toContain("!profile?.is_platform_admin && status && isTrial")
+    expect(trialBanner).toContain('profile?.is_platform_admin')
+    expect(trialBanner.indexOf('profile?.is_platform_admin')).toBeLessThan(
+      trialBanner.indexOf('!shouldShowBanner')
+    )
+  })
+
   it('keeps analytics endpoints from returning fake or unbounded data', () => {
     const advancedRoute = readFileSync('app/api/analytics/advanced/route.ts', 'utf8')
     const aggregatedRoute = readFileSync('app/api/analytics/aggregated/route.ts', 'utf8')

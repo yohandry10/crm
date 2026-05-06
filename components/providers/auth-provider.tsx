@@ -9,6 +9,7 @@ interface UserProfile {
   email: string
   full_name?: string | null
   current_organization_id?: string | null
+  is_platform_admin: boolean
   role: string
   initials: string
 }
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [profileResult, membershipResult] = await Promise.all([
         supabase
           .from("profiles")
-          .select("full_name, current_organization_id")
+          .select("full_name, current_organization_id, is_platform_admin")
           .eq("id", authUser.id)
           .maybeSingle(),
         supabase
@@ -85,6 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 3. Determine organization ID
       let orgId = profileData?.current_organization_id || membership?.organization_id || null
 
+      if (profileData?.current_organization_id) {
+        const { data: activeMembership } = await supabase
+          .from("organization_members")
+          .select("role, organization_id")
+          .eq("user_id", authUser.id)
+          .eq("organization_id", profileData.current_organization_id)
+          .eq("is_active", true)
+          .maybeSingle()
+
+        if (activeMembership) {
+          membership = activeMembership
+          orgId = activeMembership.organization_id
+        }
+      }
+
       // Self-healing for legacy users missing profile/org records
       if (!profileData || !orgId) {
         try {
@@ -97,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const [profileReload, membershipReload] = await Promise.all([
               supabase
                 .from("profiles")
-                .select("full_name, current_organization_id")
+                .select("full_name, current_organization_id, is_platform_admin")
                 .eq("id", authUser.id)
                 .maybeSingle(),
               supabase
@@ -126,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: authUser.email || "",
         full_name: profileData?.full_name,
         current_organization_id: orgId,
+        is_platform_admin: Boolean(profileData?.is_platform_admin),
         role: membership?.role || "member",
         initials: (authUser.email?.substring(0, 2) || "U").toUpperCase()
       }

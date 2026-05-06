@@ -8,7 +8,7 @@ import { useSubscription } from "@/hooks/use-subscription"
 import { useAuth } from "@/components/providers/auth-provider"
 
 export function TrialBanner() {
-  const { organizationId } = useAuth()
+  const { organizationId, profile } = useAuth()
   const { subscription, shouldShowBanner, isExpired, isTrial, dismissBanner } = useSubscription()
   const [showModal, setShowModal] = useState(false)
 
@@ -16,7 +16,7 @@ export function TrialBanner() {
   // but avoid logic in render.
   // The hook handles visibility logic.
 
-  if (!shouldShowBanner || !subscription) return null
+  if (profile?.is_platform_admin || !shouldShowBanner || !subscription) return null
 
   const daysRemaining = subscription.daysRemaining
   const isTrialEnding = isTrial && daysRemaining <= 1

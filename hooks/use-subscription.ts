@@ -14,7 +14,7 @@ export interface SubscriptionStatus {
 }
 
 export function useSubscription() {
-    const { organizationId } = useAuth()
+    const { organizationId, profile } = useAuth()
     const [status, setStatus] = useState<SubscriptionStatus | null>(null)
     const [loading, setLoading] = useState(true)
     const [isDismissed, setIsDismissed] = useState(false)
@@ -31,7 +31,8 @@ export function useSubscription() {
 
     // Fetch subscription status
     useEffect(() => {
-        if (!organizationId) {
+        if (profile?.is_platform_admin || !organizationId) {
+            setStatus(null)
             setLoading(false)
             return
         }
@@ -60,7 +61,7 @@ export function useSubscription() {
         }
 
         checkSubscription()
-    }, [organizationId])
+    }, [organizationId, profile?.is_platform_admin])
 
     const dismissBanner = () => {
         setIsDismissed(true)
@@ -76,10 +77,10 @@ export function useSubscription() {
     // 3. If expired, maybe force show? User said "quitar eso azul", usually strictly referring to trial banner.
     // We will allow dismissing expired warning too if it's annoying, or maybe strictly trial.
     // The original component allowed dismissing non-expired.
-    const shouldShowBanner = status && !isDismissed && (status.status !== 'active')
+    const shouldShowBanner = !profile?.is_platform_admin && status && !isDismissed && (status.status !== 'active')
 
     // Header badge specific: Show if trial active, regardless of dismissal (usually badges are persistent indicators, but small)
-    const shouldShowBadge = status && isTrial
+    const shouldShowBadge = !profile?.is_platform_admin && status && isTrial
 
     return {
         subscription: status,
