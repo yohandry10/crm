@@ -523,6 +523,22 @@ describe('API contracts', () => {
     expect(audit).not.toContain("registro_id: params.resourceId || 'N/A'")
   })
 
+  it('keeps data integrity verification wired into production checks', () => {
+    const migration = readFileSync('supabase/migrations/115_data_integrity_validation_and_safe_cascades.sql', 'utf8')
+    const dbVerify = readFileSync('scripts/production-db-verify.ts', 'utf8')
+    const preflight = readFileSync('scripts/production-preflight.ts', 'utf8')
+
+    expect(migration).toContain('CREATE OR REPLACE FUNCTION public.verify_data_integrity()')
+    expect(migration).toContain('fk_orphans:')
+    expect(migration).toContain('dangerous_cascades')
+    expect(migration).toContain('duplicate_contact_email_per_org')
+    expect(migration).toContain('opportunity_contact_cross_tenant')
+    expect(migration).toContain('ON DELETE SET NULL')
+    expect(migration).toContain('ON DELETE RESTRICT')
+    expect(dbVerify).toContain('verify_data_integrity')
+    expect(preflight).toContain('115_data_integrity_validation_and_safe_cascades.sql')
+  })
+
   it('keeps global error handling and client reporting wired', () => {
     const layout = readFileSync('app/layout.tsx', 'utf8')
     const boundary = readFileSync('components/error-boundary.tsx', 'utf8')

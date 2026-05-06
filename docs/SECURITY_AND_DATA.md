@@ -2,17 +2,17 @@
 
 Actualizado: 2026-05-06.
 
-Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-114 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db` y `pnpm production:check`.
+Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-115 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db` y `pnpm production:check`.
 
 ## Estado verificado
 
-- `pnpm production:verify-db`: 0 failures, 109 checks.
+- `pnpm production:verify-db`: 0 failures, 318 checks.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - E2E focal RBAC/admin local: 39 passed.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
-- Migrations objetivo requeridas por preflight: 094-114.
+- Migrations objetivo requeridas por preflight: 094-115.
 - RLS verificado en tablas sensibles usadas por el CRM.
 - Roles de organizacion vigentes: `owner`, `admin`, `manager`, `member`, `viewer`.
 
@@ -44,7 +44,22 @@ Regla vigente:
 
 ## SECURITY DEFINER y RPC
 
-Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112, 113 y 114 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion, cobertura RBAC y auditoria centralizada.
+Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112, 113, 114 y 115 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion, cobertura RBAC, auditoria centralizada e integridad de datos.
+
+## Integridad de datos
+
+Estado actual:
+
+- Migracion 115 aplicada/registrada en la base objetivo.
+- `verify_data_integrity()` esta integrada en `pnpm production:verify-db`.
+- No hay FKs huérfanas en las relaciones publicas auditadas.
+- No hay duplicados en claves de negocio auditadas: membresias activas, emails de contacto por tenant, RUC de cuentas, SKU de productos, numeros de factura/cotizacion, slugs de formularios, posiciones de etapas y transacciones de pago.
+- No hay referencias cruzadas entre tenants en contactos, cuentas, oportunidades, etapas, cotizaciones, facturas, items, pagos, tareas, tickets, calendario, pedidos, tokens publicos, campanas e inventario.
+- Cascadas peligrosas corregidas: actividades, interacciones, tareas, ejecuciones de workflow y movimientos de inventario preservan historial con `SET NULL`; oportunidades bloquean borrado de contacto con `RESTRICT`.
+
+Regla vigente:
+
+- Nuevas FKs entre entidades de negocio no deben usar `ON DELETE CASCADE` salvo que el registro hijo sea claramente detalle efimero o pertenezca al borrado completo de tenant.
 
 Estado actual:
 

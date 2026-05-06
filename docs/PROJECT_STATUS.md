@@ -18,6 +18,7 @@ Estado actual:
 - Auditoria RBAC ampliada: APIs de negocio y configuracion revisadas contra permisos reales por rol y propiedad del registro.
 - Auditoria operativa centralizada agregada para soporte/debugging: auth, pagos, exportaciones, ediciones, borrados y consultas admin quedan trazados con IP, user-agent, dispositivo, usuario, organizacion, timestamp, request id, categoria, severidad y exito/fallo.
 - Manejo global de errores agregado para evitar pantallas rotas: boundaries de Next/React, reporter global de errores del navegador, endpoint `/api/client-errors`, mensajes SWR amigables y captura backend con `instrumentation.onRequestError`.
+- Integridad de base validada con `verify_data_integrity()`: 0 FKs huérfanas, 0 duplicados de claves de negocio auditadas, 0 cruces multi-tenant y 0 cascadas peligrosas.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
 - No hay proveedor externo de automatizaciones activo fuera de los workflows internos del CRM.
@@ -117,8 +118,9 @@ Estado actual:
 - Migracion `112_tenant_provisioning_and_schema_alignment.sql`: agrega `user_settings` con RLS, revoca insert directo en `organizations` para `anon/authenticated`, amplia `verify_production_readiness()` a todas las tablas/RPC usadas por el codigo y agrega checks contra autoprovicionamiento de tenants.
 - Migracion `113_rbac_resource_coverage.sql`: completa matriz `role_permissions` para `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
 - Migracion `114_centralized_audit_tracing.sql`: agrega columnas/indexes de trazabilidad a `auditoria`, categorias/severidades controladas y RLS de lectura para platform admin, admins/owners del tenant y logs propios globales.
+- Migracion `115_data_integrity_validation_and_safe_cascades.sql`: cambia cascadas peligrosas de historial de negocio a `SET NULL` o `RESTRICT` y agrega RPC de auditoria de integridad.
 - Estas correcciones fueron aplicadas contra la base Supabase objetivo durante la validacion local y registradas en `schema_migrations`.
-- `scripts/production-preflight.ts` ahora exige las migraciones 105-114.
+- `scripts/production-preflight.ts` ahora exige las migraciones 105-115.
 - `scripts/production-db-verify.ts` ejecuta `verify_security_hardening()` y valida grants/RPC/search_path.
 
 ### Seguridad auditada en BD
@@ -132,6 +134,7 @@ Estado actual:
 - `organizations` ya no acepta inserts directos de `authenticated`; la creacion de tenants depende de funciones/rutas de plataforma con service role y auditoria.
 - `user_settings` existe en la base objetivo y tiene RLS de usuario propietario.
 - `auditoria` quedo preparada como tabla central de trazabilidad para acciones criticas; metadata sensible se redacta antes de persistir.
+- `verify_data_integrity()` quedo integrada a `production:verify-db` para detectar huérfanos, duplicados, cascadas no permitidas y referencias cruzadas entre tenants.
 
 ### Bugs reales corregidos durante validacion
 
@@ -171,6 +174,7 @@ Resultado observado:
 - Lint: OK; solo queda aviso externo de `baseline-browser-mapping`.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
+- Production DB verify con integridad de datos: 0 failures, 318 checks.
 - Build: OK.
 - Local health: `GET /api/health` devuelve 200 con database/auth/redis healthy.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).

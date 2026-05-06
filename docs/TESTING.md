@@ -152,7 +152,7 @@ La matriz valida:
 `pnpm production:verify-db` valida:
 
 - `schema_migrations`.
-- Migraciones criticas 094-112 desde RPC de readiness; `production:check` exige tambien las migraciones 113 de cobertura RBAC y 114 de auditoria centralizada.
+- Migraciones criticas 094-112 desde RPC de readiness; `production:check` exige tambien las migraciones 113 de cobertura RBAC, 114 de auditoria centralizada y 115 de integridad de datos.
 - RLS habilitado en tablas sensibles.
 - Funciones RPC requeridas.
 - Alineacion codigo-BD: tablas y RPC usadas por `app/`, `lib/` y `scripts/` existen en Supabase objetivo.
@@ -164,8 +164,14 @@ La matriz valida:
   - sin privilegios peligrosos `TRUNCATE`, `REFERENCES`, `TRIGGER` para `anon`/`authenticated`;
   - sin ejecucion anon/public de RPC sensibles;
   - funciones `SECURITY DEFINER` con `search_path` definido.
+- Integridad de datos mediante `verify_data_integrity()`:
+  - FKs huérfanas;
+  - FKs no validadas;
+  - cascadas peligrosas;
+  - duplicados de claves de negocio;
+  - referencias cruzadas entre tenants.
 
-Nota: las migraciones 105-114 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
+Nota: las migraciones 105-115 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
 
 ## Validacion de seguridad del 2026-05-06
 
@@ -174,7 +180,7 @@ Se auditaron grants, RLS, policies, triggers y RPC `SECURITY DEFINER` en la base
 Resultado posterior:
 
 - `verify_security_hardening()`: PASS en grants peligrosos, RPC anon/public y `search_path`.
-- `pnpm production:verify-db`: 0 failures, 109 checks.
+- `pnpm production:verify-db`: 0 failures, 318 checks.
 - `pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line`: 39 passed.
 - E2E focal de regresion de seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
 - E2E focal remoto de produccion Vercel: 51 passed.

@@ -63,7 +63,19 @@ export async function verifyProductionDatabase() {
     return checks
   }
 
-  return checks.concat((securityData || []) as DbReadinessCheck[])
+  checks.push(...((securityData || []) as DbReadinessCheck[]))
+
+  const { data: integrityData, error: integrityError } = await supabase.rpc("verify_data_integrity")
+  if (integrityError) {
+    checks.push({
+      check_name: "data_integrity_rpc",
+      pass: false,
+      details: `verify_data_integrity failed. Apply migration 115 first. Supabase error: ${integrityError.message}`,
+    })
+    return checks
+  }
+
+  return checks.concat((integrityData || []) as DbReadinessCheck[])
 }
 
 const currentFile = fileURLToPath(import.meta.url)

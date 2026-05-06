@@ -38,7 +38,7 @@ Ultima validacion registrada: 2026-05-06.
 - `pnpm lint`: OK; solo aviso externo de `baseline-browser-mapping`.
 - `pnpm test -- --reporter=basic`: 211 passed, 4 skipped.
 - `pnpm production:check`: 0 failures, 0 warnings.
-- `pnpm production:verify-db`: 0 failures, 109 checks.
+- `pnpm production:verify-db`: 0 failures, 318 checks.
 - `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
 - E2E focal RBAC/admin/local: 28 passed para frontera platform admin y endpoint `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos/local: 29 passed.
@@ -67,13 +67,14 @@ Ultima validacion registrada: 2026-05-06.
 - Se agrego `tests/e2e/tenant-provisioning.spec.ts`.
 - Se agrego `supabase/migrations/112_tenant_provisioning_and_schema_alignment.sql`.
 - La migracion 112 crea `user_settings` con RLS, revoca inserts directos en `organizations` para `anon/authenticated` y amplia `verify_production_readiness()`.
-- Migraciones 094-114 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
+- Migraciones 094-115 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
 - Migracion 113 agrega cobertura RBAC de `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
 - Se corrigio `emitEvent()` para escribir `organization_id` como columna top-level en `webhook_events`; la politica RLS 111 ya no bloquea eventos internos autenticados con payload multi-tenant valido.
 - Se agrego auditoria/trazabilidad centralizada: login exitoso/fallido/bloqueado, logout, pagos, exportaciones, edicion/borrado de productos y cuentas, y consulta admin de auditoria.
 - `lib/audit.ts` captura IP, user-agent, dispositivo aproximado, request id, usuario, organizacion, categoria, severidad, exito/fallo y metadata redactada.
 - `/api/admin/audit-logs` permite a platform admin consultar logs con filtros por categoria, severidad, exito, usuario, organizacion, accion, request id y rango temporal.
 - Migracion 114 agrega columnas/indexes de trazabilidad a `auditoria` y restringe lectura por RLS a platform admin, admins/owners del tenant y logs propios globales.
+- Migracion 115 corrige cascadas peligrosas de historial de negocio y agrega `verify_data_integrity()` para FK huérfanas, duplicados, cascadas y consistencia multi-tenant.
 - Se agrego manejo global de errores frontend/backend: `ErrorBoundary` montado en layout, `app/error.tsx`, `global-error.tsx`, listeners de `window.error/unhandledrejection`, reporter `/api/client-errors` protegido por CSRF/rate limit y `instrumentation.onRequestError` para excepciones request-level.
 - SWR ahora devuelve mensajes amigables y conserva reporte de errores del cliente sin tumbar la UI.
 - Se elimino documentacion desactualizada de analisis previo y se actualizo el indice documental.
