@@ -23,10 +23,11 @@ Para continuidad entre sesiones, leer primero [`../CODEX.md`](../CODEX.md). Ese 
 - Produccion Vercel `https://crm-trivia1.vercel.app` esta Ready; `/api/health` responde database/auth/redis healthy.
 - Unit/contracts: 207 passed, 4 skipped.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed local y 51 passed remoto contra produccion.
-- Production DB verify: 0 failures, 109 checks.
+- Production DB verify: 0 failures, 335 checks.
+- Performance: dashboard usa RPC agregada e indices de migracion 116.
 - Backup/restore: workflow diario versionado con backup, artefacto retenido 30 dias y restore test contra staging.
 - Roles probados: owner, admin, manager, member, viewer.
-- Supabase objetivo tiene aplicadas y registradas las migraciones 094-115.
+- Supabase objetivo tiene aplicadas y registradas las migraciones 094-116.
 - La base esta alineada con el codigo: 0 tablas faltantes y 0 RPC faltantes en el cruce codigo-BD del 2026-05-06.
 - El contrato SaaS vigente es: superadmin/platform admin provisiona organizaciones; usuarios regulares solo operan dentro de tenants con membresia activa.
 - Localhost validado en `http://localhost:3000` con `/api/health` healthy.

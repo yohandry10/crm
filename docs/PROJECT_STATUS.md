@@ -19,6 +19,7 @@ Estado actual:
 - Auditoria operativa centralizada agregada para soporte/debugging: auth, pagos, exportaciones, ediciones, borrados y consultas admin quedan trazados con IP, user-agent, dispositivo, usuario, organizacion, timestamp, request id, categoria, severidad y exito/fallo.
 - Manejo global de errores agregado para evitar pantallas rotas: boundaries de Next/React, reporter global de errores del navegador, endpoint `/api/client-errors`, mensajes SWR amigables y captura backend con `instrumentation.onRequestError`.
 - Integridad de base validada con `verify_data_integrity()`: 0 FKs huérfanas, 0 duplicados de claves de negocio auditadas, 0 cruces multi-tenant y 0 cascadas peligrosas.
+- Performance DB reforzada con migracion 116: indices por tenant/fecha/filtro, busquedas trigrama y dashboard agregado via RPC.
 - Backups diarios y restore test quedaron versionados: GitHub Actions ejecuta `pg_dump`, sube artefacto retenido 30 dias y restaura en staging para validar recuperacion total/parcial.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
@@ -120,9 +121,11 @@ Estado actual:
 - Migracion `113_rbac_resource_coverage.sql`: completa matriz `role_permissions` para `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
 - Migracion `114_centralized_audit_tracing.sql`: agrega columnas/indexes de trazabilidad a `auditoria`, categorias/severidades controladas y RLS de lectura para platform admin, admins/owners del tenant y logs propios globales.
 - Migracion `115_data_integrity_validation_and_safe_cascades.sql`: cambia cascadas peligrosas de historial de negocio a `SET NULL` o `RESTRICT` y agrega RPC de auditoria de integridad.
+- Migracion `116_performance_indexes_and_dashboard_metrics.sql`: agrega indices compuestos/parciales para consultas frecuentes, `get_dashboard_metrics()` y `verify_performance_indexes()`.
 - Estas correcciones fueron aplicadas contra la base Supabase objetivo durante la validacion local y registradas en `schema_migrations`.
-- `scripts/production-preflight.ts` ahora exige las migraciones 105-115.
+- `scripts/production-preflight.ts` ahora exige las migraciones 105-116.
 - `scripts/production-db-verify.ts` ejecuta `verify_security_hardening()` y valida grants/RPC/search_path.
+- `scripts/production-db-verify.ts` ejecuta tambien `verify_performance_indexes()` para bloquear regresiones de indices/RPC de performance.
 
 ### Backups y recuperacion
 
@@ -144,6 +147,14 @@ Estado actual:
 - `user_settings` existe en la base objetivo y tiene RLS de usuario propietario.
 - `auditoria` quedo preparada como tabla central de trazabilidad para acciones criticas; metadata sensible se redacta antes de persistir.
 - `verify_data_integrity()` quedo integrada a `production:verify-db` para detectar huérfanos, duplicados, cascadas no permitidas y referencias cruzadas entre tenants.
+
+### Performance
+
+- `pg_stat_statements` esta activo en Supabase y se reviso para separar ruido de jobs internos de Supabase de queries reales de aplicacion.
+- `/api/dashboard` paso de multiples consultas y agregacion en runtime a una sola RPC `get_dashboard_metrics()`.
+- La RPC calcula totales, actividad de 30 dias, pipeline y facturas recientes dentro de Postgres, validando membresia activa del tenant.
+- Se agregaron indices para membership activa, oportunidades por tenant/stage/status/fecha, facturas por tenant/status/fecha, productos por tenant/servicio/fecha, tareas por due date, tickets por fecha, calendario por rango y busquedas trigrama en productos/oportunidades/tickets.
+- `production:verify-db` ahora incluye checks de performance para impedir que esos indices/RPC desaparezcan.
 
 ### Bugs reales corregidos durante validacion
 
@@ -186,8 +197,8 @@ Resultado observado:
 - Production preflight: 0 failures, 0 warnings.
 - Backup/restore local: scripts y workflow validados por preflight/unit tests; restore real requiere `STAGING_DATABASE_URL`.
 - Backup local real ejecutado con cliente PostgreSQL 17: dump y manifest generados en `/backups`; restore real queda pendiente de `STAGING_DATABASE_URL` descartable.
-- Production DB verify: 0 failures, 109 checks.
-- Production DB verify con integridad de datos: 0 failures, 318 checks.
+- Production DB verify: 0 failures, 335 checks.
+- Performance DB verify: indices/RPC de performance PASS.
 - Build: OK.
 - Local health: `GET /api/health` devuelve 200 con database/auth/redis healthy.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
@@ -199,6 +210,7 @@ Resultado observado:
 - E2E focal cubre bloqueo de self-service tenant, bootstrap sin creacion de tenant, frontera platform admin negativa, matriz de roles y guards de mutacion.
 - E2E auth security incluido en suite completa: 4 passed para redirect de login, forgot-password, rate limit y cambio de contraseña.
 - Auditoria posterior de producto/codigo: dependencias productivas con 0 vulnerabilidades via `pnpm audit --prod --json`.
+- Navegador local performance: `/dashboard` carga como usuario E2E y `/api/dashboard` responde 200 con la nueva RPC.
 
 Ultima ejecucion remota de produccion registrada: 2026-05-06.
 

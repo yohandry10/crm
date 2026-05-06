@@ -43,7 +43,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
 - [x] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted` mediante verificador y suite actual.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
-- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-115.
+- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-116.
 - [x] Migracion 105 aplicada: webhooks no dependen de secreto legacy plaintext obligatorio.
 - [x] Migracion 106 aplicada: facturas aceptan items libres sin `product_id`.
 - [x] Migracion 107 aplicada: permisos explicitos para pagos.
@@ -53,8 +53,12 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 113 aplicada: cobertura RBAC para accounts, activities, orders, pipeline stages y lead sources.
 - [x] Migracion 114 aplicada: auditoria centralizada con categorias, severidad, exito/fallo, request id e indices de soporte.
 - [x] Migracion 115 aplicada: verificacion de integridad de datos y cascadas seguras para historial de negocio.
+- [x] Migracion 116 aplicada: indices de performance y dashboard agregado por RPC.
+- [x] Dashboard pesado optimizado: metricas/pipeline/actividad se agregan en Postgres, no en runtime Node.
+- [x] `production:verify-db` valida indices/RPC de performance con `verify_performance_indexes()`.
 - [x] Cruce codigo-BD validado: 0 tablas faltantes y 0 RPC faltantes.
 - [x] Integridad DB validada: 0 FKs huérfanas, 0 duplicados auditados, 0 cascadas peligrosas y 0 cruces multi-tenant.
+- [x] Performance DB validada: indices criticos presentes y dashboard RPC disponible.
 - [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
 - [x] Migracion 096 aplicada y verificada en la base objetivo.
 - [x] Pagos manuales son idempotentes y transaccionales via RPC.

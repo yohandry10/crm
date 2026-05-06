@@ -1032,6 +1032,25 @@ describe('API contracts', () => {
     )
   })
 
+  it('keeps dashboard metrics aggregated in the database with performance verification', () => {
+    const dashboardRoute = readFileSync('app/api/dashboard/route.ts', 'utf8')
+    const migration = readFileSync('supabase/migrations/116_performance_indexes_and_dashboard_metrics.sql', 'utf8')
+    const preflight = readFileSync('scripts/production-preflight.ts', 'utf8')
+    const dbVerify = readFileSync('scripts/production-db-verify.ts', 'utf8')
+
+    expect(dashboardRoute).toContain('rpc("get_dashboard_metrics"')
+    expect(dashboardRoute).not.toContain('supabase.from("opportunities")')
+    expect(dashboardRoute).not.toContain('leadsData?.forEach')
+    expect(migration).toContain('create or replace function public.get_dashboard_metrics')
+    expect(migration).toContain('verify_performance_indexes')
+    expect(migration).toContain('idx_org_members_user_org_active')
+    expect(migration).toContain('idx_opportunities_org_stage_created')
+    expect(migration).toContain('idx_invoices_org_status_issue_created')
+    expect(migration).toContain('idx_products_name_trgm')
+    expect(preflight).toContain('116_performance_indexes_and_dashboard_metrics.sql')
+    expect(dbVerify).toContain('verify_performance_indexes')
+  })
+
   it('keeps analytics endpoints from returning fake or unbounded data', () => {
     const advancedRoute = readFileSync('app/api/analytics/advanced/route.ts', 'utf8')
     const aggregatedRoute = readFileSync('app/api/analytics/aggregated/route.ts', 'utf8')
@@ -1047,9 +1066,9 @@ describe('API contracts', () => {
     expect(aggregatedRoute).toContain('from("analytics_cache")')
     expect(aggregatedRoute).not.toContain("rpc('get_aggregated_metrics'")
     expect(aggregatedRoute).not.toContain("rpc('aggregate_analytics_by_period'")
-    expect(dashboardRoute).toContain('{ count: contactsTotal }')
-    expect(dashboardRoute).toContain('value: (contactsTotal || 0).toString()')
-    expect(dashboardRoute).toContain('for (let i = 0; i < 30; i++)')
+    expect(dashboardRoute).toContain('rpc("get_dashboard_metrics"')
+    expect(dashboardRoute).not.toContain('{ count: contactsTotal }')
+    expect(dashboardRoute).not.toContain('for (let i = 0; i < 30; i++)')
     expect(analyticsRoute).toContain('analyticsQuerySchema.safeParse')
     expect(pipelineRoute).toContain('pipelineQuerySchema.safeParse')
     expect(campaignsRoute).toContain(".eq('organization_id', organizationId)")

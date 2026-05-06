@@ -29,7 +29,7 @@ Resultado:
 - Unit/contracts: 211 passed, 4 skipped.
 - Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: 0 failures, 0 warnings.
-- Production DB verify: 0 failures, 109 checks.
+- Production DB verify: 0 failures, 335 checks.
 - Backup/restore: automatizacion diaria versionada; restore real requiere `STAGING_DATABASE_URL`.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
@@ -38,6 +38,7 @@ Resultado:
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Build: OK.
 - Produccion Vercel: health remoto OK y E2E focal RBAC/admin remoto 39 passed contra `https://crm-trivia1.vercel.app`.
+- Dashboard local: `/dashboard` probado con usuario E2E; `/api/dashboard` respondio 200 usando la RPC agregada.
 
 ## E2E actual
 
@@ -173,8 +174,12 @@ La matriz valida:
   - cascadas peligrosas;
   - duplicados de claves de negocio;
   - referencias cruzadas entre tenants.
+- Performance mediante `verify_performance_indexes()`:
+  - indices compuestos/parciales de listados tenant-heavy;
+  - busquedas trigrama de productos/oportunidades/tickets;
+  - RPC `get_dashboard_metrics()` disponible.
 
-Nota: las migraciones 105-115 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
+Nota: las migraciones 105-116 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
 
 ## Backup/restore
 
@@ -196,11 +201,12 @@ Se auditaron grants, RLS, policies, triggers y RPC `SECURITY DEFINER` en la base
 Resultado posterior:
 
 - `verify_security_hardening()`: PASS en grants peligrosos, RPC anon/public y `search_path`.
-- `pnpm production:verify-db`: 0 failures, 318 checks.
+- `pnpm production:verify-db`: 0 failures, 335 checks.
 - `pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line`: 39 passed.
 - E2E focal de regresion de seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
 - E2E focal remoto de produccion Vercel: 51 passed.
 - Navegador local: dashboard carga en `http://localhost:3000/dashboard`, sin trial gate y sin errores de consola.
+- Navegador local performance: `/api/dashboard` responde 200 con `get_dashboard_metrics()`.
 
 ## Huecos restantes
 

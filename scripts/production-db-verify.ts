@@ -75,7 +75,19 @@ export async function verifyProductionDatabase() {
     return checks
   }
 
-  return checks.concat((integrityData || []) as DbReadinessCheck[])
+  checks.push(...((integrityData || []) as DbReadinessCheck[]))
+
+  const { data: performanceData, error: performanceError } = await supabase.rpc("verify_performance_indexes")
+  if (performanceError) {
+    checks.push({
+      check_name: "performance_indexes_rpc",
+      pass: false,
+      details: `verify_performance_indexes failed. Apply migration 116 first. Supabase error: ${performanceError.message}`,
+    })
+    return checks
+  }
+
+  return checks.concat((performanceData || []) as DbReadinessCheck[])
 }
 
 const currentFile = fileURLToPath(import.meta.url)

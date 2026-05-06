@@ -52,6 +52,7 @@ export const REQUIRED_MIGRATIONS = [
   "113_rbac_resource_coverage.sql",
   "114_centralized_audit_tracing.sql",
   "115_data_integrity_validation_and_safe_cascades.sql",
+  "116_performance_indexes_and_dashboard_metrics.sql",
 ] as const
 
 export const REQUIRED_CRON_PATHS = [
