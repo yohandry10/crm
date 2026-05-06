@@ -2,15 +2,16 @@
 
 Actualizado: 2026-05-06.
 
-Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-112 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db`.
+Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-113 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db` y `pnpm production:check`.
 
 ## Estado verificado
 
 - `pnpm production:verify-db`: 0 failures, 109 checks.
 - `pnpm production:check`: 0 failures, 0 warnings.
-- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- E2E focal RBAC/admin local: 39 passed.
+- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
-- Migrations objetivo requeridas por preflight: 094-112.
+- Migrations objetivo requeridas por preflight: 094-113.
 - RLS verificado en tablas sensibles usadas por el CRM.
 - Roles de organizacion vigentes: `owner`, `admin`, `manager`, `member`, `viewer`.
 
@@ -42,7 +43,7 @@ Regla vigente:
 
 ## SECURITY DEFINER y RPC
 
-Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111 y 112 endurecen funciones sensibles, grants, vistas, triggers y verificacion de produccion.
+Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112 y 113 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion y cobertura RBAC.
 
 Estado actual:
 
@@ -101,8 +102,19 @@ Estado actual:
 - Usuarios de organizacion, incluso `owner/admin`, no pueden entrar ni mutar APIs `/api/admin`.
 - Webhooks/cron/service role validan secretos o autorizacion antes de usar privilegios elevados.
 - `webhook_events` no acepta inserts anonimos; usuarios autenticados solo insertan eventos dentro de su organizacion.
+- `emitEvent()` escribe `organization_id` como columna top-level, no solo dentro del payload, para cumplir RLS.
 - `organizations` no acepta inserts directos de `anon/authenticated`.
 - `user_settings` existe con RLS de usuario propietario.
+
+## RBAC y escalamiento horizontal
+
+Estado actual:
+
+- `role_permissions` cubre modulos core y recursos adicionales: `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
+- Rutas mutables verifican permiso por recurso antes de escribir.
+- Registros existentes aplican chequeo de propiedad cuando el rol no tiene `can_manage_all`.
+- `owner/admin` gestionan registros de la organizacion segun matriz; `manager/member/viewer` quedan limitados por recurso y propiedad.
+- E2E valida denegacion de mutaciones por rol y escalamiento horizontal en contactos, oportunidades, cotizaciones, tareas y productos.
 
 Regla vigente:
 
@@ -144,6 +156,7 @@ pnpm lint
 pnpm test -- --reporter=basic
 pnpm production:check
 pnpm production:verify-db
+pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line
 pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-isolation.spec.ts tests/e2e/admin-authorization.spec.ts tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts --reporter=line
 pnpm build
 ```

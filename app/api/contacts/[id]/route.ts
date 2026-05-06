@@ -5,7 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { contactSchema } from "@/lib/schemas"
-import { requireRolePermission } from "@/lib/role-permissions"
+import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -39,21 +39,23 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params
+    let requestBody: any = undefined
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "contacts", "can_update")
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const validation = contactSchema.partial().safeParse(body)
+        const validation = contactSchema.partial().safeParse(requestBody)
         if (!validation.success) {
             return NextResponse.json({ success: false, error: "Validation failed", details: validation.error.errors }, { status: 400 })
         }
 
         const { data: oldData } = await supabase.from("contacts").select("*").eq("id", id).eq("organization_id", organizationId).single()
         if (!oldData) return NextResponse.json({ success: false, error: "Contact not found" }, { status: 404 })
+        await requireCanManageRecord(supabase, { role, resource: "contacts", recordOwnerId: oldData.created_by, userId: user.id })
 
         const { data, error } = await supabase
             .from("contacts")
@@ -77,7 +79,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: `/api/contacts/${id}`, method: "PUT", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: `/api/contacts/${id}`, method: "PUT", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }
@@ -93,6 +95,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
         const { data: oldData } = await supabase.from("contacts").select("*").eq("id", id).eq("organization_id", organizationId).single()
         if (!oldData) return NextResponse.json({ success: false, error: "Contact not found" }, { status: 404 })
+        await requireCanManageRecord(supabase, { role, resource: "contacts", recordOwnerId: oldData.created_by, userId: user.id })
 
         // Check for dependencies before deletion
         const { checkDependencies } = await import('@/lib/dependency-checker')

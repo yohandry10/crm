@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const inventoryUpdateSchema = z.object({
     quantity: z.number().int().min(0, "Cantidad no puede ser negativa").optional(),
@@ -16,7 +17,8 @@ export async function GET(
 ) {
     try {
         const { id } = await params
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_update")
 
         const { data, error } = await supabase
             .from("products")

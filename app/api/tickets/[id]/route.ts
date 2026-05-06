@@ -5,7 +5,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, NotFoundError, ValidationError } from "@/lib/error-handler"
 import { validateTicketReferences } from "@/lib/work-item-references"
-import { requireRolePermission } from "@/lib/role-permissions"
+import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 const WRITE_LIMIT = RATE_LIMITS.write
@@ -45,17 +45,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 async function updateTicket(request: NextRequest, { params }: { params: Promise<{ id: string }> }, method: "PUT" | "PATCH") {
+    let requestBody: any = undefined
     try {
         const rate = await rateLimit(request, WRITE_LIMIT)
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "tickets", "can_update")
         const { id } = await params
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const validation = updateTicketSchema.safeParse(body)
+        const validation = updateTicketSchema.safeParse(requestBody)
         if (!validation.success) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
@@ -65,6 +66,16 @@ async function updateTicket(request: NextRequest, { params }: { params: Promise<
         }
 
         await validateTicketReferences(supabase, organizationId, validation.data)
+
+        const { data: existingTicket } = await supabase
+            .from("tickets")
+            .select("created_by")
+            .eq("id", id)
+            .eq("organization_id", organizationId)
+            .maybeSingle()
+
+        if (!existingTicket) throw new NotFoundError("Ticket", id)
+        await requireCanManageRecord(supabase, { role, resource: "tickets", recordOwnerId: existingTicket.created_by, userId: user.id })
 
         const { data, error } = await supabase
             .from("tickets")
@@ -84,7 +95,7 @@ async function updateTicket(request: NextRequest, { params }: { params: Promise<
             endpoint: `/api/tickets/[id]`,
             method,
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) },
@@ -107,9 +118,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "tickets", "can_delete")
         const { id } = await params
+
+        const { data: existingTicket } = await supabase
+            .from("tickets")
+            .select("created_by")
+            .eq("id", id)
+            .eq("organization_id", organizationId)
+            .maybeSingle()
+
+        if (!existingTicket) throw new NotFoundError("Ticket", id)
+        await requireCanManageRecord(supabase, { role, resource: "tickets", recordOwnerId: existingTicket.created_by, userId: user.id })
 
         const { error } = await supabase
             .from("tickets")

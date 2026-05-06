@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const movementSchema = z.object({
     product_id: z.string().uuid("ID de producto inválido"),
@@ -109,7 +110,8 @@ export async function POST(request: NextRequest) {
     let requestBody: any = undefined
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_update")
         requestBody = await request.json()
 
         // ✅ Validación con Zod

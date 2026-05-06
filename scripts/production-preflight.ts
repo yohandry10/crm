@@ -49,6 +49,7 @@ export const REQUIRED_MIGRATIONS = [
   "110_security_hardening_views_and_trigger_functions.sql",
   "111_webhook_events_authenticated_insert_policy.sql",
   "112_tenant_provisioning_and_schema_alignment.sql",
+  "113_rbac_resource_coverage.sql",
 ] as const
 
 export const REQUIRED_CRON_PATHS = [

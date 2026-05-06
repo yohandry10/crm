@@ -34,6 +34,7 @@ vi.mock('@/lib/events', () => ({
 
 vi.mock('@/lib/role-permissions', () => ({
   requireRolePermission: vi.fn(),
+  requireCanManageRecord: vi.fn(),
 }))
 
 describe('API contracts', () => {

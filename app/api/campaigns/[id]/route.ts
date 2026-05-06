@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 
 const campaignUpdateSchema = z.object({
     name: z.string().min(1, "Nombre requerido").optional(),
@@ -95,7 +96,8 @@ export async function PUT(
 ) {
     try {
         const { id } = await params
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "campaigns", "can_update")
         const body = await request.json()
 
         const validation = campaignUpdateSchema.safeParse(body)
@@ -114,6 +116,7 @@ export async function PUT(
         if (checkError || !existing) {
             return NextResponse.json({ success: false, error: "Campaña no encontrada" }, { status: 404 })
         }
+        await requireCanManageRecord(supabase, { role, resource: "campaigns", recordOwnerId: existing.created_by, userId: user.id })
 
         const updateData: Record<string, any> = { ...validation.data }
         if (validation.data.target_segment !== undefined) {
@@ -145,12 +148,13 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "campaigns", "can_delete")
 
         // Verificar que la campaña pertenece a la organización
         const { data: existing, error: checkError } = await supabase
             .from('campaigns')
-            .select('id')
+            .select('id, created_by')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
@@ -158,6 +162,7 @@ export async function DELETE(
         if (checkError || !existing) {
             return NextResponse.json({ success: false, error: "Campaña no encontrada" }, { status: 404 })
         }
+        await requireCanManageRecord(supabase, { role, resource: "campaigns", recordOwnerId: existing.created_by, userId: user.id })
 
         // Check for dependencies before deletion
         const { checkDependencies } = await import('@/lib/dependency-checker')

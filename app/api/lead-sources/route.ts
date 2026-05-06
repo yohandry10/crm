@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const leadSourceSchema = z.object({
     name: z.string().min(1, "Nombre requerido"),
@@ -17,7 +18,8 @@ export async function GET(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.read)
         if (rate) return rate
 
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "lead_sources", "can_create")
         
         const searchParams = request.nextUrl.searchParams
         const activeOnly = searchParams.get('active') !== 'false'

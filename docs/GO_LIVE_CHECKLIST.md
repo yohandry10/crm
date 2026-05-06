@@ -38,13 +38,14 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
 - [x] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted` mediante verificador y suite actual.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
-- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-112.
+- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-113.
 - [x] Migracion 105 aplicada: webhooks no dependen de secreto legacy plaintext obligatorio.
 - [x] Migracion 106 aplicada: facturas aceptan items libres sin `product_id`.
 - [x] Migracion 107 aplicada: permisos explicitos para pagos.
 - [x] Migracion 108 aplicada: columna de idempotencia de pagos.
 - [x] Migraciones 109-111 aplicadas: hardening de grants, vistas, funciones trigger y `webhook_events`.
 - [x] Migracion 112 aplicada: `user_settings`, bloqueo de autoprovicionamiento de tenants y verificador DB ampliado.
+- [x] Migracion 113 aplicada: cobertura RBAC para accounts, activities, orders, pipeline stages y lead sources.
 - [x] Cruce codigo-BD validado: 0 tablas faltantes y 0 RPC faltantes.
 - [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
 - [x] Migracion 096 aplicada y verificada en la base objetivo.
@@ -69,6 +70,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Webhooks internos pasan CSRF correctamente y el secreto legacy ya no bloquea creacion.
 - [x] Webhooks con service role no aceptan `organization_id` libre desde el body en flujos auditados; usan contexto autenticado o recurso publico validado.
 - [x] Integrations no devuelve configuracion descifrada ni `config_encrypted`.
+- [x] `emitEvent()` persiste `organization_id` top-level para cumplir RLS de `webhook_events`.
 
 ## Modulos criticos
 
@@ -80,6 +82,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Platform admin validado por E2E sin trial gate.
 - [x] Usuario regular no puede entrar a `/admin`.
 - [x] Invitaciones y miembros de organizacion probados por matriz de roles para permisos de invite.
+- [x] Escalamiento horizontal por API probado: roles sin `can_manage_all` no gestionan registros ajenos.
 
 ### CRM core
 
@@ -154,7 +157,8 @@ Automatizado parcialmente por E2E al 2026-05-06:
 - [x] Ver dashboard/reportes/modulos principales sin redirect, 404 ni trial gate.
 - [x] Validar platform admin.
 - [x] Signup real ya no crea organizacion automaticamente; la organizacion se crea desde plataforma/admin y el usuario entra por invitacion/membresia.
-- [x] E2E focal ampliado local: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
+- [x] E2E focal RBAC/admin local: 39 passed para admin boundary, role matrix y mutation guards.
+- [x] E2E focal ampliado local previo: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
 - [x] E2E focal ampliado remoto contra produccion Vercel: 51 passed.
 - [ ] Convertir lead desde UI y mover etapa por drag/drop.
 - [ ] Registrar pago manual desde UI.

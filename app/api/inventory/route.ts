@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 // Inventory in this app represents "stock management" for physical products.
 // Product creation belongs to /api/products (catalog management).
@@ -14,7 +15,8 @@ const inventorySchema = z.object({
 
 export async function GET(_request: NextRequest) {
     try {
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_update")
 
         // Fetch from PRODUCTS table (canonical stock source used across orders/invoicing)
         const { data, error } = await supabase

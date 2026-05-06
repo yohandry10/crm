@@ -30,6 +30,8 @@ const canCreateTickets = new Set(["owner", "admin", "manager"])
 const canCreateCampaigns = new Set(["owner", "admin", "manager"])
 const canCreateWorkflows = new Set(["owner", "admin"])
 const canCreateCalendarEvents = new Set(["owner", "admin", "manager", "member"])
+const canCreateAccounts = new Set(["owner", "admin", "manager", "member"])
+const canCreateOrders = new Set(["owner", "admin", "manager", "member"])
 
 async function expectWritePermission(
   response: APIResponse,
@@ -116,6 +118,16 @@ for (const role of roles) {
 
       await expectWritePermission(contactResponse, canCreateContacts.has(role), role, "/api/contacts")
 
+      const accountResponse = await request.post("/api/accounts", {
+        data: {
+          name: `Role ${role} Account ${stamp}`,
+          ruc: `20${String(stamp).slice(-9)}`,
+          industry: "Servicios",
+        },
+      })
+
+      await expectWritePermission(accountResponse, canCreateAccounts.has(role), role, "/api/accounts")
+
       const opportunityResponse = await request.post("/api/opportunities", {
         data: {
           name: `Role ${role} Opportunity ${stamp}`,
@@ -160,6 +172,19 @@ for (const role of roles) {
       })
 
       await expectWritePermission(invoiceResponse, canCreateInvoices.has(role), role, "/api/invoices")
+
+      const orderResponse = await request.post("/api/orders", {
+        data: {
+          contact_id: seedContactId,
+          status: "draft",
+          subtotal: 50,
+          tax: 9,
+          total: 59,
+          items: [{ description: `Role ${role} order item`, quantity: 1, unit_price: 50 }],
+        },
+      })
+
+      await expectWritePermission(orderResponse, canCreateOrders.has(role), role, "/api/orders")
 
       const ticketResponse = await request.post("/api/tickets", {
         data: {

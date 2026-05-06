@@ -10,6 +10,11 @@ vi.mock("@/lib/error-logging", () => ({
   logError: vi.fn(),
 }))
 
+vi.mock("@/lib/role-permissions", () => ({
+  requireRolePermission: vi.fn(async () => undefined),
+  requireCanManageRecord: vi.fn(async () => undefined),
+}))
+
 // Mock data
 const mockUser = { id: "user-123", email: "test@test.com" }
 const mockOrgId = "org-123"
@@ -44,15 +49,17 @@ function createQueryChain(returnData: any = null) {
   return chain
 }
 
+const createDefaultFromMock = () => vi.fn((table: string) => {
+  const mockData: Record<string, any> = {
+    accounts: { id: "acc-1", name: "Test Account", organization_id: mockOrgId, created_by: mockUser.id },
+    tickets: { id: "t-1", title: "Test Ticket", organization_id: mockOrgId, created_by: mockUser.id },
+    orders: { id: "o-1", total: 100, organization_id: mockOrgId, created_by: mockUser.id },
+  }
+  return createQueryChain(mockData[table] || { id: "test-id", organization_id: mockOrgId, created_by: mockUser.id })
+})
+
 const mockSupabase = {
-  from: vi.fn((table: string) => {
-    const mockData: Record<string, any> = {
-      accounts: { id: "acc-1", name: "Test Account", organization_id: mockOrgId },
-      tickets: { id: "t-1", title: "Test Ticket", organization_id: mockOrgId },
-      orders: { id: "o-1", total: 100, organization_id: mockOrgId },
-    }
-    return createQueryChain(mockData[table] || { id: "test-id", organization_id: mockOrgId })
-  }),
+  from: createDefaultFromMock(),
   rpc: vi.fn(() => Promise.resolve({ data: { id: "rpc-result" }, error: null })),
   auth: {
     getUser: vi.fn(() => Promise.resolve({ data: { user: mockUser }, error: null })),
@@ -80,6 +87,7 @@ import { POST as createOrder } from "@/app/api/orders/route"
 describe("CRM CRUD APIs", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabase.from = createDefaultFromMock()
   })
 
   it("crea cuenta válida", async () => {

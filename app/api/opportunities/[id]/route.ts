@@ -3,7 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { requireRolePermission } from '@/lib/role-permissions'
+import { requireCanManageRecord, requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
 import { z } from 'zod'
 
@@ -61,6 +61,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let requestBody: any = undefined
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
@@ -69,9 +70,9 @@ export async function PATCH(
         // MULTI-TENANT: Get organization context
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "opportunities", "can_update")
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const validation = opportunityUpdateSchema.safeParse(body)
+        const validation = opportunityUpdateSchema.safeParse(requestBody)
         if (!validation.success) {
             return NextResponse.json(
                 { success: false, error: "Datos inválidos", details: validation.error.errors },
@@ -98,6 +99,7 @@ export async function PATCH(
         if (!oldData) {
             return NextResponse.json({ success: false, error: "Opportunity not found" }, { status: 404 })
         }
+        await requireCanManageRecord(supabase, { role, resource: "opportunities", recordOwnerId: oldData.created_by, userId: user.id })
 
         if (updateData.contact_id) {
             const { data: contact, error: contactError } = await supabase
@@ -176,7 +178,7 @@ export async function PATCH(
             endpoint: `/api/opportunities/[id]`,
             method: "PATCH",
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) }, 
@@ -195,13 +197,13 @@ export async function DELETE(
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "opportunities", "can_delete")
 
         // Verify the opportunity exists
         const { data: existing, error: checkError } = await supabase
             .from('opportunities')
-            .select('id')
+            .select('id, created_by')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
@@ -209,6 +211,7 @@ export async function DELETE(
         if (checkError || !existing) {
             return NextResponse.json({ success: false, error: "Oportunidad no encontrada" }, { status: 404 })
         }
+        await requireCanManageRecord(supabase, { role, resource: "opportunities", recordOwnerId: existing.created_by, userId: user.id })
 
         // Check for dependencies before deletion
         const { checkDependencies } = await import('@/lib/dependency-checker')

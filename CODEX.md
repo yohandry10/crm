@@ -36,11 +36,12 @@ Ultima validacion registrada: 2026-05-06.
 
 - `pnpm typecheck`: OK.
 - `pnpm lint`: OK; solo aviso externo de `baseline-browser-mapping`.
-- `pnpm test -- --reporter=basic`: 207 passed, 4 skipped.
+- `pnpm test -- --reporter=basic`: 208 passed, 4 skipped.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - `pnpm production:verify-db`: 0 failures, 109 checks.
-- `pnpm test:coverage -- --reporter=basic`: 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
-- E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos: 51 passed.
+- `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
+- E2E focal RBAC/admin/local: 39 passed.
+- E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos previo: 51 passed.
 - `pnpm build`: OK.
 - Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_2VrV6qmei2J7UsjaMy4AaeQwgDhJ` Ready, health database/auth/redis healthy.
 - E2E remoto contra produccion: 51 passed.
@@ -54,6 +55,7 @@ Ultima validacion registrada: 2026-05-06.
 - Se reforzo login, forgot-password, reset/cambio de password, redirect interno y rate limit.
 - Se separo platform admin de usuarios de tenant.
 - Se centralizaron permisos con `lib/role-permissions.ts`.
+- `lib/role-permissions.ts` ahora valida permisos por recurso y propiedad del registro para cerrar escalamiento horizontal.
 - Se agregaron pruebas E2E para usuario diario, UI avanzada, matriz de roles, guards de mutacion, admin smoke, auth security, multi-tenant y tenant provisioning.
 - Se corrigio el cache de `getAuthenticatedContext`: `x-organization-id` ya no puede contaminar la organizacion por defecto de usuarios multi-tenant.
 - Header `x-organization-id` ahora exige membership activa y devuelve 403 si es forjado.
@@ -63,7 +65,9 @@ Ultima validacion registrada: 2026-05-06.
 - Se agrego `tests/e2e/tenant-provisioning.spec.ts`.
 - Se agrego `supabase/migrations/112_tenant_provisioning_and_schema_alignment.sql`.
 - La migracion 112 crea `user_settings` con RLS, revoca inserts directos en `organizations` para `anon/authenticated` y amplia `verify_production_readiness()`.
-- Migraciones 094-112 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
+- Migraciones 094-113 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
+- Migracion 113 agrega cobertura RBAC de `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
+- Se corrigio `emitEvent()` para escribir `organization_id` como columna top-level en `webhook_events`; la politica RLS 111 ya no bloquea eventos internos autenticados con payload multi-tenant valido.
 - Se elimino documentacion desactualizada de analisis previo y se actualizo el indice documental.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
 - Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.
@@ -78,7 +82,7 @@ Ultima validacion registrada: 2026-05-06.
 - Funciones `SECURITY DEFINER` verificadas tienen `search_path`.
 - `organizations` no acepta inserts directos de `anon/authenticated`.
 - `user_settings` existe y tiene RLS de propietario.
-- `webhook_events` no acepta inserts anonimos; usuarios autenticados solo emiten eventos dentro de su organizacion.
+- `webhook_events` no acepta inserts anonimos; usuarios autenticados solo emiten eventos dentro de su organizacion y `emitEvent()` persiste `organization_id` explicitamente.
 - Service role debe usarse solo despues de autorizacion de aplicacion verificable.
 
 ## Documentos fuente
@@ -99,6 +103,7 @@ pnpm lint
 pnpm test -- --reporter=basic
 pnpm production:check
 pnpm production:verify-db
+pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line
 pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-isolation.spec.ts tests/e2e/admin-authorization.spec.ts tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/crm-flows.spec.ts tests/e2e/daily-user-journey.spec.ts tests/e2e/daily-advanced-ui.spec.ts tests/e2e/auth-security.spec.ts --reporter=line
 pnpm build
 ```

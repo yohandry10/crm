@@ -6,6 +6,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { validateSalesOrderReferences } from "@/lib/sales-order-references"
 import crypto from "crypto"
+import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 
 const WRITE_LIMIT = RATE_LIMITS.write
 const updateSalesOrderSchema = salesOrderSchema.partial()
@@ -46,16 +47,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 async function updateSalesOrder(request: NextRequest, { params }: { params: Promise<{ id: string }> }, method: "PUT" | "PATCH") {
+    let requestBody: any = undefined
     try {
         const rate = await rateLimit(request, WRITE_LIMIT)
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "orders", "can_update")
         const { id } = await params
-        const body = await request.json()
+        requestBody = await request.json()
 
-        const validation = updateSalesOrderSchema.safeParse(body)
+        const validation = updateSalesOrderSchema.safeParse(requestBody)
         if (!validation.success) {
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.format() }, { status: 400 })
         }
@@ -69,7 +72,7 @@ async function updateSalesOrder(request: NextRequest, { params }: { params: Prom
         // Get current order to check status change
         const { data: currentOrder, error: currentOrderError } = await supabase
             .from("sales_orders")
-            .select("status, items")
+            .select("status, items, created_by")
             .eq("id", id)
             .eq("organization_id", organizationId)
             .maybeSingle()
@@ -78,6 +81,7 @@ async function updateSalesOrder(request: NextRequest, { params }: { params: Prom
         if (!currentOrder) {
             throw new ValidationError("Pedido no encontrado")
         }
+        await requireCanManageRecord(supabase, { role, resource: "orders", recordOwnerId: currentOrder.created_by, userId: user.id })
 
         const { data, error } = await supabase
             .from("sales_orders")
@@ -112,7 +116,7 @@ async function updateSalesOrder(request: NextRequest, { params }: { params: Prom
             endpoint: `/api/orders/[id]`,
             method,
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) },
@@ -135,8 +139,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "orders", "can_delete")
         const { id } = await params
+
+        const { data: existingOrder } = await supabase
+            .from("sales_orders")
+            .select("created_by")
+            .eq("id", id)
+            .eq("organization_id", organizationId)
+            .maybeSingle()
+
+        if (!existingOrder) throw new ValidationError("Pedido no encontrado")
+        await requireCanManageRecord(supabase, { role, resource: "orders", recordOwnerId: existingOrder.created_by, userId: user.id })
 
         const { error } = await supabase
             .from("sales_orders")

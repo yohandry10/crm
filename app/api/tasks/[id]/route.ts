@@ -5,7 +5,7 @@ import { sanitizeErrorForClient, getHttpStatusForError, NotFoundError, Validatio
 import { taskSchema } from '@/lib/schemas'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { validateTaskReferences } from '@/lib/work-item-references'
-import { requireRolePermission } from '@/lib/role-permissions'
+import { requireCanManageRecord, requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
 
 const updateTaskSchema = taskSchema.partial()
@@ -48,18 +48,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    let requestBody: any = undefined
     try {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "tasks", "can_update")
         const { id } = await params
-        const body = await request.json()
+        requestBody = await request.json()
 
         // ✅ Validación con Zod (partial para updates)
-        const validation = updateTaskSchema.safeParse(body)
+        const validation = updateTaskSchema.safeParse(requestBody)
         if (!validation.success) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
@@ -69,6 +70,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
 
         await validateTaskReferences(supabase, organizationId, validation.data)
+
+        const { data: existingTask } = await supabase
+            .from('tasks')
+            .select('created_by')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+        if (!existingTask) throw new NotFoundError('Tarea', id)
+        await requireCanManageRecord(supabase, { role, resource: "tasks", recordOwnerId: existingTask.created_by, userId: user.id })
 
         const { data, error } = await supabase
             .from('tasks')
@@ -88,7 +99,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             endpoint: `/api/tasks/[id]`,
             method: "PATCH",
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) }, 
@@ -103,9 +114,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "tasks", "can_delete")
         const { id } = await params
+
+        const { data: existingTask } = await supabase
+            .from('tasks')
+            .select('created_by')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+        if (!existingTask) throw new NotFoundError('Tarea', id)
+        await requireCanManageRecord(supabase, { role, resource: "tasks", recordOwnerId: existingTask.created_by, userId: user.id })
 
         const { error } = await supabase
             .from('tasks')

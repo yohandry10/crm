@@ -5,6 +5,7 @@ import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "
 import { z } from "zod"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const activitySchema = z.object({
     activity_type: z.enum(['call', 'email', 'meeting', 'whatsapp', 'note', 'task_completed', 'deal_won', 'deal_lost']),
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "activities", "can_create")
         const body = await request.json()
 
         const validation = activitySchema.safeParse(body)

@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 export async function GET(request: NextRequest) {
     try {
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "accounts", "can_create")
         const body = await request.json()
 
         const validation = accountSchema.safeParse(body)

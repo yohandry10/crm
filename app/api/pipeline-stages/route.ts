@@ -5,6 +5,7 @@ import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handl
 import { z } from 'zod'
 import { createRequestLogger } from '@/lib/logger'
 import crypto from 'crypto'
+import { requireRolePermission } from '@/lib/role-permissions'
 
 const pipelineStageSchema = z.object({
     name: z.string().min(1, "Nombre requerido").max(50),
@@ -15,7 +16,8 @@ const pipelineStageSchema = z.object({
 
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "pipeline_stages", "can_create")
         const log = createRequestLogger(request, organizationId)
 
         log.debug("Fetching pipeline stages")

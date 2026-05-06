@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
-import { requireRolePermission } from "@/lib/role-permissions"
+import { requireCanManageRecord, requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+    let requestBody: any = undefined
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
@@ -44,7 +45,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "invoices", "can_update")
         const { id } = await context.params
-        const body = await request.json()
+        requestBody = await request.json()
 
         const { data: oldData } = await supabase
             .from("invoices")
@@ -54,20 +55,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             .single()
 
         if (!oldData) return NextResponse.json({ success: false, error: "Invoice not found" }, { status: 404 })
+        await requireCanManageRecord(supabase, { role, resource: "invoices", recordOwnerId: oldData.created_by, userId: user.id })
 
-        if (body.status) {
+        if (requestBody.status) {
             const validStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled']
-            if (!validStatuses.includes(body.status)) {
+            if (!validStatuses.includes(requestBody.status)) {
                 return NextResponse.json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, { status: 400 })
             }
-            if (oldData.status === 'paid' && body.status !== 'paid') {
+            if (oldData.status === 'paid' && requestBody.status !== 'paid') {
                 return NextResponse.json({ success: false, error: "Cannot change status of paid invoice" }, { status: 400 })
             }
         }
 
         const { data, error } = await supabase
             .from("invoices")
-            .update({ ...body, updated_at: new Date().toISOString() })
+            .update({ ...requestBody, updated_at: new Date().toISOString() })
             .eq("id", id)
             .eq("organization_id", organizationId)
             .select()
@@ -77,7 +79,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         await logAudit({ supabase, request, userId: user.id, organizationId, action: "UPDATE_INVOICE", table: "invoices", recordId: id, oldData, newData: data })
 
-        if (body.status && body.status !== oldData.status && body.status === 'sent') {
+        if (requestBody.status && requestBody.status !== oldData.status && requestBody.status === 'sent') {
             const { emitEvent } = await import('@/lib/events')
             await emitEvent({
                 event_type: 'invoice.sent', source: 'internal',
@@ -87,12 +89,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: `/api/invoices/[id]`, method: "PATCH", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: `/api/invoices/[id]`, method: "PATCH", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
+    let requestBody: any = undefined
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
@@ -100,7 +103,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "invoices", "can_update")
         const { id } = await context.params
-        const body = await request.json()
+        requestBody = await request.json()
 
         // Get current invoice
         const { data: oldData } = await supabase
@@ -113,13 +116,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         if (!oldData) {
             return NextResponse.json({ success: false, error: "Invoice not found" }, { status: 404 })
         }
+        await requireCanManageRecord(supabase, { role, resource: "invoices", recordOwnerId: oldData.created_by, userId: user.id })
 
         // Only allow editing draft invoices
         if (oldData.status !== 'draft') {
             return NextResponse.json({ success: false, error: "Solo se pueden editar facturas en borrador" }, { status: 400 })
         }
 
-        const { contact_id, due_date, notes, items } = body
+        const { contact_id, due_date, notes, items } = requestBody
 
         // Calculate totals
         const subtotal = items.reduce((sum: number, item: any) => 
@@ -188,7 +192,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             endpoint: `/api/invoices/[id]`, 
             method: "PUT", 
             error, 
-            requestBody: await request.clone().json().catch(() => undefined) 
+            requestBody
         })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
@@ -211,6 +215,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             .single()
 
         if (!invoice) return NextResponse.json({ success: false, error: "Invoice not found" }, { status: 404 })
+        await requireCanManageRecord(supabase, { role, resource: "invoices", recordOwnerId: invoice.created_by, userId: user.id })
         if (invoice.status === 'paid') return NextResponse.json({ success: false, error: "Cannot delete paid invoice" }, { status: 400 })
 
         const { error } = await supabase.from("invoices").delete().eq("id", id).eq("organization_id", organizationId)

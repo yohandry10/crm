@@ -15,6 +15,7 @@ Estado actual:
 - Modulos principales renderizan sin redirect a login, sin 404 y sin trial gate inesperado.
 - APIs principales autenticadas responden correctamente.
 - Permisos de lectura/escritura reforzados en rutas criticas mediante `role_permissions`.
+- Auditoria RBAC ampliada: APIs de negocio y configuracion revisadas contra permisos reales por rol y propiedad del registro.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
 - No hay proveedor externo de automatizaciones activo fuera de los workflows internos del CRM.
@@ -48,6 +49,7 @@ Estado actual:
 ### Permisos por rol
 
 - Se agrego `lib/role-permissions.ts` como helper central para consultar `role_permissions`.
+- `lib/role-permissions.ts` ahora tambien expone validacion de propiedad para impedir escalamiento horizontal cuando el rol no tiene `can_manage_all`.
 - Se reforzaron permisos en APIs de:
   - settings
   - integrations
@@ -63,6 +65,8 @@ Estado actual:
   - workflows
   - calendar events
 - Se reforzaron tambien operaciones `PUT/PATCH/DELETE` de registros existentes para cerrar saltos por API directa.
+- Se reforzaron rutas adicionales de `accounts`, `activities`, `orders`, `inventory`, `lead_sources` y `pipeline_stages` con permisos explicitos.
+- Se agregaron checks de propietario en contactos, oportunidades, tareas, tickets, productos, campanas, cotizaciones, facturas, pedidos y cuentas cuando el rol solo puede gestionar registros propios.
 - Se agregaron permisos explicitos para `payments`; `viewer/member` no pueden registrar pagos y `manager` puede registrar pagos manuales.
 - Modulos sensibles quedan limitados a `owner/admin` cuando corresponde.
 - `viewer` queda validado como rol de solo lectura en flujos diarios.
@@ -105,8 +109,9 @@ Estado actual:
 - Migracion `110_security_hardening_views_and_trigger_functions.sql`: extiende el hardening a vistas publicas y funciones trigger-only de cifrado.
 - Migracion `111_webhook_events_authenticated_insert_policy.sql`: restaura la emision de eventos internos para usuarios autenticados solo dentro de su organizacion, sin reabrir inserts anonimos.
 - Migracion `112_tenant_provisioning_and_schema_alignment.sql`: agrega `user_settings` con RLS, revoca insert directo en `organizations` para `anon/authenticated`, amplia `verify_production_readiness()` a todas las tablas/RPC usadas por el codigo y agrega checks contra autoprovicionamiento de tenants.
+- Migracion `113_rbac_resource_coverage.sql`: completa matriz `role_permissions` para `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
 - Estas correcciones fueron aplicadas contra la base Supabase objetivo durante la validacion local y registradas en `schema_migrations`.
-- `scripts/production-preflight.ts` ahora exige las migraciones 105-112.
+- `scripts/production-preflight.ts` ahora exige las migraciones 105-113.
 - `scripts/production-db-verify.ts` ejecuta `verify_security_hardening()` y valida grants/RPC/search_path.
 
 ### Seguridad auditada en BD
@@ -116,6 +121,7 @@ Estado actual:
 - RPC sensibles como cifrado, credenciales, pagos atomicos, inventario y reconciliacion ya no son ejecutables por `anon` ni `public`.
 - Las funciones `SECURITY DEFINER` publicas verificadas tienen `search_path` definido.
 - `webhook_events` ya no acepta inserts anonimos; los eventos generados por modulos CRM requieren usuario autenticado con membresia activa en la organizacion.
+- `emitEvent()` escribe `organization_id` como columna top-level en `webhook_events`, alineado con RLS y con el payload multi-tenant de los modulos.
 - `organizations` ya no acepta inserts directos de `authenticated`; la creacion de tenants depende de funciones/rutas de plataforma con service role y auditoria.
 - `user_settings` existe en la base objetivo y tiene RLS de usuario propietario.
 
@@ -134,6 +140,7 @@ Estado actual:
 - Aceptar una cotizacion creaba factura automaticamente pese a existir un flujo explicito de conversion; ahora solo valida stock y cambia estado.
 - Tareas sin fecha de vencimiento podian ocultar la tarea recien creada fuera de la primera pagina por orden indefinido; ahora se ordenan de forma predecible.
 - Productos recien creados podian quedar fuera de la primera pagina del catalogo cuando el tenant tenia volumen acumulado; ahora el catalogo ordena por `created_at desc` y refleja inmediatamente el registro devuelto por la API.
+- Eventos internos `contact.created` y `payment.completed` quedaban bloqueados por RLS porque `webhook_events.organization_id` no se persistia fuera del payload; ahora se persiste explicitamente.
 
 ## Validacion ejecutada
 
@@ -152,14 +159,15 @@ pnpm build
 Resultado observado:
 
 - Typecheck: OK.
-- Unit/contracts: 207 passed, 4 skipped.
+- Unit/contracts: 208 passed, 4 skipped.
 - Lint: OK; solo queda aviso externo de `baseline-browser-mapping`.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
 - Build: OK.
 - Local health: `GET /api/health` devuelve 200 con database/auth/redis healthy.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
-- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- E2E focal RBAC/admin local: 39 passed.
+- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - E2E focal cubre aislamiento tenant en contactos, oportunidades, payment links y cambio de organizacion por header.
 - E2E focal cubre bloqueo de self-service tenant, bootstrap sin creacion de tenant, frontera platform admin negativa, matriz de roles y guards de mutacion.
 - E2E auth security incluido en suite completa: 4 passed para redirect de login, forgot-password, rate limit y cambio de contraseña.

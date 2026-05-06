@@ -151,6 +151,10 @@ test("readonly and limited roles cannot mutate protected modules through the API
     await expectForbidden(member.put(`/api/products/${seed.productId}`, { data: { name: "Member product edit" } }), "member product update")
     await expectForbidden(member.patch(`/api/tickets/${seed.ticketId}`, { data: { status: "closed" } }), "member ticket update")
     await expectForbidden(member.put(`/api/workflows/${seed.workflowId}`, { data: { name: "Member workflow edit" } }), "member workflow update")
+    await expectForbidden(member.put(`/api/contacts/${seed.contactId}`, { data: { name: "Member edits owner contact" } }), "member cannot update another user's contact")
+    await expectForbidden(member.patch(`/api/opportunities/${seed.opportunityId}`, { data: { name: "Member edits owner opportunity" } }), "member cannot update another user's opportunity")
+    await expectForbidden(member.patch(`/api/quotes/${seed.quoteId}`, { data: { status: "sent" } }), "member cannot update another user's quote")
+    await expectForbidden(member.patch(`/api/tasks/${seed.taskId}`, { data: { status: "completed" } }), "member cannot update another user's task")
     await expectForbidden(member.post("/api/payments", {
       data: {
         invoice_id: seed.invoiceId,
@@ -161,10 +165,39 @@ test("readonly and limited roles cannot mutate protected modules through the API
       headers: { "idempotency-key": `member-denied-${Date.now()}` },
     }), "member payment create")
 
-    const managerProductUpdate = await manager.put(`/api/products/${seed.productId}`, {
+    await expectForbidden(manager.put(`/api/products/${seed.productId}`, {
       data: { name: `Manager updated product ${Date.now()}` },
+    }), "manager cannot update another user's product")
+
+    const managerOwnProduct = await expectJsonSuccess(await manager.post("/api/products", {
+      data: {
+        name: `Manager Own Product ${Date.now()}`,
+        sku: `MANAGER-OWN-${Date.now()}`,
+        unit_price: 35,
+        cost_price: 12,
+        stock_quantity: 4,
+      },
+    }))
+
+    const managerOwnProductUpdate = await manager.put(`/api/products/${managerOwnProduct.data.id}`, {
+      data: { name: `Manager updated own product ${Date.now()}` },
     })
-    expect(managerProductUpdate.ok(), await managerProductUpdate.text()).toBeTruthy()
+    expect(managerOwnProductUpdate.ok(), await managerOwnProductUpdate.text()).toBeTruthy()
+
+    const memberOwnContact = await expectJsonSuccess(await member.post("/api/contacts", {
+      data: {
+        name: `Member Own Contact ${Date.now()}`,
+        email: `member.own.${Date.now()}@example.org`,
+        phone: "+51999123457",
+        lead_status: "warm",
+        source: "e2e-roles",
+      },
+    }))
+
+    const memberOwnContactUpdate = await member.put(`/api/contacts/${memberOwnContact.data.id}`, {
+      data: { name: `Member updated own contact ${Date.now()}` },
+    })
+    expect(memberOwnContactUpdate.ok(), await memberOwnContactUpdate.text()).toBeTruthy()
 
     await expectForbidden(manager.delete(`/api/products/${seed.productId}`), "manager product delete")
 

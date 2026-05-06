@@ -7,6 +7,7 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { getPaginationParams } from "@/lib/pagination"
 import { validateSalesOrderReferences } from "@/lib/sales-order-references"
 import crypto from "crypto"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 export async function GET(request: NextRequest) {
     try {
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "orders", "can_create")
         const body = await request.json()
 
         const validation = salesOrderSchema.safeParse(body)

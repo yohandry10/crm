@@ -41,6 +41,7 @@ export async function emitEvent(
     supabase?: any
 ): Promise<void> {
     try {
+        const organizationId = event.payload?.organization_id || event.payload?.organizationId
         // Use provided supabase client or create admin client
         const client = supabase || createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,6 +51,7 @@ export async function emitEvent(
         const { error } = await client
             .from('webhook_events')
             .insert({
+                organization_id: organizationId,
                 event_type: event.event_type,
                 source: event.source || 'internal',
                 payload: event.payload,

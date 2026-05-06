@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
-import { requireRolePermission } from '@/lib/role-permissions'
+import { requireCanManageRecord, requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
 import { z } from 'zod'
 
@@ -112,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let requestBody: any
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "quotes", "can_update")
         const { id } = await params
         requestBody = await request.json()
@@ -120,12 +120,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         // Get current quote status
         const { data: currentQuote, error: fetchError } = await supabase
             .from('quotes')
-            .select('status, contact_id, notes, invoice_id')
+            .select('status, contact_id, notes, invoice_id, created_by')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchError) throw fetchError
+        await requireCanManageRecord(supabase, { role, resource: "quotes", recordOwnerId: currentQuote.created_by, userId: user.id })
 
         const hasEditablePayload = Array.isArray(requestBody?.items)
 
@@ -262,9 +263,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
         await requireRolePermission(supabase, role, "quotes", "can_delete")
         const { id } = await params
+
+        const { data: existingQuote } = await supabase
+            .from('quotes')
+            .select('created_by')
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+        if (!existingQuote) throw new ValidationError("Cotización no encontrada")
+        await requireCanManageRecord(supabase, { role, resource: "quotes", recordOwnerId: existingQuote.created_by, userId: user.id })
 
         const { error } = await supabase
             .from('quotes')
