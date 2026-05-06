@@ -180,11 +180,11 @@ Resultado observado:
 
 Ultima ejecucion remota de produccion registrada: 2026-05-06.
 
-- Deployment Vercel: `dpl_DM8ay74JnwBHhss2vki9Vk35VUhs`.
+- Deployment Vercel: `dpl_7MSxzWRgE6AfiFt4qKTiTMzyPKys`.
 - URL production alias: `https://crm-trivia1.vercel.app`.
 - `vercel inspect crm-trivia1.vercel.app`: Ready.
 - `GET https://crm-trivia1.vercel.app/api/health`: database/auth/redis healthy.
-- E2E remoto RBAC/admin contra produccion: 39 passed.
+- E2E remoto RBAC/admin contra produccion: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E remoto contra produccion previo: 51 passed.
 
 ## Estado operativo
@@ -193,7 +193,7 @@ Ultima ejecucion remota de produccion registrada: 2026-05-06.
 - Endpoint de salud validado durante la prueba: `http://localhost:3000/api/health`.
 - En la ultima validacion E2E se levanto servidor local explicito; `/api/health` respondio healthy antes de correr Playwright.
 - Produccion Vercel esta desplegada y alias final responde healthy.
-- Commit desplegado en la ultima tanda: `4cc86f1`.
+- Commit desplegado en la ultima tanda: `85af520`.
 
 ## Pendientes posteriores a produccion
 

@@ -2,7 +2,7 @@
 
 Actualizado: 2026-05-06.
 
-Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-113 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db` y `pnpm production:check`.
+Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-114 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db` y `pnpm production:check`.
 
 ## Estado verificado
 
@@ -44,7 +44,7 @@ Regla vigente:
 
 ## SECURITY DEFINER y RPC
 
-Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112 y 113 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion y cobertura RBAC.
+Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112, 113 y 114 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion, cobertura RBAC y auditoria centralizada.
 
 Estado actual:
 
@@ -157,9 +157,7 @@ Reglas vigentes:
 
 Estos puntos no bloquean el estado local verificado, pero si bloquean afirmar produccion remota completamente cerrada:
 
-- Commit, push y deploy en Vercel production.
 - Ejecutar CI/pipeline remoto con la misma suite.
-- Smoke autenticado contra la URL de produccion despues del deploy.
 - Confirmar Supabase Auth Site URL y Redirect URLs del dominio final.
 - Configurar worker persistente si se promete workflow near-real-time.
 - Activar umbrales de coverage gradualmente en modulos criticos.
