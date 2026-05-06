@@ -23,6 +23,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createWorkflowSchema } from "@/lib/schemas"
+import { toast } from "sonner"
 
 interface WorkflowDialogProps {
     open: boolean
@@ -121,16 +122,14 @@ export function WorkflowDialog({ open, onOpenChange, workflow, onSave }: Workflo
 
             const validation = createWorkflowSchema.safeParse(payload)
             if (!validation.success) {
-                window.alert("Error: workflow inválido (acciones/trigger/params)")
+                toast.error("Workflow inválido: revisa acciones, disparador y parámetros")
                 return
             }
             await onSave(payload)
             onOpenChange(false)
         } catch (error) {
             console.error("Error saving workflow:", error)
-            // Note: Using native alert here is intentional for JSON parse errors
-            // as toast may not be visible when dialog is open
-            window.alert("Error: JSON inválido en condiciones o acciones")
+            toast.error("JSON inválido en condiciones o acciones")
         } finally {
             setLoading(false)
         }

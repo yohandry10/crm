@@ -10,6 +10,8 @@ import { GlobalErrorReporter } from "@/components/providers/global-error-reporte
 import { GlobalChatbotWrapper } from "@/components/chatbot/global-chatbot-wrapper"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ThemeProvider } from "@/hooks/use-theme"
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -47,6 +49,8 @@ export default function RootLayout({
                   {children}
                 </NavigationLoadingProvider>
                 <GlobalChatbotWrapper />
+                <Analytics />
+                <SpeedInsights />
               </ErrorBoundary>
             </ThemeProvider>
           </AuthProvider>

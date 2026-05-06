@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Settings, CreditCard, Mail, Shield, Loader2 } from "lucide-react"
+import { Settings, CreditCard, Mail, Shield, Loader2, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 
 export default function AdminSettingsPage() {
@@ -81,6 +81,29 @@ export default function AdminSettingsPage() {
     { id: "email", label: "Email", icon: Mail },
     { id: "security", label: "Seguridad", icon: Shield },
   ]
+
+  const EnvManagedNotice = ({ title, description, keys }: { title: string; description: string; keys: string[] }) => (
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
+          <KeyRound className="h-4 w-4 text-amber-300" />
+        </div>
+        <div className="space-y-2">
+          <div>
+            <p className="text-[13px] font-semibold text-amber-100">{title}</p>
+            <p className="text-[12px] text-amber-100/70">{description}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {keys.map((key) => (
+              <code key={key} className="rounded-md border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-amber-50">
+                {key}
+              </code>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -194,14 +217,11 @@ export default function AdminSettingsPage() {
             </div>
             {settings.culqiEnabled && (
               <div className="space-y-3 pt-3 border-t border-white/[0.06]">
-                <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-[12px]">Culqi Public Key</Label>
-                  <Input type="password" placeholder="pk_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-[12px]">Culqi Secret Key</Label>
-                  <Input type="password" placeholder="sk_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
-                </div>
+                <EnvManagedNotice
+                  title="Credenciales gestionadas por entorno"
+                  description="Este panel solo activa la pasarela. Las claves no se editan aqui para evitar inputs visuales sin persistencia segura."
+                  keys={["CULQI_PUBLIC_KEY", "CULQI_SECRET_KEY"]}
+                />
               </div>
             )}
           </div>
@@ -219,10 +239,11 @@ export default function AdminSettingsPage() {
             </div>
             {settings.pagoEfectivoEnabled && (
               <div className="space-y-3 pt-3 border-t border-white/[0.06]">
-                <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-[12px]">Access Token</Label>
-                  <Input type="password" placeholder="pe_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
-                </div>
+                <EnvManagedNotice
+                  title="Credenciales gestionadas por entorno"
+                  description="Este panel solo activa la pasarela. El token real se valida desde variables de entorno del despliegue."
+                  keys={["PAGO_EFECTIVO_ACCESS_TOKEN"]}
+                />
               </div>
             )}
           </div>
@@ -251,14 +272,11 @@ export default function AdminSettingsPage() {
               <Label className="text-slate-300">Proveedor de Email</Label>
               <Input value="Resend" disabled className="bg-white/[0.04] border-white/[0.08] text-slate-400" />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">API Key</Label>
-              <Input type="password" placeholder="re_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Email Remitente</Label>
-              <Input placeholder="noreply@tudominio.com" className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
-            </div>
+            <EnvManagedNotice
+              title="Email configurado por entorno"
+              description="Las credenciales y remitentes se cargan desde variables del entorno de produccion; no se muestran campos editables sin backend seguro."
+              keys={["RESEND_API_KEY", "RESEND_FROM_EMAIL"]}
+            />
           </div>
 
           <Button onClick={saveSettings} disabled={loading || saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">

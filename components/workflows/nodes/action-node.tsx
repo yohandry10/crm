@@ -210,14 +210,14 @@ export const ActionNode = memo(({ id, data, isConnectable }: NodeProps<ActionNod
                         <div className="space-y-2">
                             <Label htmlFor="template">O usar plantilla</Label>
                             <Select
-                                value={params.template || ''}
-                                onValueChange={(v) => setParams({ ...params, template: v })}
+                                value={params.template || '__custom__'}
+                                onValueChange={(v) => setParams({ ...params, template: v === '__custom__' ? '' : v })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar plantilla" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Ninguna (usar contenido personalizado)</SelectItem>
+                                    <SelectItem value="__custom__">Ninguna (usar contenido personalizado)</SelectItem>
                                     <SelectItem value="welcome">Bienvenida</SelectItem>
                                     <SelectItem value="task_assigned">Tarea Asignada</SelectItem>
                                     <SelectItem value="order_completed">Pedido Completado</SelectItem>

@@ -46,10 +46,14 @@ Ultima validacion registrada: 2026-05-06.
 - E2E focal RBAC/admin/local: 28 passed para frontera platform admin y endpoint `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos/local: 29 passed.
 - E2E critico local `tests/e2e/critical-regression.spec.ts`: 4 passed para login/registro, pagos, workflow usuario-admin y regresiones edge.
+- Auditoria visual de modulos incompletos: se eliminaron inputs fake de credenciales en admin settings, se alineo el detector de cambios de settings con medios de pago/notificaciones, se agrego guardado visible de notificaciones, se reemplazaron alerts nativos de workflows por toasts y se bloqueo guardar workflows visuales con acciones sin parametros validos.
+- Guardrail unitario `tests/unit/visual-completeness.test.ts`: cubre credenciales no persistidas, campos editables de settings, alerts nativos y `SelectItem` vacio.
+- Infraestructura real de despliegue/observabilidad agregada: workflow `deploy.yml` para preview/production/rollback, plantillas `.env.example`, `.env.preview.example`, `.env.production.example`, endpoint autenticado `/api/health/deep`, script `pnpm health:post-deploy`, Vercel Web Analytics y Speed Insights montados.
+- `pnpm production:check` valida tambien CI/CD, health profundo, alertas post-deploy, env templates y observabilidad RUM.
 - E2E focal RBAC/admin/remoto contra produccion: 39 passed.
 - E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos previo: 51 passed.
 - `pnpm build`: OK.
-- Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_kQF8Ftgm7d1n22ceUzUB8jdj1H4T` Ready, health database/auth/redis healthy.
+- Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_DK5eZk75XsaxDZJUA7DgvmiYDa3j` Ready, health database/auth/redis healthy.
 - E2E remoto contra produccion: 51 passed.
 - Browser local `http://localhost:3000/dashboard`: carga autenticada sin trial gate y sin errores de consola observados.
 - Health local `/api/health`: database/auth/redis healthy.
@@ -70,9 +74,17 @@ Ultima validacion registrada: 2026-05-06.
 - Se agrego `tests/e2e/multi-tenant-isolation.spec.ts`.
 - Se agrego `tests/e2e/tenant-provisioning.spec.ts`.
 - Se agrego `tests/e2e/critical-regression.spec.ts`.
+- Se agrego `tests/unit/visual-completeness.test.ts` para evitar regresiones de UI incompleta o falsa en configuracion/admin/workflows.
+- Configuracion de plataforma ya no muestra inputs editables para claves de Culqi/PagoEfectivo/Resend si no existe persistencia segura; muestra estado gestionado por variables de entorno.
+- Configuracion de organizacion ahora detecta cambios en medios de pago y notificaciones, y notificaciones tiene accion de guardado visible.
+- Workflow builder valida trigger, accion conectada y parametros requeridos antes de persistir `definition/actions/trigger_type`; no guarda nodos visualmente incompletos.
+- `.github/workflows/deploy.yml` separa validacion, preview deployment, production deployment y rollback manual con Vercel CLI pinneado.
+- `/api/health/deep` requiere `MONITORING_SECRET` o `CRON_SECRET` y reporta DB, Redis, colas, memoria, CPU, region, entorno, commit y uptime sin exponer secretos.
+- `scripts/post-deploy-healthcheck.ts` valida `/api/health` y `/api/health/deep`, y puede avisar por `ALERT_WEBHOOK_URL`.
+- `docs/INFRASTRUCTURE.md` documenta CI/CD, variables por entorno, healthchecks, alertas, logs centralizados y rollback.
 - Se agrego `supabase/migrations/112_tenant_provisioning_and_schema_alignment.sql`.
 - La migracion 112 crea `user_settings` con RLS, revoca inserts directos en `organizations` para `anon/authenticated` y amplia `verify_production_readiness()`.
-- Migraciones 094-116 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
+- Migraciones 094-117 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
 - Migracion 113 agrega cobertura RBAC de `accounts`, `activities`, `orders`, `pipeline_stages` y `lead_sources`.
 - Se corrigio `emitEvent()` para escribir `organization_id` como columna top-level en `webhook_events`; la politica RLS 111 ya no bloquea eventos internos autenticados con payload multi-tenant valido.
 - Se agrego auditoria/trazabilidad centralizada: login exitoso/fallido/bloqueado, logout, pagos, exportaciones, edicion/borrado de productos y cuentas, y consulta admin de auditoria.
@@ -81,6 +93,7 @@ Ultima validacion registrada: 2026-05-06.
 - Migracion 114 agrega columnas/indexes de trazabilidad a `auditoria` y restringe lectura por RLS a platform admin, admins/owners del tenant y logs propios globales.
 - Migracion 115 corrige cascadas peligrosas de historial de negocio y agrega `verify_data_integrity()` para FK huérfanas, duplicados, cascadas y consistencia multi-tenant.
 - Migracion 116 agrega indices de performance para listados por tenant, busquedas trigrama y membership activa; tambien agrega `get_dashboard_metrics()` y `verify_performance_indexes()`.
+- Migracion 117 alinea `integrations` y `webhooks` con la matriz RBAC centralizada en `role_permissions`; owner/admin gestionan, manager/viewer leen y member no accede.
 - `/api/dashboard` usa RPC agregada en Postgres para metricas/pipeline/actividad; ya no trae listas completas para agregarlas en Node.
 - Se agrego pipeline de backups automaticos: `.github/workflows/database-backup-restore.yml` ejecuta `pg_dump` diario, sube artefacto con retencion 30 dias y prueba restore completo/parcial en staging.
 - Se agregaron scripts `scripts/db-backup.ts` y `scripts/db-restore-test.ts`; el restore test exige `verify_production_readiness`, `verify_security_hardening` y `verify_data_integrity` sin fallos.
@@ -93,7 +106,7 @@ Ultima validacion registrada: 2026-05-06.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
 - Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.
 - Se corrigio el catalogo de productos para ordenar por `created_at desc` y mostrar inmediatamente el producto creado con la respuesta de `/api/products`.
-- Commit reciente desplegado en produccion: `ad264ba`.
+- Ultimo despliegue manual de produccion: `dpl_DK5eZk75XsaxDZJUA7DgvmiYDa3j`, alias `https://crm-trivia1.vercel.app` y `https://crm-iota-inky.vercel.app`, aplicado el 2026-05-06.
 
 ## Seguridad y base de datos
 
@@ -125,6 +138,7 @@ pnpm lint
 pnpm test -- --reporter=basic
 pnpm production:check
 pnpm production:verify-db
+HEALTHCHECK_BASE_URL=https://crm-trivia1.vercel.app pnpm health:post-deploy
 pnpm db:backup
 BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
 pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line

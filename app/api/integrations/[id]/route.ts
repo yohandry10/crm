@@ -2,10 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
-import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { decryptJSON, encryptJSON } from "@/lib/encryption"
 import { createRequestLogger } from "@/lib/logger"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from 'zod'
 import crypto from "crypto"
 import { testConnection } from "@/lib/integrations"
@@ -57,10 +58,7 @@ export async function GET(
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId, role } = await getAuthenticatedContext()
-
-        if (!["owner", "admin"].includes(role)) {
-            throw new ForbiddenError("Solo owner/admin pueden ver integraciones")
-        }
+        await requireRolePermission(supabase, role, "integrations", "can_read")
 
         const { data, error } = await supabase
             .from("integrations")
@@ -109,10 +107,7 @@ export async function PUT(
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
-
-        if (!["owner", "admin"].includes(role)) {
-            throw new ForbiddenError("Solo owner/admin pueden gestionar integraciones")
-        }
+        await requireRolePermission(supabase, role, "integrations", "can_update")
 
         const body = await request.json()
         requestBody = body
@@ -235,10 +230,7 @@ export async function DELETE(
         const { id } = await params
         // MULTI-TENANT: Get organization context
         const { supabase, user, organizationId, role } = await getAuthenticatedContext()
-
-        if (!["owner", "admin"].includes(role)) {
-            throw new ForbiddenError("Solo owner/admin pueden gestionar integraciones")
-        }
+        await requireRolePermission(supabase, role, "integrations", "can_delete")
 
         // Get old data for audit
         const { data: oldData } = await supabase

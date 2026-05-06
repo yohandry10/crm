@@ -13,6 +13,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ENCRYPTION_KEY=base64-32-bytes
 CRON_SECRET=random-secret
+MONITORING_SECRET=random-monitoring-secret
 ```
 
 ## CORS
@@ -71,6 +72,9 @@ OTEL_SERVICE_NAME=crm-ai-peru
 OTEL_EXPORTER_OTLP_ENDPOINT=
 HONEYCOMB_API_KEY=
 HONEYCOMB_DATASET=crm-production
+LOG_LEVEL=info
+MONITORING_SECRET=
+ALERT_WEBHOOK_URL=
 
 SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
@@ -79,6 +83,12 @@ SENTRY_RELEASE=
 ```
 
 No documentar Sentry/OpenTelemetry como activo si estas variables y dependencias no estan verificadas.
+
+`MONITORING_SECRET` protege `/api/health/deep`. Si no existe, el endpoint acepta `CRON_SECRET` como fallback operativo, pero produccion debe preferir un secreto separado para monitores externos.
+
+`ALERT_WEBHOOK_URL` permite que `pnpm health:post-deploy` envie alertas de exito/error a un colector externo compatible con POST JSON.
+
+Vercel Web Analytics y Speed Insights no requieren secretos en el codigo; se activan desde Vercel y estan montados en `app/layout.tsx`.
 
 ## Pagos
 

@@ -53,6 +53,7 @@ export const REQUIRED_MIGRATIONS = [
   "114_centralized_audit_tracing.sql",
   "115_data_integrity_validation_and_safe_cascades.sql",
   "116_performance_indexes_and_dashboard_metrics.sql",
+  "117_rbac_settings_integrations_webhooks.sql",
 ] as const
 
 export const REQUIRED_CRON_PATHS = [
@@ -72,6 +73,15 @@ export const REQUIRED_BACKUP_FILES = [
   path.join(".github", "workflows", "database-backup-restore.yml"),
   path.join("scripts", "db-backup.ts"),
   path.join("scripts", "db-restore-test.ts"),
+] as const
+
+export const REQUIRED_INFRA_FILES = [
+  path.join(".github", "workflows", "deploy.yml"),
+  ".env.example",
+  ".env.preview.example",
+  ".env.production.example",
+  path.join("app", "api", "health", "deep", "route.ts"),
+  path.join("scripts", "post-deploy-healthcheck.ts"),
 ] as const
 
 const PLACEHOLDER_RE = /^(changeme|change-me|secret|password|example|your-|your_|todo|test)$/i
@@ -425,6 +435,75 @@ function checkBackupAutomation(checks: ProductionCheck[], cwd: string) {
     "pass",
     "Daily database backup and staging restore-test automation is configured"
   )
+}
+
+function checkDeploymentInfrastructure(checks: ProductionCheck[], cwd: string) {
+  const missing = REQUIRED_INFRA_FILES.filter((relativePath) => !existsSync(path.join(cwd, relativePath)))
+
+  if (missing.length > 0) {
+    addCheck(
+      checks,
+      "infra:files",
+      "fail",
+      "Deployment and observability infrastructure files are missing",
+      `Missing: ${missing.map((item) => item.split(path.sep).join("/")).join(", ")}`
+    )
+    return
+  }
+
+  const deployWorkflow = readFileSync(path.join(cwd, ".github", "workflows", "deploy.yml"), "utf8")
+  const packageJson = readFileSync(path.join(cwd, "package.json"), "utf8")
+  const layout = readFileSync(path.join(cwd, "app", "layout.tsx"), "utf8")
+  const deepHealth = readFileSync(path.join(cwd, "app", "api", "health", "deep", "route.ts"), "utf8")
+  const postDeployHealth = readFileSync(path.join(cwd, "scripts", "post-deploy-healthcheck.ts"), "utf8")
+
+  const requiredWorkflowTokens = [
+    "vercel pull --yes --environment=preview",
+    "vercel pull --yes --environment=production",
+    "vercel build --prod",
+    "vercel deploy --prebuilt --prod",
+    "pnpm health:post-deploy",
+    "vercel logs",
+    "vercel rollback",
+    "VERCEL_TOKEN",
+    "VERCEL_ORG_ID",
+    "VERCEL_PROJECT_ID",
+  ]
+  const missingWorkflowTokens = requiredWorkflowTokens.filter((token) => !deployWorkflow.includes(token))
+  if (missingWorkflowTokens.length > 0) {
+    addCheck(
+      checks,
+      "infra:cicd",
+      "fail",
+      "Vercel CI/CD workflow is incomplete",
+      `Missing tokens: ${missingWorkflowTokens.join(", ")}`
+    )
+    return
+  }
+
+  if (!packageJson.includes('"health:post-deploy"')) {
+    addCheck(checks, "infra:healthcheck-script", "fail", "Post-deploy healthcheck script is not exposed in package.json")
+    return
+  }
+
+  if (!layout.includes("@vercel/analytics/next") || !layout.includes("@vercel/speed-insights/next")) {
+    addCheck(checks, "infra:rum", "fail", "Vercel Analytics and Speed Insights must be mounted in app/layout.tsx")
+    return
+  }
+
+  if (!deepHealth.includes("MONITORING_SECRET") || !deepHealth.includes("process.memoryUsage") || !deepHealth.includes("process.cpuUsage")) {
+    addCheck(checks, "infra:deep-health", "fail", "Deep health endpoint must be authenticated and expose runtime metrics")
+    return
+  }
+
+  if (!postDeployHealth.includes("ALERT_WEBHOOK_URL") || !postDeployHealth.includes("/api/health/deep")) {
+    addCheck(checks, "infra:alerts", "fail", "Post-deploy healthcheck must support alerts and deep health")
+    return
+  }
+
+  addCheck(checks, "infra:cicd", "pass", "Vercel preview/production deploy workflow with rollback is configured")
+  addCheck(checks, "infra:healthchecks", "pass", "Public and authenticated deep healthchecks are configured")
+  addCheck(checks, "infra:observability", "pass", "RUM, Speed Insights, structured logs and alert hooks are configured")
 }
 
 function scanTextFiles(cwd: string, visitor: (relativePath: string, content: string) => void) {
@@ -814,6 +893,7 @@ export function evaluateProductionReadiness(env: Env = process.env, cwd = proces
   }
 
   checkRedis(checks, env)
+  checkDeploymentInfrastructure(checks, cwd)
   checkRequiredCrons(checks, env, cwd)
   checkBackupAutomation(checks, cwd)
   checkMigrations(checks, cwd)

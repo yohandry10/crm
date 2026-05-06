@@ -1,0 +1,229 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - production
+      rollback_deployment:
+        description: "Optional deployment URL/id to rollback to instead of deploying"
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  VERCEL_CLI_VERSION: "48.12.0"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit/API guardrails
+        run: pnpm exec vitest run tests/unit/visual-completeness.test.ts tests/api/contracts.test.ts --reporter=basic
+
+      - name: Production preflight
+        run: pnpm production:check
+        env:
+          NEXT_PUBLIC_APP_URL: https://ci.example.com
+          NEXT_PUBLIC_SUPABASE_URL: https://project.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          ENCRYPTION_KEY: ci-encryption-key-at-least-32-chars
+          CRON_SECRET: ci-cron-secret-at-least-32-chars-ok
+          MONITORING_SECRET: ci-monitoring-secret-at-least-32-chars
+          ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_FORMS_ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_PAY_ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_BOOKING_ALLOWED_ORIGINS: https://ci.example.com
+          REDIS_URL: rediss://default:password@redis.example.com:6379
+          RATE_LIMIT_FAIL_OPEN: "false"
+          RESEND_API_KEY: re_ci_key
+          EMAIL_FROM: CRM <no-reply@example.com>
+          PUBLIC_API_DOCS: "false"
+          BILLING_PROVIDER: manual
+          PAYMENT_GATEWAYS_ENABLED: bank_transfer,cash,yape,plin,manual
+          AI_PROVIDER: local
+          WORKFLOW_PROCESSING_MODE: cron-drainer
+          VERCEL_PLAN: pro
+          OTEL_ENABLED: "false"
+          LOG_LEVEL: info
+
+      - name: Build
+        run: pnpm build
+
+  deploy-preview:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.target == 'preview' && inputs.rollback_deployment == '')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@${{ env.VERCEL_CLI_VERSION }}
+
+      - name: Pull preview environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build preview artifact
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy preview artifact
+        id: deploy
+        run: |
+          URL="$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "$URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Preview healthcheck
+        run: pnpm health:post-deploy
+        env:
+          HEALTHCHECK_BASE_URL: ${{ steps.deploy.outputs.url }}
+          MONITORING_SECRET: ${{ secrets.MONITORING_SECRET }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          HEALTHCHECK_ALLOW_DEGRADED: "true"
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@${{ env.VERCEL_CLI_VERSION }}
+
+      - name: Pull production environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build production artifact
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy production artifact
+        id: deploy
+        run: |
+          URL="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "$URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Production healthcheck and alert
+        run: pnpm health:post-deploy
+        env:
+          HEALTHCHECK_BASE_URL: ${{ steps.deploy.outputs.url }}
+          MONITORING_SECRET: ${{ secrets.MONITORING_SECRET }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          HEALTHCHECK_ALLOW_DEGRADED: "false"
+
+      - name: Early runtime error scan
+        continue-on-error: true
+        run: vercel logs ${{ steps.deploy.outputs.url }} --level error --since 1h --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.rollback_deployment != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+    steps:
+      - name: Install Vercel CLI
+        run: npm install -g vercel@${{ env.VERCEL_CLI_VERSION }}
+
+      - name: Rollback production alias
+        run: vercel rollback ${{ inputs.rollback_deployment }} --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

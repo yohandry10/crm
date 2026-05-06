@@ -71,6 +71,14 @@ OTEL_ENABLED=true
 
 Sentry aparece como opcional, pero debe verificarse que las dependencias y variables existan antes de documentarlo como activo.
 
+Estado versionado:
+
+- Vercel Web Analytics y Speed Insights estan montados en `app/layout.tsx`.
+- Logs backend salen en JSON mediante `lib/logger.ts` y son aptos para Vercel Logs/Drains.
+- `/api/health/deep` esta autenticado por `MONITORING_SECRET` o `CRON_SECRET` y reporta DB, Redis, colas, memoria, CPU, region, entorno y commit.
+- `pnpm health:post-deploy` valida `/api/health` y `/api/health/deep`; si `ALERT_WEBHOOK_URL` esta configurado, envia notificacion de exito/error.
+- Para centralizar fuera de Vercel, configurar Log Drains o integracion de observabilidad en el dashboard de Vercel.
+
 ## Build
 
 `pnpm build` pasa.
@@ -120,4 +128,32 @@ BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
 - Queue depth.
 - Webhooks.
 - Email provider.
+
+Implementado:
+
+- Publico: `GET /api/health`.
+- Profundo autenticado: `GET /api/health/deep`.
+- CI/CD post-deploy: `pnpm health:post-deploy`.
+
+## Despliegue y rollback
+
+`.github/workflows/deploy.yml` define:
+
+- Preview deployments para PR/manual con `vercel build` + `vercel deploy --prebuilt`.
+- Production deployments desde `main` con `vercel build --prod` + `vercel deploy --prebuilt --prod`.
+- Healthcheck post-deploy con alertas.
+- Scan temprano de logs de error.
+- Rollback manual por `workflow_dispatch` usando `vercel rollback`.
+
+Secretos requeridos:
+
+```env
+VERCEL_TOKEN=
+VERCEL_ORG_ID=
+VERCEL_PROJECT_ID=
+MONITORING_SECRET=
+ALERT_WEBHOOK_URL=
+```
+
+Runbook completo: [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 - Cron last run.

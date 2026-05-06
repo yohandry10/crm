@@ -22,6 +22,7 @@ Estado actual:
 - Performance DB reforzada con migracion 116: indices por tenant/fecha/filtro, busquedas trigrama y dashboard agregado via RPC.
 - Seguridad HTTP/app reforzada: headers seguros, CSP minima, CSRF/content-type, rate limit y uploads con path scoped, magic bytes y bloqueo de SVG.
 - Backups diarios y restore test quedaron versionados: GitHub Actions ejecuta `pg_dump`, sube artefacto retenido 30 dias y restaura en staging para validar recuperacion total/parcial.
+- Infraestructura de despliegue/observabilidad versionada: CI/CD Vercel preview/production/rollback, env templates por entorno, health profundo autenticado, healthcheck post-deploy con alertas, Web Analytics y Speed Insights.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
 - No hay proveedor externo de automatizaciones activo fuera de los workflows internos del CRM.
@@ -36,6 +37,7 @@ Estado actual:
 - La frontera tenant quedo revalidada como contrato de negocio: el superadmin vende organizaciones y cada organizacion aisla datos, permisos, cotizaciones y enlaces de pago.
 - La base de datos quedo alineada con las tablas/RPC usadas por el codigo: se agrego `user_settings`, se amplio el verificador de produccion y se bloqueo la creacion self-service de organizaciones.
 - Se agrego suite E2E critica `tests/e2e/critical-regression.spec.ts` para cubrir login/registro, pagos, workflow usuario-admin, uploads y jobs edge.
+- Auditoria visual de modulos incompletos en curso/cerrada para puntos de alto impacto: inputs de credenciales no persistidos, cambios de settings no detectados, notificaciones sin guardado, alerts nativos y workflows guardables con nodos incompletos.
 
 ## Cambios recientes importantes
 
@@ -107,6 +109,15 @@ Estado actual:
 - Se agrego smoke E2E para platform admin en `tests/e2e/admin-smoke.spec.ts`.
 - Se agrego `/api/admin/audit-logs` para consulta filtrada de trazas por platform admin y se incluyo en smoke/authorization E2E.
 - Se agrego `tests/e2e/critical-regression.spec.ts` para una compuerta mas vendible: auth, registro, pagos idempotentes, auditoria billing, checkout/activacion admin, workflow encolado y regresiones de upload/job.
+- Se agrego `tests/unit/visual-completeness.test.ts` para bloquear regresiones de UI incompleta: credenciales fake en admin settings, settings editables fuera de snapshot, alerts nativos y selects Radix con valor vacio.
+- Configuracion de plataforma reemplazo campos editables no persistidos de Culqi/PagoEfectivo/Resend por avisos de credenciales gestionadas por entorno.
+- Configuracion de organizacion ahora considera medios de pago y notificaciones en el detector de cambios; notificaciones tiene boton de guardado visible.
+- Workflow builder valida disparador, acciones conectadas y parametros requeridos antes de guardar; ya no compila acciones con params mockeados o ausentes.
+- Se agrego `.github/workflows/deploy.yml` con validacion, preview deployment, production deployment, `pnpm health:post-deploy`, scan de logs y rollback manual por deployment id/URL.
+- Se agrego `/api/health/deep` autenticado para monitoreo operacional de DB, Redis, colas, CPU/memoria, region, entorno y commit.
+- Se agrego `scripts/post-deploy-healthcheck.ts` y script `pnpm health:post-deploy` para smoke post-deploy y alertas JSON via `ALERT_WEBHOOK_URL`.
+- Se agregaron `.env.example`, `.env.preview.example`, `.env.production.example` y `docs/INFRASTRUCTURE.md`.
+- Se montaron Vercel Web Analytics y Speed Insights en `app/layout.tsx`.
 - Se monto `ErrorBoundary` en el layout raiz y `GlobalErrorReporter` escucha `window.error` y `unhandledrejection`.
 - `/api/client-errors` valida payload con Zod, exige CSRF/rate limit y registra errores frontend mediante `logError`.
 - `withApiErrorHandling` queda disponible para nuevas Route Handlers con respuesta JSON sanitizada y `errorId`.
@@ -217,6 +228,9 @@ Resultado observado:
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos local: 29 passed.
 - E2E critico local: 4 passed.
+- Guardrail visual unitario: `pnpm exec vitest run tests/unit/visual-completeness.test.ts --reporter=basic` OK, 3 passed.
+- Infra/preflight unitario: `tests/unit/production-preflight.test.ts` cubre CI/CD, healthchecks, observabilidad y env templates.
+- `pnpm production:check`: 0 failures, 0 warnings con checks `infra:cicd`, `infra:healthchecks` e `infra:observability` en PASS.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - E2E focal cubre aislamiento tenant en contactos, oportunidades, payment links y cambio de organizacion por header.

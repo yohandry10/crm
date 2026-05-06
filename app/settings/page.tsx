@@ -198,7 +198,7 @@ function SecuritySettings() {
               {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Mínimo 8 caracteres</p>
+          <p className="text-xs text-muted-foreground">Mínimo 10 caracteres, con mayúscula, minúscula y número</p>
         </div>
 
         <div className="space-y-2">
@@ -254,6 +254,41 @@ interface OrganizationSettings {
   bank_holder?: string
 }
 
+const SETTINGS_SNAPSHOT_FIELDS: (keyof OrganizationSettings)[] = [
+  "company_name",
+  "company_ruc",
+  "company_address",
+  "company_phone",
+  "company_email",
+  "timezone",
+  "serie_factura",
+  "serie_boleta",
+  "serie_nota_credito",
+  "default_currency",
+  "default_tax_rate",
+  "logo_url",
+  "yape_phone",
+  "yape_qr_url",
+  "plin_phone",
+  "plin_qr_url",
+  "bank_name",
+  "bank_account",
+  "bank_cci",
+  "bank_holder",
+  "notify_new_lead",
+  "notify_task_due",
+  "notify_payment_received",
+  "notify_invoice_overdue",
+]
+
+function buildSettingsSnapshot(settings: OrganizationSettings) {
+  const snapshot: Record<string, string> = {}
+  SETTINGS_SNAPSHOT_FIELDS.forEach(field => {
+    snapshot[field] = String(settings[field] ?? "")
+  })
+  return JSON.stringify(snapshot)
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<OrganizationSettings>({})
   const [loading, setLoading] = useState(true)
@@ -271,19 +306,7 @@ export default function SettingsPage() {
     // Si no hay snapshot original, no podemos comparar
     if (!originalSettingsSnapshot) return false
 
-    const fieldsToCompare: (keyof OrganizationSettings)[] = [
-      'company_name', 'company_ruc', 'company_address', 'company_phone',
-      'company_email', 'timezone', 'serie_factura', 'serie_boleta',
-      'serie_nota_credito', 'default_currency', 'default_tax_rate'
-    ]
-
-    // Crear snapshot actual solo de los campos relevantes
-    const currentSnapshot: Record<string, string> = {}
-    fieldsToCompare.forEach(field => {
-      currentSnapshot[field] = String(settings[field] ?? '')
-    })
-
-    return JSON.stringify(currentSnapshot) !== originalSettingsSnapshot
+    return buildSettingsSnapshot(settings) !== originalSettingsSnapshot
   }, [settings, originalSettingsSnapshot, userHasEdited])
 
   useEffect(() => {
@@ -296,17 +319,7 @@ export default function SettingsPage() {
       const json = await res.json()
       if (json.success && json.data) {
         setSettings(json.data)
-        // Crear snapshot serializado de los datos originales
-        const fieldsToCompare: (keyof OrganizationSettings)[] = [
-          'company_name', 'company_ruc', 'company_address', 'company_phone',
-          'company_email', 'timezone', 'serie_factura', 'serie_boleta',
-          'serie_nota_credito', 'default_currency', 'default_tax_rate'
-        ]
-        const snapshot: Record<string, string> = {}
-        fieldsToCompare.forEach(field => {
-          snapshot[field] = String(json.data[field] ?? '')
-        })
-        setOriginalSettingsSnapshot(JSON.stringify(snapshot))
+        setOriginalSettingsSnapshot(buildSettingsSnapshot(json.data))
         // Resetear el flag de edición
         setUserHasEdited(false)
       }
@@ -331,17 +344,7 @@ export default function SettingsPage() {
 
       if (json.success) {
         setSettings(json.data)
-        // Actualizar el snapshot con los nuevos datos guardados
-        const fieldsToCompare: (keyof OrganizationSettings)[] = [
-          'company_name', 'company_ruc', 'company_address', 'company_phone',
-          'company_email', 'timezone', 'serie_factura', 'serie_boleta',
-          'serie_nota_credito', 'default_currency', 'default_tax_rate'
-        ]
-        const snapshot: Record<string, string> = {}
-        fieldsToCompare.forEach(field => {
-          snapshot[field] = String(json.data[field] ?? '')
-        })
-        setOriginalSettingsSnapshot(JSON.stringify(snapshot))
+        setOriginalSettingsSnapshot(buildSettingsSnapshot(json.data))
         // Resetear flag de edición
         setUserHasEdited(false)
         toast.success("Configuración actualizada")
@@ -853,6 +856,12 @@ export default function SettingsPage() {
                         />
                       </div>
                     ))}
+                    <div className="flex justify-end pt-4 border-t border-gray-100">
+                      <Button onClick={saveSettings} disabled={saving || !hasChanges()} className={hasChanges() ? "gradient-neon border-0" : ""} variant={hasChanges() ? "default" : "secondary"}>
+                        {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {hasChanges() ? "Guardar Notificaciones" : "Sin cambios"}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
-import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
 import { encryptSecret, decryptSecret } from "@/lib/encryption"
 import { createRequestLogger } from "@/lib/logger"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const settingsSchema = z.object({
     // Company info - accept both formats (company_* and direct)
@@ -53,10 +54,7 @@ export async function GET(_request: NextRequest) {
     try {
         const log = createRequestLogger(_request)
         const { supabase, organizationId, role } = await getAuthenticatedContext()
-
-        if (!["owner", "admin"].includes(role)) {
-            throw new ForbiddenError("Solo owner/admin pueden ver configuración sensible")
-        }
+        await requireRolePermission(supabase, role, "settings", "can_read")
 
         // Get all organization data (now includes settings)
         const { data: org, error } = await supabase
@@ -126,10 +124,7 @@ export async function PUT(request: NextRequest) {
     try {
         const log = createRequestLogger(request)
         const { supabase, organizationId, role } = await getAuthenticatedContext()
-
-        if (!["owner", "admin"].includes(role)) {
-            throw new ForbiddenError("Solo owner/admin pueden modificar configuración")
-        }
+        await requireRolePermission(supabase, role, "settings", "can_update")
         const body = await request.json()
 
         const validation = settingsSchema.safeParse(body)

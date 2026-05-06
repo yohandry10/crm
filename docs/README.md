@@ -11,9 +11,10 @@ Esta carpeta es la fuente documental activa del proyecto. La limpieza elimina au
 5. [PRODUCT_READINESS_AUDIT.md](PRODUCT_READINESS_AUDIT.md) - Auditoria de producto vendible y posicionamiento.
 6. [SECURITY_AND_DATA.md](SECURITY_AND_DATA.md) - Estado de RLS, migraciones, tenant isolation, pagos y cifrado.
 7. [OPERATIONS.md](OPERATIONS.md) - Workers, cron, Redis, observabilidad y despliegue operativo.
-8. [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) - Variables requeridas y opcionales.
-9. [BACKUP_RESTORE.md](BACKUP_RESTORE.md) - Backup y restore.
-10. [CLOUDFLARE_WORKER_CRON.md](CLOUDFLARE_WORKER_CRON.md) - Scheduler externo para cron/workflows.
+8. [INFRASTRUCTURE.md](INFRASTRUCTURE.md) - CI/CD, healthchecks, alertas, observabilidad y rollback.
+9. [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) - Variables requeridas y opcionales.
+10. [BACKUP_RESTORE.md](BACKUP_RESTORE.md) - Backup y restore.
+11. [CLOUDFLARE_WORKER_CRON.md](CLOUDFLARE_WORKER_CRON.md) - Scheduler externo para cron/workflows.
 
 Para continuidad entre sesiones, leer primero [`../CODEX.md`](../CODEX.md). Ese archivo resume el contrato SaaS, decisiones que no deben revertirse, estado verificado y proximos pasos.
 
@@ -31,7 +32,7 @@ Para continuidad entre sesiones, leer primero [`../CODEX.md`](../CODEX.md). Ese 
 - La base esta alineada con el codigo: 0 tablas faltantes y 0 RPC faltantes en el cruce codigo-BD del 2026-05-06.
 - El contrato SaaS vigente es: superadmin/platform admin provisiona organizaciones; usuarios regulares solo operan dentro de tenants con membresia activa.
 - Localhost validado en `http://localhost:3000` con `/api/health` healthy.
-- Pendiente operativo: configurar secretos GitHub Actions de backup/restore, CI con la misma matriz, Supabase Auth URLs finales, worker persistente si se vende near-real-time, y elevar coverage por modulo.
+- Pendiente operativo: configurar secretos GitHub Actions de backup/restore/deploy, Supabase Auth URLs finales, worker persistente si se vende near-real-time, Log Drains/integracion externa si se requiere centralizacion fuera de Vercel, y elevar coverage por modulo.
 
 Verificacion adicional: `pnpm production:check` para entorno/config y `pnpm production:verify-db` para la base objetivo. La version SQL manual vive en `supabase/verification/production-readiness.sql`.
 

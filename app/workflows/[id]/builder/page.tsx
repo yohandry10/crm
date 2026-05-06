@@ -44,18 +44,14 @@ export default function WorkflowBuilderPage() {
         const supabase = getSupabaseBrowserClient()
         try {
             const definition = { nodes, edges }
-
-            // Basic Compilation to Linear Actions (for backward compatibility for now)
-            // Finds the Trigger Node -> Follows Edges -> Builds Actions List
-            // This is a naive compiler for linear flows. 
-            // Real graph execution will require updating lib/events.ts to read 'definition' directly.
-            const actions = compileGraphToLinearActions(nodes, edges)
+            const compiled = compileGraphToLinearActions(nodes, edges)
 
             const { error } = await supabase
                 .from('workflows')
                 .update({
                     definition,
-                    actions, // Update execution plan
+                    trigger_type: compiled.triggerType,
+                    actions: compiled.actions,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', workflowId)
@@ -63,9 +59,9 @@ export default function WorkflowBuilderPage() {
             if (error) throw error
             toast.success("Workflow guardado correctamente")
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving workflow:", error)
-            toast.error("Error al guardar")
+            toast.error(error?.message || "Error al guardar")
         }
     }
 
@@ -103,15 +99,19 @@ export default function WorkflowBuilderPage() {
     )
 }
 
-// Naive Compiler: Convert Graph to Linear Actions List
 function compileGraphToLinearActions(nodes: any[], edges: any[]) {
     const actions: any[] = []
 
-    // 1. Find Trigger Node
     const triggerNode = nodes.find(n => n.type === 'trigger')
-    if (!triggerNode) return []
+    if (!triggerNode) {
+        throw new Error("Agrega un disparador antes de guardar")
+    }
 
-    // 2. Traverse
+    const triggerType = triggerNode.data?.eventType
+    if (!triggerType) {
+        throw new Error("Configura el evento del disparador antes de guardar")
+    }
+
     let currentNode = triggerNode
     const visited = new Set()
 
@@ -119,19 +119,17 @@ function compileGraphToLinearActions(nodes: any[], edges: any[]) {
         if (visited.has(currentNode.id)) break
         visited.add(currentNode.id)
 
-        // If it's an action node, add to list
         if (currentNode.type === 'action') {
+            const actionType = currentNode.data?.actionType
+            const params = currentNode.data?.params || {}
+            validateActionParams(actionType, params)
+
             actions.push({
-                type: currentNode.data.actionType,
-                params: {
-                    // In a real builder, these would come from Node configuration forms (Dialogs)
-                    // For now, we mock/pass default params or what's in data
-                    ...currentNode.data.params
-                }
+                type: actionType,
+                params,
             })
         }
 
-        // Find next node
         const edge = edges.find(e => e.source === currentNode.id)
         if (!edge) break
 
@@ -139,5 +137,54 @@ function compileGraphToLinearActions(nodes: any[], edges: any[]) {
         currentNode = nextNode
     }
 
-    return actions
+    if (actions.length === 0) {
+        throw new Error("Conecta al menos una acción configurada al disparador")
+    }
+
+    return { triggerType, actions }
+}
+
+function validateActionParams(actionType: string, params: Record<string, any>) {
+    if (!actionType) {
+        throw new Error("Configura el tipo de acción")
+    }
+
+    switch (actionType) {
+        case "send_email":
+            if (!params.subject?.trim()) throw new Error("El email necesita asunto")
+            if (!params.body?.trim() && !params.template?.trim()) {
+                throw new Error("El email necesita contenido o plantilla")
+            }
+            return
+        case "create_task":
+            if (!params.title?.trim()) throw new Error("La tarea necesita título")
+            if (params.due_date && !/^\d{4}-\d{2}-\d{2}$/.test(params.due_date)) {
+                throw new Error("La fecha límite de la tarea no es válida")
+            }
+            return
+        case "update_lead_score": {
+            const score = Number(params.score)
+            if (!Number.isFinite(score) || score < 0 || score > 100) {
+                throw new Error("El score debe estar entre 0 y 100")
+            }
+            return
+        }
+        case "update_lead_status":
+            if (!["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"].includes(params.status)) {
+                throw new Error("Selecciona un estado válido para el lead")
+            }
+            return
+        case "webhook":
+            try {
+                new URL(params.url)
+            } catch {
+                throw new Error("El webhook necesita una URL válida")
+            }
+            if (params.method && !["GET", "POST", "PUT", "PATCH", "DELETE"].includes(params.method)) {
+                throw new Error("El método HTTP del webhook no es válido")
+            }
+            return
+        default:
+            throw new Error(`Acción no soportada: ${actionType}`)
+    }
 }

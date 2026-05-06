@@ -10,6 +10,7 @@ import {
   hasProductionBlockers,
   REQUIRED_BACKUP_FILES,
   REQUIRED_CRON_PATHS,
+  REQUIRED_INFRA_FILES,
 } from "@/scripts/production-preflight"
 
 function completeEnv(overrides: Record<string, string | undefined> = {}) {
@@ -88,6 +89,17 @@ describe("production preflight", () => {
 
     expect(backupCheck?.status).toBe("pass")
     for (const requiredFile of REQUIRED_BACKUP_FILES) {
+      expect(existsSync(path.join(process.cwd(), requiredFile))).toBe(true)
+    }
+  })
+
+  it("keeps deployment, healthcheck and observability infrastructure registered", () => {
+    const checks = evaluateProductionReadiness(completeEnv(), process.cwd())
+
+    expect(checks.find((check) => check.id === "infra:cicd")?.status).toBe("pass")
+    expect(checks.find((check) => check.id === "infra:healthchecks")?.status).toBe("pass")
+    expect(checks.find((check) => check.id === "infra:observability")?.status).toBe("pass")
+    for (const requiredFile of REQUIRED_INFRA_FILES) {
       expect(existsSync(path.join(process.cwd(), requiredFile))).toBe(true)
     }
   })

@@ -42,6 +42,9 @@ jobs:
       - name: Coverage
         run: pnpm test:coverage
 
+      - name: Dependency audit (production)
+        run: pnpm audit --prod --audit-level=high
+
       - name: Production preflight
         run: pnpm production:check
         env:
@@ -73,7 +76,12 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
 
       - name: E2E production smoke
-        run: pnpm test:e2e
+        run: |
+          if [ -z "$TEST_USER_EMAIL" ] || [ -z "$TEST_USER_PASSWORD" ] || [ -z "$TEST_ADMIN_EMAIL" ] || [ -z "$TEST_ADMIN_PASSWORD" ]; then
+            echo "Skipping E2E production smoke because TEST_* secrets are not configured."
+            exit 0
+          fi
+          pnpm test:e2e
         env:
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
