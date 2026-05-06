@@ -10,7 +10,42 @@ import crypto from "crypto"
 const WRITE_LIMIT = RATE_LIMITS.write
 const updateSalesOrderSchema = salesOrderSchema.partial()
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const rate = await rateLimit(request, RATE_LIMITS.read)
+        if (rate) return rate
+
+        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { id } = await params
+
+        const { data, error } = await supabase
+            .from("sales_orders")
+            .select("*, account:accounts(id, name), contact:contacts(id, name, email), opportunity:opportunities(id, name)")
+            .eq("id", id)
+            .eq("organization_id", organizationId)
+            .maybeSingle()
+
+        if (error) throw error
+        if (!data) {
+            throw new ValidationError("Pedido no encontrado")
+        }
+
+        return NextResponse.json({ success: true, data })
+    } catch (error: any) {
+        await logError({
+            errorId: crypto.randomUUID(),
+            endpoint: `/api/orders/[id]`,
+            method: "GET",
+            error,
+        })
+        return NextResponse.json(
+            { success: false, error: sanitizeErrorForClient(error) },
+            { status: getHttpStatusForError(error) }
+        )
+    }
+}
+
+async function updateSalesOrder(request: NextRequest, { params }: { params: Promise<{ id: string }> }, method: "PUT" | "PATCH") {
     try {
         const rate = await rateLimit(request, WRITE_LIMIT)
         if (rate) return rate
@@ -75,7 +110,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         await logError({
             errorId: crypto.randomUUID(),
             endpoint: `/api/orders/[id]`,
-            method: "PUT",
+            method,
             error,
             requestBody: await request.clone().json().catch(() => undefined),
         })
@@ -84,6 +119,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             { status: getHttpStatusForError(error) }
         )
     }
+}
+
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+    return updateSalesOrder(request, context, "PUT")
+}
+
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+    return updateSalesOrder(request, context, "PATCH")
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

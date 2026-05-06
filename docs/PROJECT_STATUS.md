@@ -12,7 +12,7 @@ Estado actual:
 - TypeScript pasa.
 - Tests actuales pasan y coverage genera reporte, pero la cobertura global es baja.
 - Hay un preflight de produccion que falla cerrado ante variables/cron/Redis/CORS/migraciones faltantes.
-- La base objetivo valida con `pnpm production:verify-db` despues de aplicar migraciones 094-103.
+- La base objetivo valida con `pnpm production:verify-db` despues de aplicar migraciones 094-104.
 - Workflows/BullMQ ya tienen cron drainer acotado; near-real-time requiere worker persistente externo.
 
 ## Validacion ejecutada
@@ -25,17 +25,19 @@ pnpm typecheck
 pnpm lint
 pnpm production:check
 pnpm production:verify-db
+pnpm audit --prod --json
 pnpm test:coverage
 pnpm build
 ```
 
 Resultado observado:
 
-- Tests: 197 passed, 4 skipped.
+- Tests: 201 passed, 4 skipped.
 - Typecheck: OK.
 - Lint: OK; solo queda el aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: OK con 0 failures y 0 warnings locales en `BILLING_PROVIDER=manual`.
-- Production DB verify: OK contra Supabase objetivo con 0 failures y 76 checks.
+- Production DB verify: OK contra Supabase objetivo con 0 failures y 76 checks, incluidas migraciones 094-104, RLS y artefactos legacy de Stripe removidos.
+- Prod audit: OK, 0 vulnerabilidades reportadas.
 - Coverage: genera reporte real; baseline global observado: statements/lines 4.99%, branches 26.78%, functions 13.5%. No tiene umbrales globales obligatorios mientras se sube la base por modulo.
 - Build: OK. BullMQ queda externalizado del bundle Next; los warnings de dependencias server-only quedan filtrados en `next.config.mjs`.
 

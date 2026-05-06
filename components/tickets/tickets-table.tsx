@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Search, Plus, Eye } from "lucide-react"
+import { TicketDialog } from "@/components/tickets/ticket-dialog"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { Loading } from "@/components/ui/loading"
 import { toast } from "sonner"
@@ -38,6 +39,9 @@ export function TicketsTable() {
     const [totalPages, setTotalPages] = useState(0)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [ticketToDelete, setTicketToDelete] = useState<string | null>(null)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create")
+    const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null)
 
     useEffect(() => {
         loadTickets()
@@ -80,6 +84,24 @@ export function TicketsTable() {
     const handleDeleteClick = (id: string) => {
         setTicketToDelete(id)
         setDeleteDialogOpen(true)
+    }
+
+    const handleCreate = () => {
+        setSelectedTicket(null)
+        setDialogMode("create")
+        setDialogOpen(true)
+    }
+
+    const handleView = (ticket: TicketItem) => {
+        setSelectedTicket(ticket)
+        setDialogMode("view")
+        setDialogOpen(true)
+    }
+
+    const handleEdit = (ticket: TicketItem) => {
+        setSelectedTicket(ticket)
+        setDialogMode("edit")
+        setDialogOpen(true)
     }
 
     const handleDelete = async () => {
@@ -130,7 +152,7 @@ export function TicketsTable() {
                     </div>
                     <Button type="submit" variant="secondary">Buscar</Button>
                 </form>
-                <Button className="gradient-neon border-0">
+                <Button className="gradient-neon border-0" onClick={handleCreate}>
                     <Plus className="w-4 h-4 mr-2" />Nuevo Ticket
                 </Button>
             </div>
@@ -164,8 +186,8 @@ export function TicketsTable() {
                                     <TableCell>{new Date(ticket.created_at).toLocaleDateString("es-PE")}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon"><Eye className="w-4 h-4" /></Button>
-                                            <Button variant="ghost" size="icon"><Edit className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleView(ticket)}><Eye className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(ticket)}><Edit className="w-4 h-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ticket.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                                         </div>
                                     </TableCell>
@@ -177,6 +199,14 @@ export function TicketsTable() {
             </div>
 
             <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} limit={limit} onLimitChange={setLimit} totalItems={total} />
+
+            <TicketDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                ticket={selectedTicket}
+                mode={dialogMode}
+                onSuccess={loadTickets}
+            />
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>

@@ -37,6 +37,31 @@ function validateCampaignReadyForStatus(campaign: any) {
     }
 }
 
+async function countCampaignAudience(supabase: any, organizationId: string, targetSegment?: Record<string, any> | null) {
+    if (!targetSegment) return 0
+
+    let query = supabase
+        .from('contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+
+    switch (targetSegment.type) {
+        case 'hot_leads':
+            query = query.eq('lead_status', 'hot')
+            break
+        case 'customers':
+            query = query.eq('lead_status', 'converted')
+            break
+        case 'all_contacts':
+        default:
+            break
+    }
+
+    const { count, error } = await query
+    if (error) throw error
+    return count || 0
+}
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -90,11 +115,16 @@ export async function PUT(
             return NextResponse.json({ success: false, error: "Campaña no encontrada" }, { status: 404 })
         }
 
-        validateCampaignReadyForStatus({ ...existing, ...validation.data })
+        const updateData: Record<string, any> = { ...validation.data }
+        if (validation.data.target_segment !== undefined) {
+            updateData.contact_count = await countCampaignAudience(supabase, organizationId, validation.data.target_segment)
+        }
+
+        validateCampaignReadyForStatus({ ...existing, ...updateData })
 
         const { data, error } = await supabase
             .from('campaigns')
-            .update({ ...validation.data, updated_at: new Date().toISOString() })
+            .update({ ...updateData, updated_at: new Date().toISOString() })
             .eq('id', id)
             .eq('organization_id', organizationId)
             .select()

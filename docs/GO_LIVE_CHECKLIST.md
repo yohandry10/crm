@@ -17,7 +17,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [ ] Supabase Auth tiene Site URL y Redirect URLs correctas.
 - [x] Platform admin no depende de superadmin hardcodeado en codigo.
 - [x] Operaciones con service role en onboarding/admin/team/subscriptions validan body/filtros antes de escribir.
-- [ ] RLS habilitado y probado en tablas sensibles.
+- [x] RLS habilitado y probado en tablas sensibles via `pnpm production:verify-db`.
 - [x] RPC `verify_production_readiness` ejecutada en la base objetivo con todos los checks `pass=true`.
 - [x] Migracion 095 endurece el primer bloque de funciones `SECURITY DEFINER` sensibles.
 - [x] Migracion 095 aplicada y verificada en la base objetivo.
@@ -33,10 +33,11 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Migracion 101 aplicada y `production:verify-db` ejecutado en la base objetivo.
 - [x] Migraciones 102-103 aplicadas y verificadas en la base objetivo.
 - [x] Produccion usa `BILLING_PROVIDER=manual`; Culqi/PagoEfectivo quedan desactivados hasta tener credenciales reales.
+- [x] Checkout manual no activa planes automaticamente; registra solicitud pendiente para confirmacion admin.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
 - [ ] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted`.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
-- [ ] Base objetivo revisada sin duplicados historicos antes de aplicar el indice unico de pagos.
+- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-104.
 - [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
 - [x] Migracion 096 aplicada y verificada en la base objetivo.
 - [x] Pagos manuales son idempotentes y transaccionales via RPC.
@@ -46,7 +47,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [ ] Worker persistente configurado si workflows se venden como near-real-time (`WORKFLOW_PROCESSING_MODE=worker`).
 - [x] Endpoints `/api/cron/*` validan `CRON_SECRET` con helper central y fallan cerrado si falta.
 - [x] Politica Redis decidida y documentada: Redis obligatorio y `RATE_LIMIT_FAIL_OPEN=false`.
-- [ ] Endpoints publicos tienen rate limit, CORS y validacion estricta en todos los flujos.
+- [x] Endpoints publicos tienen rate limit, CORS y validacion estricta en todos los flujos.
 - [x] Public forms y booking fallan cerrado en CORS de produccion si no hay allowlist.
 - [x] Public forms valida campos enviados contra la definicion del formulario.
 - [x] Forms privados validan schema y assignee del tenant antes de escribir.
@@ -72,7 +73,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 
 - [ ] Contacts/leads/accounts filtran por organizacion.
 - [x] `PATCH /api/opportunities/[id]` valida campos permitidos y etapas/contactos por organizacion.
-- [ ] Pipeline/opportunities tiene etapas por organizacion en todos los flujos de creacion, edicion y migracion.
+- [x] Pipeline/opportunities tiene etapas por organizacion en todos los flujos de creacion, edicion y bulk update.
 - [ ] Conversion lead -> contact/opportunity preserva tenant.
 
 ### Revenue
@@ -83,7 +84,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Sales orders tienen `order_number`, `items`, estado `completed` y validacion de referencias alineados con API/UI.
 - [ ] PDFs no exponen datos de otra organizacion.
 - [x] Payment links se generan via RPC con validacion de tenant/recurso.
-- [ ] Payment links validados contra la base objetivo despues de aplicar migracion 099.
+- [x] Payment links validados contra la base objetivo despues de aplicar migracion 099.
 - [x] Public pay valida formato de token antes de resolver documentos.
 - [x] Pagos activos excluyen Stripe y aceptan gateways locales configurados.
 
@@ -113,8 +114,8 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Bulk updates de tasks/tickets usan allowlist estricta.
 - [x] Tickets UI/search/export usan `title`, no columnas legacy.
 - [x] Inbox valida conversacion por organizacion antes de listar/enviar mensajes.
-- [ ] Tickets tiene flujo UI completo de crear/editar.
-- [ ] Notificaciones globales tienen read-state por usuario o decision explicita de lectura global.
+- [x] Tickets tiene flujo UI completo de crear/ver/editar/eliminar.
+- [x] Notificaciones globales tienen read-state por usuario o decision explicita: la API expone solo notificaciones de sistema por usuario hasta tener tabla puente.
 
 ### Reports / analytics
 

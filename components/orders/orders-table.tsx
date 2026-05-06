@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Search, Plus, Eye } from "lucide-react"
+import { OrderDialog } from "@/components/orders/order-dialog"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { Loading } from "@/components/ui/loading"
 import { toast } from "sonner"
@@ -38,6 +39,9 @@ export function OrdersTable() {
     const [totalPages, setTotalPages] = useState(0)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create")
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
     useEffect(() => {
         loadOrders()
@@ -82,6 +86,24 @@ export function OrdersTable() {
         setDeleteDialogOpen(true)
     }
 
+    const handleCreate = () => {
+        setSelectedOrder(null)
+        setDialogMode("create")
+        setDialogOpen(true)
+    }
+
+    const handleView = (order: Order) => {
+        setSelectedOrder(order)
+        setDialogMode("view")
+        setDialogOpen(true)
+    }
+
+    const handleEdit = (order: Order) => {
+        setSelectedOrder(order)
+        setDialogMode("edit")
+        setDialogOpen(true)
+    }
+
     const handleDelete = async () => {
         if (!orderToDelete) return
         try {
@@ -102,10 +124,10 @@ export function OrdersTable() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "pending": return "bg-yellow-500"
-            case "processing": return "bg-blue-500"
-            case "shipped": return "bg-purple-500"
-            case "delivered": return "bg-green-500"
+            case "draft": return "bg-slate-500"
+            case "confirmed": return "bg-blue-500"
+            case "fulfilled": return "bg-purple-500"
+            case "completed": return "bg-green-500"
             case "cancelled": return "bg-red-500"
             default: return "bg-slate-500"
         }
@@ -125,7 +147,7 @@ export function OrdersTable() {
                     </div>
                     <Button type="submit" variant="secondary">Buscar</Button>
                 </form>
-                <Button className="gradient-neon border-0">
+                <Button className="gradient-neon border-0" onClick={handleCreate}>
                     <Plus className="w-4 h-4 mr-2" />Nuevo Pedido
                 </Button>
             </div>
@@ -157,8 +179,8 @@ export function OrdersTable() {
                                     <TableCell>{new Date(order.created_at).toLocaleDateString("es-PE")}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon"><Eye className="w-4 h-4" /></Button>
-                                            <Button variant="ghost" size="icon"><Edit className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleView(order)}><Eye className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}><Edit className="w-4 h-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(order.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                                         </div>
                                     </TableCell>
@@ -170,6 +192,14 @@ export function OrdersTable() {
             </div>
 
             <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} limit={limit} onLimitChange={setLimit} totalItems={total} />
+
+            <OrderDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                order={selectedOrder}
+                mode={dialogMode}
+                onSuccess={loadOrders}
+            />
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>

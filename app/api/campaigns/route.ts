@@ -39,6 +39,31 @@ function validateCampaignReadyForStatus(campaign: z.infer<typeof campaignSchema>
     }
 }
 
+async function countCampaignAudience(supabase: any, organizationId: string, targetSegment?: Record<string, any> | null) {
+    if (!targetSegment) return 0
+
+    let query = supabase
+        .from('contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+
+    switch (targetSegment.type) {
+        case 'hot_leads':
+            query = query.eq('lead_status', 'hot')
+            break
+        case 'customers':
+            query = query.eq('lead_status', 'converted')
+            break
+        case 'all_contacts':
+        default:
+            break
+    }
+
+    const { count, error } = await query
+    if (error) throw error
+    return count || 0
+}
+
 export async function GET(request: NextRequest) {
     try {
         const rate = await rateLimit(request, RATE_LIMITS.read)
@@ -87,11 +112,7 @@ export async function POST(request: NextRequest) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
 
-        let contactCount = 0
-        if (validation.data.target_segment) {
-            const { count } = await supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId)
-            contactCount = count || 0
-        }
+        const contactCount = await countCampaignAudience(supabase, organizationId, validation.data.target_segment)
 
         validateCampaignReadyForStatus(validation.data, contactCount)
 

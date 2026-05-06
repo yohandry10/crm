@@ -147,6 +147,8 @@ Mejoras aplicadas:
 
 - `PATCH /api/opportunities/[id]` ahora usa allowlist estricta de campos.
 - `stage_id` y `contact_id` en oportunidades se validan contra `organization_id` antes de actualizar.
+- `POST /api/opportunities` valida `contact_id` y `stage_id` contra la organizacion antes de insertar, incluso cuando recibe un UUID directo.
+- `PATCH/DELETE /api/opportunities/bulk` valida UUIDs, allowlist de campos, estado permitido, etapa por organizacion y assignee activo antes de escribir.
 - El endpoint de oportunidades ya no permite sobrescribir campos sensibles como `organization_id`, `created_by` o `status` desde un body arbitrario.
 - El Kanban de pipeline ahora abre confirmacion antes de eliminar una oportunidad.
 - Pipeline solicita hasta 100 oportunidades para evitar perder columnas por el limite default de 20.
@@ -156,7 +158,7 @@ Mejoras aplicadas:
 Pendientes:
 
 - P1: resolver si `leads` es tabla/modulo propio o una vista de `contacts`; hoy hay riesgo de filtros incompletos si solo se trae la primera pagina de contactos.
-- P1: revisar enlaces a `/contacts/[id]` o vistas detalle que no existan.
+- Hecho: agregar `/contacts/[id]` para cerrar enlaces desde inbox, formularios y detector de duplicados.
 - P1: agregar tests para conversion lead -> contact/opportunity con tenant isolation.
 - P1: reemplazar fetches amplios de Kanban por paginacion por etapa o endpoint agregado si se esperan mas de 100 oportunidades.
 - P2: normalizar empty/error states en contacts, products y listas paginadas.
@@ -178,6 +180,7 @@ Mejoras aplicadas:
 - `PATCH /api/payments/[id]` ahora filtra sumas/updates por `organization_id`.
 - `PATCH /api/payments/[id]` bloquea aprobaciones manuales que excedan el saldo pendiente observado.
 - La integracion activa de pagos queda movida a Culqi/PagoEfectivo o confirmacion manual; las rutas activas de Stripe fueron eliminadas.
+- Checkout de suscripciones en modo manual ya no activa planes por si mismo; deja una solicitud pendiente para confirmacion admin.
 - La migracion `104_remove_legacy_stripe_artifacts.sql` elimina artefactos heredados de Stripe del esquema final.
 - `/api/pay/[token]` valida formato de token y comprobante antes de usar service role.
 - `/api/pay/[token]` falla cerrado en CORS de produccion si `PUBLIC_PAY_ALLOWED_ORIGINS` no esta configurado.
@@ -196,7 +199,7 @@ Pendientes:
 - P0: aplicar y validar la migracion 099; si existen tokens historicos con quote e invoice a la vez, limpiarlos antes de validar el constraint.
 - P0: aplicar y validar la migracion 100; si existen sales orders historicas sin numero o items no-array, corregir antes de validar constraints.
 - P1: `QuoteDialog` envia edicion completa, pero el endpoint de quote por id debe confirmar si acepta solo status o todos los campos.
-- P1: orders aun necesita handlers reales para Nuevo/Ver/Editar y pruebas UI.
+- Hecho: orders tiene dialogo real de crear/ver/editar y `GET`/`PATCH` por id ademas de `PUT`/`DELETE`.
 - P2: normalizar badges/estados visibles de orders contra los estados reales del enum.
 
 #### 4. Products / inventory
@@ -227,6 +230,8 @@ Mejoras aplicadas:
 - Booking publico crea eventos mediante la RPC `book_public_calendar_slot`, que revalida reglas de agenda dentro de la transaccion.
 - La migracion `098_atomic_public_booking.sql` serializa reservas por owner/dia con `pg_advisory_xact_lock` y vuelve a comprobar overlaps antes de insertar.
 - Booking/public forms cierran CORS fail-open en produccion si no hay allowlist configurada.
+- Middleware deja pasar `/pay`, `/book`, `/api/pay`, `/api/calendar/booking` y `/api/public/forms` como rutas publicas para que cada handler aplique su allowlist publica.
+- `/api/public/plans` tiene rate limit, CORS explicito y errores sanitizados.
 - Public forms valida campos enviados contra la definicion del formulario: required, email, number, select, checkbox, tamano y campos no permitidos.
 - Forms por id (`GET/PUT/DELETE /api/forms/[id]`) filtran por `organization_id`.
 - `GET /api/forms/[id]/submissions` valida UUID/status/paginacion y verifica ownership del formulario antes de listar submissions por `organization_id`.
@@ -236,6 +241,7 @@ Mejoras aplicadas:
 - `EventDialog` crea/edita via `/api/calendar/events`; las rutas legacy `/api/events` escriben en `calendar_events` para compatibilidad.
 - Eventos de calendario validan rango de fechas y referencias `contact_id`/`opportunity_id` contra el tenant antes de escribir.
 - Campaigns ya no permite crear/activar/programar campañas sin contenido, asunto email y audiencia; la UI evita progreso `NaN` cuando no hay contactos.
+- UI de campaigns captura asunto, contenido, audiencia, presupuesto y fecha programada para alinear con las reglas del backend.
 
 Pendientes:
 
@@ -270,9 +276,9 @@ Mejoras aplicadas:
 
 Pendientes:
 
-- P1: `system_notifications` no tiene read-state por usuario para avisos globales; marcar como leida una global afecta la fila compartida.
+- Hecho: la API de notificaciones solo expone `system_notifications` por usuario; los avisos globales quedan fuera hasta crear read-state por usuario.
 - P1: inbox sigue siendo polling; falta decidir proveedor real de WhatsApp/email y estados de entrega.
-- P1: tickets necesita flujo completo de crear/editar desde UI, no solo listar/eliminar.
+- Hecho: tickets tiene flujo UI completo de crear/ver/editar/eliminar contra `/api/tickets`.
 - P2: tasks/tickets necesitan tests runtime de permisos por rol y estados de error en UI.
 
 #### 7. Workflows / integrations / AI
@@ -292,6 +298,7 @@ Mejoras aplicadas:
 - `GET /api/workflows/executions/[id]/logs` verifica ownership antes de pedir logs detallados y la RPC queda protegida por tenant.
 - Workflow executor filtra actualizaciones de lead score/status por `organization_id`, valida contactos/assignees para tareas y solo notifica miembros activos del tenant.
 - Integrations ya no devuelve configuracion descifrada ni `config_encrypted` al listar/consultar/guardar; la UI conserva la configuracion existente si no se reemplaza.
+- Toggle de integrations respeta cambios de estado sin volver a probar secretos almacenados; solo revalida conexion si cambia provider/config.
 - Webhooks salientes, test de integraciones y acciones webhook de workflows validan URL con proteccion SSRF compartida antes de ejecutar `fetch`.
 - La validacion bloquea protocolos no HTTP(S), localhost, metadata hosts, IPs privadas/reservadas y hosts que resuelven por DNS a rangos privados/reservados.
 - Se agregaron tests contractuales para redaccion de integraciones y scope de workflows.
@@ -343,6 +350,7 @@ Pendientes:
 
 - P2: usar componentes compartidos de empty/error state en todas las listas criticas.
 - P2: eliminar o consolidar componentes duplicados de sidebar/layout cuando ya no se usen.
+- Hecho: el asistente global ya no se muestra en rutas publicas y no afirma que workflows/campaigns esten enviando o corriendo si solo estan configurados.
 - P2: retirar demos o rutas duplicadas de workflows si no tienen funcion productiva.
 
 ## Fase 5 - Operacion

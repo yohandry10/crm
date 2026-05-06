@@ -7,7 +7,7 @@ export function GlobalChatbotWrapper() {
     const pathname = usePathname() ?? ""
 
     // Blacklist paths where the chatbot should NOT appear
-    const hiddenPaths = ["/login", "/signup", "/forgot-password", "/"]
+    const hiddenPaths = ["/login", "/signup", "/forgot-password", "/reset-password", "/terms", "/privacy", "/"]
 
     // Also hide if it's strictly the landing page (root) depending on requirement, 
     // but usually CRM apps have a landing page at root. 
@@ -19,7 +19,13 @@ export function GlobalChatbotWrapper() {
     }
 
     // Double check auth routes that might have subpaths
-    if (pathname.startsWith("/auth") || pathname.startsWith("/login")) {
+    if (
+        pathname.startsWith("/auth") ||
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/pay/") ||
+        pathname.startsWith("/book/") ||
+        pathname.startsWith("/f/")
+    ) {
         return null
     }
 

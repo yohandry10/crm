@@ -13,6 +13,7 @@ const CSRF_EXCLUDED_PATHS = [
   "/api/settings",
   "/api/admin",
   "/api/invitations",
+  "/api/pay",
   // Rutas internas autenticadas - la sesión de Supabase las protege
   "/api/contacts",
   "/api/invoices",

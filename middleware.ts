@@ -44,11 +44,20 @@ function handleCORS(request: NextRequest, origin: string | null): NextResponse |
     const method = request.method
     const hostOrigin = request.nextUrl.origin
 
+    const routeSpecificCORSRoutes = [
+        '/api/public/forms',
+        '/api/pay',
+        '/api/calendar/booking',
+    ]
+
+    if (routeSpecificCORSRoutes.some(route => pathname.startsWith(route))) {
+        return null
+    }
+
     // Rutas que permiten CORS más permisivo (APIs públicas embebibles)
     const publicCORSRoutes = [
         '/f/', // Formularios embebibles
-        '/api/public', // APIs públicas
-        '/api/pay', // Links de pago embebibles
+        '/api/public/plans', // Pricing público sin datos de tenant
     ]
 
     const isPublicCORS = publicCORSRoutes.some(route => pathname.startsWith(route))
@@ -106,8 +115,12 @@ const publicRoutes = [
     '/reset-password',
     '/pricing',
     '/f', // Formularios públicos embebibles
+    '/pay',
+    '/book',
     '/api/health',
     '/api/public',
+    '/api/pay',
+    '/api/calendar/booking',
     '/api/auth', // Login, cambio de contraseña
     '/auth/callback',
     '/api/invitations',
@@ -354,8 +367,7 @@ export async function middleware(request: NextRequest) {
     // ====================================================================
     const publicCORSRoutes = [
         '/f/',
-        '/api/public',
-        '/api/pay',
+        '/api/public/plans',
     ]
     const isPublicCORS = publicCORSRoutes.some(route => pathname.startsWith(route))
     const allowedOrigins = getAllowedOrigins()

@@ -59,12 +59,13 @@ export async function GET(request: NextRequest) {
 
     const notificationsPromise = notificationsQuery
 
-    // Also query system_notifications for backwards compatibility
+    // Backwards compatibility: only per-user system notifications are exposed.
+    // Org-wide rows do not have per-user read state, so they stay out of this API.
     let systemQuery = supabase
       .from("system_notifications")
       .select("*")
       .eq("organization_id", organizationId)
-      .or(`user_id.eq.${user.id},user_id.is.null`)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(limit)
 
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
       .from("system_notifications")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
-      .or(`user_id.eq.${user.id},user_id.is.null`)
+      .eq("user_id", user.id)
       .is("read_at", null)
 
     const [
@@ -163,7 +164,7 @@ export async function PUT(request: NextRequest) {
         .from("system_notifications")
         .update({ read_at: readAt })
         .eq("organization_id", organizationId)
-        .or(`user_id.eq.${user.id},user_id.is.null`)
+        .eq("user_id", user.id)
         .is("read_at", null)
       if (systemUpdate.error) throw systemUpdate.error
 
@@ -185,7 +186,7 @@ export async function PUT(request: NextRequest) {
           .update({ read_at: readAt })
           .in("id", notificationIds)
           .eq("organization_id", organizationId)
-          .or(`user_id.eq.${user.id},user_id.is.null`)
+          .eq("user_id", user.id)
         if (systemUpdate.error) throw systemUpdate.error
       }
     }

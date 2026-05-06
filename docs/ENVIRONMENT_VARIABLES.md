@@ -24,7 +24,7 @@ PUBLIC_PAY_ALLOWED_ORIGINS=https://your-app.example.com
 PUBLIC_BOOKING_ALLOWED_ORIGINS=https://your-app.example.com
 ```
 
-Nota: revisar `middleware.ts` antes de asumir que todas las variables `PUBLIC_*_ALLOWED_ORIGINS` estan aplicadas de forma uniforme.
+Las rutas publicas de formularios, pagos y booking usan allowlists especificas por handler y fallan cerrado en produccion si la variable correspondiente no esta configurada.
 
 ## Redis / BullMQ
 
@@ -92,7 +92,7 @@ PAGOEFECTIVO_API_KEY=
 PAGOEFECTIVO_WEBHOOK_SECRET=
 ```
 
-Valores soportados de `BILLING_PROVIDER`: `manual`, `disabled`, `culqi`, `pagoefectivo`, `culqi_pagoefectivo`. La configuracion de produccion actual usa `manual`, por lo que no exige credenciales externas y solo habilita gateways manuales/locales por defecto. `pnpm production:check` falla si se selecciona un proveedor externo y faltan sus credenciales. La app no usa Stripe como proveedor activo.
+Valores soportados de `BILLING_PROVIDER`: `manual`, `disabled`, `culqi`, `pagoefectivo`, `culqi_pagoefectivo`. La configuracion de produccion actual usa `manual`, por lo que no exige credenciales externas y solo habilita gateways manuales/locales por defecto. En modo `manual`, checkout registra una solicitud pendiente y la activacion queda en el flujo admin. `pnpm production:check` falla si se selecciona un proveedor externo y faltan sus credenciales. La app no usa Stripe como proveedor activo.
 
 ## AI
 

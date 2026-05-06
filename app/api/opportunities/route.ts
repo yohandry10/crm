@@ -4,13 +4,27 @@ import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createRequestLogger } from '@/lib/logger'
+import { validateOpportunityReferences } from '@/lib/work-item-references'
 import { z } from 'zod'
 import crypto from 'crypto'
 
+const semanticStageIds = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const
+const stageNameMap: Record<(typeof semanticStageIds)[number], { name: string, position: number, probability: number }> = {
+    prospecting: { name: 'Prospección', position: 1, probability: 10 },
+    qualification: { name: 'Calificación', position: 2, probability: 25 },
+    proposal: { name: 'Propuesta', position: 3, probability: 50 },
+    negotiation: { name: 'Negociación', position: 4, probability: 75 },
+    closed_won: { name: 'Ganado', position: 5, probability: 100 },
+    closed_lost: { name: 'Perdido', position: 6, probability: 0 },
+}
+
 const opportunitySchema = z.object({
     name: z.string().min(1, "Nombre requerido").max(200),
-    contact_id: z.string().optional().nullable(),
-    stage_id: z.string().optional().nullable(),
+    contact_id: z.string().uuid("ID de contacto inválido").optional().nullable(),
+    stage_id: z.union([
+        z.string().uuid("ID de etapa inválido"),
+        z.enum(semanticStageIds),
+    ]).optional().nullable(),
     expected_revenue: z.number().min(0).optional(),
     expected_close_date: z.string().optional().nullable(),
     description: z.string().max(1000).optional().nullable(),
@@ -94,23 +108,16 @@ export async function POST(request: NextRequest) {
         // SEGURIDAD: Usar SOLO cliente autenticado con RLS (NO Service Client)
         // Resuelve: SEC-003 del reporte forense
 
-        // Mapeo de IDs semánticos a nombres de stage
-        const stageNameMap: Record<string, { name: string, position: number, probability: number }> = {
-            'prospecting': { name: 'Prospección', position: 1, probability: 10 },
-            'qualification': { name: 'Calificación', position: 2, probability: 25 },
-            'proposal': { name: 'Propuesta', position: 3, probability: 50 },
-            'negotiation': { name: 'Negociación', position: 4, probability: 75 },
-            'closed_won': { name: 'Ganado', position: 5, probability: 100 },
-            'closed_lost': { name: 'Perdido', position: 6, probability: 0 },
-        }
-
         // Obtener o crear el stage
         let finalStageId = stage_id
         let finalProbability = probability
+        const semanticStageInfo = stage_id && stage_id in stageNameMap
+            ? stageNameMap[stage_id as keyof typeof stageNameMap]
+            : null
 
-        if (stage_id && stageNameMap[stage_id]) {
+        if (stage_id && semanticStageInfo) {
             // Es un ID semántico, buscar o crear el stage en la BD
-            const stageInfo = stageNameMap[stage_id]
+            const stageInfo = semanticStageInfo
 
             // Buscar stage existente por nombre (RLS protege organization_id)
             const { data: existingStage } = await supabase
@@ -182,21 +189,14 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Verificar que el contact_id sea válido (RLS protege)
-        if (contact_id) {
-            const { data: contact } = await supabase
-                .from('contacts')
-                .select('id')
-                .eq('id', contact_id)
-                .eq('organization_id', organizationId)
-                .maybeSingle()
-
-            if (!contact) {
-                return NextResponse.json({ success: false, error: "El contacto seleccionado no existe o no pertenece a tu organización" }, { status: 400 })
-            }
-        } else {
+        if (!contact_id) {
             return NextResponse.json({ success: false, error: "Debes seleccionar un contacto" }, { status: 400 })
         }
+
+        await validateOpportunityReferences(supabase, organizationId, {
+            contact_id,
+            stage_id: finalStageId,
+        })
 
         // Insertar oportunidad (RLS protege organization_id y permisos)
         const { data, error } = await supabase

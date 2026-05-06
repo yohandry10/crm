@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { sanitizeErrorForClient } from "@/lib/error-handler"
 
 // Public API - no auth required
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const rate = await rateLimit(request, RATE_LIMITS.read)
+    if (rate) return rate
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,12 +28,24 @@ export async function GET() {
       features: typeof plan.features === "string" ? JSON.parse(plan.features) : plan.features || []
     })) || []
 
-    return NextResponse.json({ success: true, data: plans })
+    const response = NextResponse.json({ success: true, data: plans })
+    response.headers.set("Access-Control-Allow-Origin", request.headers.get("origin") || "*")
+    response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS")
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type")
+    return response
   } catch (error: any) {
     console.error("Error fetching plans:", error)
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: sanitizeErrorForClient(error) },
       { status: 500 }
     )
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const response = new NextResponse(null, { status: 204 })
+  response.headers.set("Access-Control-Allow-Origin", request.headers.get("origin") || "*")
+  response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS")
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type")
+  return response
 }

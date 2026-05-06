@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get("status")
         const account_id = searchParams.get("account_id")
         const opportunity_id = searchParams.get("opportunity_id")
+        const search = searchParams.get("search")?.trim()
         const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
         if (status) query = query.eq("status", status)
         if (account_id) query = query.eq("account_id", account_id)
         if (opportunity_id) query = query.eq("opportunity_id", opportunity_id)
+        if (search) query = query.ilike("order_number", `%${search}%`)
 
         const { data, error, count } = await query
         if (error) throw error

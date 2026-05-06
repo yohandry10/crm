@@ -6,7 +6,6 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Search, Plus, Building2 } from "lucide-react"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { Loading } from "@/components/ui/loading"
@@ -19,18 +18,13 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
 
 interface Account {
     id: string
     name: string
     ruc: string | null
     industry: string | null
-    type: string | null
     phone: string | null
-    email: string | null
     website: string | null
     address: string | null
     created_at: string
@@ -50,7 +44,7 @@ export function AccountsTable() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
     const [formData, setFormData] = useState({
-        name: "", ruc: "", industry: "", type: "prospect", phone: "", email: "", website: "", address: ""
+        name: "", ruc: "", industry: "", phone: "", website: "", address: ""
     })
 
     useEffect(() => {
@@ -93,7 +87,7 @@ export function AccountsTable() {
 
     const handleCreate = () => {
         setSelectedAccount(null)
-        setFormData({ name: "", ruc: "", industry: "", type: "prospect", phone: "", email: "", website: "", address: "" })
+        setFormData({ name: "", ruc: "", industry: "", phone: "", website: "", address: "" })
         setDialogOpen(true)
     }
 
@@ -103,9 +97,7 @@ export function AccountsTable() {
             name: account.name || "",
             ruc: account.ruc || "",
             industry: account.industry || "",
-            type: account.type || "prospect",
             phone: account.phone || "",
-            email: account.email || "",
             website: account.website || "",
             address: account.address || ""
         })
@@ -156,15 +148,6 @@ export function AccountsTable() {
         }
     }
 
-    const getTypeColor = (type: string | null) => {
-        switch (type) {
-            case "customer": return "bg-green-500"
-            case "partner": return "bg-blue-500"
-            case "prospect": return "bg-yellow-500"
-            default: return "bg-slate-500"
-        }
-    }
-
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
@@ -187,8 +170,8 @@ export function AccountsTable() {
                             <TableHead>Empresa</TableHead>
                             <TableHead>RUC</TableHead>
                             <TableHead>Industria</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Contacto</TableHead>
+                            <TableHead>Website</TableHead>
+                            <TableHead>Telefono</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -203,8 +186,8 @@ export function AccountsTable() {
                                     <TableCell className="font-medium"><div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-muted-foreground" />{account.name}</div></TableCell>
                                     <TableCell>{account.ruc || "-"}</TableCell>
                                     <TableCell>{account.industry || "-"}</TableCell>
-                                    <TableCell><Badge className={`${getTypeColor(account.type)} text-white border-0`}>{account.type || "prospect"}</Badge></TableCell>
-                                    <TableCell><div className="text-sm">{account.email || "-"}<br/><span className="text-muted-foreground">{account.phone || ""}</span></div></TableCell>
+                                    <TableCell>{account.website || "-"}</TableCell>
+                                    <TableCell>{account.phone || "-"}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
                                             <Button variant="ghost" size="icon" onClick={() => handleEdit(account)}><Edit className="w-4 h-4" /></Button>
@@ -227,22 +210,9 @@ export function AccountsTable() {
                         <div className="grid gap-2"><Label>Nombre *</Label><Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2"><Label>RUC</Label><Input value={formData.ruc} onChange={(e) => setFormData({...formData, ruc: e.target.value})} /></div>
-                            <div className="grid gap-2"><Label>Tipo</Label>
-                                <Select value={formData.type} onValueChange={(v) => setFormData({...formData, type: v})}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="prospect">Prospecto</SelectItem>
-                                        <SelectItem value="customer">Cliente</SelectItem>
-                                        <SelectItem value="partner">Partner</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid gap-2"><Label>Industria</Label><Input value={formData.industry} onChange={(e) => setFormData({...formData, industry: e.target.value})} /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2"><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} /></div>
                             <div className="grid gap-2"><Label>Telefono</Label><Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div>
                         </div>
+                        <div className="grid gap-2"><Label>Industria</Label><Input value={formData.industry} onChange={(e) => setFormData({...formData, industry: e.target.value})} /></div>
                         <div className="grid gap-2"><Label>Website</Label><Input value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} /></div>
                         <div className="grid gap-2"><Label>Direccion</Label><Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div>
                     </div>

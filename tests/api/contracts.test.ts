@@ -449,6 +449,7 @@ describe('API contracts', () => {
   it('keeps the second SECURITY DEFINER hardening pass on exposed RPCs', () => {
     const sql = readFileSync('supabase/migrations/097_security_definer_rpc_hardening.sql', 'utf8')
     const publicFormRoute = readFileSync('app/api/public/forms/[id]/route.ts', 'utf8')
+    const publicPlansRoute = readFileSync('app/api/public/plans/route.ts', 'utf8')
     const workflowLogsRoute = readFileSync('app/api/workflows/executions/[id]/logs/route.ts', 'utf8')
 
     expect(sql).toContain('CREATE OR REPLACE FUNCTION search_contacts')
@@ -460,6 +461,10 @@ describe('API contracts', () => {
     expect(sql).toContain('GRANT EXECUTE ON FUNCTION cleanup_analytics_cache() TO service_role')
     expect(publicFormRoute).toContain("process.env.NODE_ENV === 'production' ? null")
     expect(publicFormRoute).toContain('status: 403')
+    expect(publicPlansRoute).toContain('rateLimit(request, RATE_LIMITS.read)')
+    expect(publicPlansRoute).toContain('sanitizeErrorForClient')
+    expect(publicPlansRoute).toContain('export async function OPTIONS')
+    expect(publicPlansRoute).toContain('Access-Control-Allow-Origin')
     expect(workflowLogsRoute.indexOf("from('workflow_executions')")).toBeLessThan(
       workflowLogsRoute.indexOf("rpc('get_workflow_execution_logs'")
     )
@@ -501,6 +506,8 @@ describe('API contracts', () => {
     expect(billingProviders).not.toContain('"stripe"')
     expect(paymentsRoute).toContain('normalizePaymentGateway')
     expect(checkoutRoute).toContain('pendingPayment')
+    expect(checkoutRoute).toContain('subscription_payment_requested')
+    expect(checkoutRoute).not.toContain('activate_subscription')
     expect(existsSync('app/api/webhooks/stripe/route.ts')).toBe(false)
     expect(existsSync('app/api/payments/stripe/webhook/route.ts')).toBe(false)
   })
@@ -550,6 +557,8 @@ describe('API contracts', () => {
 
   it('validates public payment tokens and proof payloads before privileged writes', () => {
     const route = readFileSync('app/api/pay/[token]/route.ts', 'utf8')
+    const middleware = readFileSync('middleware.ts', 'utf8')
+    const csrf = readFileSync('middleware-csrf.ts', 'utf8')
 
     expect(route).toContain('PUBLIC_PAY_ALLOWED_ORIGINS')
     expect(route).toContain("process.env.NODE_ENV === 'production' ? null")
@@ -559,6 +568,12 @@ describe('API contracts', () => {
     expect(route).toContain('createSupabaseServiceClient')
     expect(route).toContain('Origin not allowed')
     expect(route).toContain('status: 403')
+    expect(middleware).toContain("'/pay'")
+    expect(middleware).toContain("'/book'")
+    expect(middleware).toContain("'/api/pay'")
+    expect(middleware).toContain("'/api/calendar/booking'")
+    expect(middleware).toContain("'/api/public/forms'")
+    expect(csrf).toContain('"/api/pay"')
   })
 
   it('creates payment links only through the hardened token RPC', () => {
@@ -616,6 +631,9 @@ describe('API contracts', () => {
     const page = readFileSync('app/campaigns/page.tsx', 'utf8')
 
     expect(createRoute).toContain('validateCampaignReadyForStatus')
+    expect(createRoute).toContain('countCampaignAudience')
+    expect(createRoute).toContain("case 'hot_leads'")
+    expect(createRoute).toContain("case 'customers'")
     expect(createRoute).toContain('campaign.status !==')
     expect(createRoute).toContain('El contenido de la campaña es requerido antes de activar')
     expect(createRoute).toContain('El asunto es requerido para campañas de email')
@@ -623,9 +641,14 @@ describe('API contracts', () => {
     expect(createRoute.indexOf('validateCampaignReadyForStatus(validation.data, contactCount)')).toBeLessThan(
       createRoute.indexOf('.insert({ ...validation.data')
     )
-    expect(updateRoute).toContain('validateCampaignReadyForStatus({ ...existing, ...validation.data })')
+    expect(updateRoute).toContain('validateCampaignReadyForStatus({ ...existing, ...updateData })')
+    expect(updateRoute).toContain('updateData.contact_count = await countCampaignAudience')
     expect(page).toContain('const getSendProgress')
     expect(page).toContain('if (!campaign.contact_count || campaign.contact_count <= 0) return 0')
+    expect(page).toContain('subject: form.subject || null')
+    expect(page).toContain('content: form.content || null')
+    expect(page).toContain('target_segment: form.target_segment')
+    expect(page).toContain('type="datetime-local"')
   })
 
   it('uses shared SSRF protection before outbound webhook delivery', () => {
@@ -653,6 +676,14 @@ describe('API contracts', () => {
     expect(workflows).toContain('await validateOutboundWebhookUrl(action.params.url)')
     expect(events).toContain('await validateOutboundWebhookUrl(url)')
     expect(integrationTestRoute).toContain('await validateOutboundWebhookUrl(url)')
+  })
+
+  it('honors integration status-only toggles without retesting stored secrets', () => {
+    const integrationRoute = readFileSync('app/api/integrations/[id]/route.ts', 'utf8')
+
+    expect(integrationRoute).toContain('const shouldRetestConnection = validation.data.provider !== undefined || validation.data.config !== undefined')
+    expect(integrationRoute).toContain('if (shouldRetestConnection && providerToTest)')
+    expect(integrationRoute).toContain('if (validation.data.status !== undefined) updateData.status = validation.data.status')
   })
 
   it('validates quote references before inserting tenant-scoped quote items', () => {
@@ -699,6 +730,7 @@ describe('API contracts', () => {
     const helper = readFileSync('lib/sales-order-references.ts', 'utf8')
     const ordersRoute = readFileSync('app/api/orders/route.ts', 'utf8')
     const orderRoute = readFileSync('app/api/orders/[id]/route.ts', 'utf8')
+    const ordersTable = readFileSync('components/orders/orders-table.tsx', 'utf8')
 
     expect(helper).toContain('validateSalesOrderReferences')
     expect(helper).toContain('from("accounts")')
@@ -710,15 +742,24 @@ describe('API contracts', () => {
       ordersRoute.indexOf('.insert({ ...validation.data')
     )
     expect(orderRoute).toContain('const updateSalesOrderSchema = salesOrderSchema.partial()')
+    expect(orderRoute).toContain('export async function GET')
+    expect(orderRoute).toContain('export async function PATCH')
     expect(orderRoute.indexOf('await validateSalesOrderReferences')).toBeLessThan(
       orderRoute.indexOf('.update(validation.data)')
     )
     expect(orderRoute).toContain('.maybeSingle()')
     expect(orderRoute).toContain('decrement_stock')
+    expect(ordersRoute).toContain('query.ilike("order_number"')
+    expect(ordersTable).toContain('OrderDialog')
+    expect(ordersTable).toContain('handleCreate')
+    expect(ordersTable).toContain('handleView')
+    expect(ordersTable).toContain('handleEdit')
   })
 
-  it('validates tasks and tickets references before tenant-scoped writes', () => {
+  it('validates tasks, tickets and opportunity references before tenant-scoped writes', () => {
     const helper = readFileSync('lib/work-item-references.ts', 'utf8')
+    const opportunitiesRoute = readFileSync('app/api/opportunities/route.ts', 'utf8')
+    const opportunitiesBulkRoute = readFileSync('app/api/opportunities/bulk/route.ts', 'utf8')
     const tasksRoute = readFileSync('app/api/tasks/route.ts', 'utf8')
     const taskRoute = readFileSync('app/api/tasks/[id]/route.ts', 'utf8')
     const tasksBulkRoute = readFileSync('app/api/tasks/bulk/route.ts', 'utf8')
@@ -728,9 +769,16 @@ describe('API contracts', () => {
 
     expect(helper).toContain('validateTaskReferences')
     expect(helper).toContain('validateTicketReferences')
+    expect(helper).toContain('validateOpportunityReferences')
     expect(helper).toContain('validateActiveOrganizationMember')
     expect(helper).toContain('from("organization_members")')
     expect(helper).toContain('eq("organization_id", organizationId)')
+    expect(opportunitiesRoute.indexOf('await validateOpportunityReferences')).toBeLessThan(
+      opportunitiesRoute.indexOf(".from('opportunities')\n            .insert({")
+    )
+    expect(opportunitiesRoute).toContain('z.string().uuid("ID de etapa inválido")')
+    expect(opportunitiesBulkRoute).toContain('opportunityBulkUpdatesSchema')
+    expect(opportunitiesBulkRoute).toContain('await validateOpportunityReferences')
     expect(tasksRoute.indexOf('await validateTaskReferences')).toBeLessThan(
       tasksRoute.indexOf('.insert({ ...validation.data')
     )
@@ -753,10 +801,26 @@ describe('API contracts', () => {
     expect(ticketsBulkRoute).not.toContain('"category"')
   })
 
+  it('keeps accounts UI aligned with the accounts schema columns', () => {
+    const schema = readFileSync('lib/schemas.ts', 'utf8')
+    const accountsTable = readFileSync('components/accounts/accounts-table.tsx', 'utf8')
+    const accountSchema = schema.slice(
+      schema.indexOf('export const accountSchema'),
+      schema.indexOf('export const ticketSchema')
+    )
+
+    expect(accountSchema).toContain('export const accountSchema')
+    expect(accountSchema).not.toContain('email:')
+    expect(accountsTable).not.toContain('type: "prospect"')
+    expect(accountsTable).not.toContain('account.type')
+    expect(accountsTable).not.toContain('account.email')
+  })
+
   it('keeps tickets UI/search/export aligned with the title-based database contract', () => {
     const ticketsRoute = readFileSync('app/api/tickets/route.ts', 'utf8')
     const searchRoute = readFileSync('app/api/search/route.ts', 'utf8')
     const ticketsTable = readFileSync('components/tickets/tickets-table.tsx', 'utf8')
+    const ticketDialog = readFileSync('components/tickets/ticket-dialog.tsx', 'utf8')
     const exportUtils = readFileSync('lib/export-utils.ts', 'utf8')
     const events = readFileSync('lib/events.ts', 'utf8')
 
@@ -765,6 +829,12 @@ describe('API contracts', () => {
     expect(searchRoute).toContain('.ilike("title", searchPattern)')
     expect(ticketsTable).toContain('title: string')
     expect(ticketsTable).toContain('{ticket.title}')
+    expect(ticketsTable).toContain('TicketDialog')
+    expect(ticketsTable).toContain('handleCreate')
+    expect(ticketsTable).toContain('handleView')
+    expect(ticketsTable).toContain('handleEdit')
+    expect(ticketDialog).toContain('/api/tickets')
+    expect(ticketDialog).toContain('method: ticket ? "PATCH" : "POST"')
     expect(exportUtils).toContain('{ key: "title", header: "Título" }')
     expect(exportUtils).not.toContain('"ticket_number"')
     expect(exportUtils).not.toContain('"subject"')
@@ -780,6 +850,7 @@ describe('API contracts', () => {
     const messagesRoute = readFileSync('app/api/chat/[id]/messages/route.ts', 'utf8')
     const contactSidebar = readFileSync('components/chat/inbox/contact-sidebar.tsx', 'utf8')
     const notificationsRoute = readFileSync('app/api/notifications/route.ts', 'utf8')
+    const notificationsPageExists = existsSync('app/notifications/page.tsx')
     const notificationsLib = readFileSync('lib/notifications.ts', 'utf8')
 
     expect(helper).toContain('validateConversationReferences')
@@ -797,9 +868,43 @@ describe('API contracts', () => {
     expect(notificationsRoute).toContain('notificationsQuerySchema.safeParse')
     expect(notificationsRoute).toContain('markNotificationsSchema.safeParse')
     expect(notificationsRoute).toContain('.eq("organization_id", organizationId)')
-    expect(notificationsRoute).toContain('user_id.eq.${user.id},user_id.is.null')
+    expect(notificationsRoute).toContain('.eq("user_id", user.id)')
+    expect(notificationsRoute).toContain('only per-user system notifications are exposed')
+    expect(notificationsPageExists).toBe(true)
     expect(notificationsLib).toContain('organization_id: organizationId')
     expect(notificationsLib).toContain("from('organization_members')")
+  })
+
+  it('keeps contact detail links and public footer links backed by real pages', () => {
+    const contactSidebar = readFileSync('components/chat/inbox/contact-sidebar.tsx', 'utf8')
+    const submissionsPage = readFileSync('app/forms/[id]/submissions/page.tsx', 'utf8')
+    const duplicateDetector = readFileSync('components/contacts/duplicate-detector.tsx', 'utf8')
+    const footer = readFileSync('components/landing/ui/Footer.tsx', 'utf8')
+
+    expect(contactSidebar).toContain('/contacts/${selectedConversation?.contact_id')
+    expect(submissionsPage).toContain('`/contacts/${submission.contact!.id}`')
+    expect(duplicateDetector).toContain('`/contacts/${dup.id}`')
+    expect(existsSync('app/contacts/[id]/page.tsx')).toBe(true)
+    expect(footer).toContain('href="/terms"')
+    expect(footer).toContain('href="/privacy"')
+    expect(existsSync('app/terms/page.tsx')).toBe(true)
+    expect(existsSync('app/privacy/page.tsx')).toBe(true)
+  })
+
+  it('does not expose the authenticated assistant on public routes or overstate async modules', () => {
+    const wrapper = readFileSync('components/chatbot/global-chatbot-wrapper.tsx', 'utf8')
+    const widget = readFileSync('components/chatbot/chatbot-widget.tsx', 'utf8')
+    const chatRoute = readFileSync('app/api/chat/route.ts', 'utf8')
+
+    expect(wrapper).toContain('pathname.startsWith("/pay/")')
+    expect(wrapper).toContain('pathname.startsWith("/book/")')
+    expect(wrapper).toContain('pathname.startsWith("/f/")')
+    expect(widget).not.toContain('Connected to DB')
+    expect(widget).not.toContain('corriendo ahora mismo')
+    expect(widget).not.toContain('enviando correos/mensajes')
+    expect(chatRoute).toContain('assertAIConversationAccess')
+    expect(chatRoute).toContain(".eq('organization_id', organizationId)")
+    expect(chatRoute).toContain(".eq('user_id', userId)")
   })
 
   it('keeps analytics endpoints from returning fake or unbounded data', () => {

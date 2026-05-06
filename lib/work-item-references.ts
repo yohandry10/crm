@@ -17,6 +17,12 @@ type ConversationReferences = {
     channel_id?: string | null
 }
 
+type OpportunityReferences = {
+    contact_id?: string | null
+    stage_id?: string | null
+    assigned_to?: string | null
+}
+
 async function validateTenantRecord(
     supabase: any,
     organizationId: string,
@@ -126,6 +132,30 @@ export async function validateConversationReferences(
             conversation.channel_id,
             "El canal seleccionado no existe o no pertenece a tu organización"
         ),
+    ])
+}
+
+export async function validateOpportunityReferences(
+    supabase: any,
+    organizationId: string,
+    opportunity: OpportunityReferences
+) {
+    await Promise.all([
+        validateTenantRecord(
+            supabase,
+            organizationId,
+            "contacts",
+            opportunity.contact_id,
+            "El contacto seleccionado no existe o no pertenece a tu organización"
+        ),
+        validateTenantRecord(
+            supabase,
+            organizationId,
+            "pipeline_stages",
+            opportunity.stage_id,
+            "La etapa seleccionada no existe o no pertenece a tu organización"
+        ),
+        validateActiveOrganizationMember(supabase, organizationId, opportunity.assigned_to),
     ])
 }
 

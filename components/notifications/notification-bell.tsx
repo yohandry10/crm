@@ -18,6 +18,7 @@ interface Notification {
   data: any
   read_at: string | null
   created_at: string
+  source?: "notifications" | "system_notifications"
 }
 
 const notificationIcons: Record<string, any> = {
@@ -44,24 +45,39 @@ export function NotificationBell() {
 
   useEffect(() => {
     loadNotifications()
-    
-    // Subscribe to realtime notifications
+
     const supabase = getSupabaseBrowserClient()
-    const channel = supabase
-      .channel("notifications")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "system_notifications" },
-        (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev])
-          setUnreadCount(prev => prev + 1)
-        }
-      )
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const subscribe = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      channel = supabase
+        .channel("notifications")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            setNotifications(prev => [{ ...(payload.new as Notification), source: "notifications" }, ...prev])
+            setUnreadCount(prev => prev + 1)
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "system_notifications", filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            setNotifications(prev => [{ ...(payload.new as Notification), source: "system_notifications" }, ...prev])
+            setUnreadCount(prev => prev + 1)
+          }
+        )
+        .subscribe()
+    }
+
+    void subscribe()
 
     return () => {
-      const supabase = getSupabaseBrowserClient()
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
     }
   }, [])
 
@@ -78,22 +94,22 @@ export function NotificationBell() {
     }
   }
 
-  const markAsRead = async (notificationId?: string) => {
+  const markAsRead = async (notification?: Notification) => {
     setLoading(true)
     try {
       await fetch("/api/notifications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          notificationId 
-            ? { notificationIds: [notificationId] }
+          notification
+            ? { notificationIds: [notification.id], source: notification.source }
             : { markAllRead: true }
         ),
       })
-      
-      if (notificationId) {
+
+      if (notification) {
         setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)
+          prev.map(n => n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n)
         )
         setUnreadCount(prev => Math.max(0, prev - 1))
       } else {
@@ -171,7 +187,7 @@ export function NotificationBell() {
                       "p-4 hover:bg-muted/50 cursor-pointer transition-colors",
                       isUnread && "bg-blue-50/50"
                     )}
-                    onClick={() => isUnread && markAsRead(notification.id)}
+                    onClick={() => isUnread && markAsRead(notification)}
                   >
                     <div className="flex gap-3">
                       <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0", colorClass)}>

@@ -29,6 +29,10 @@ interface Campaign {
     clicked_count: number
     converted_count: number
     scheduled_at: string
+    subject: string | null
+    content: string | null
+    target_segment: Record<string, any> | null
+    budget: number
     created_at: string
 }
 
@@ -98,7 +102,7 @@ export default function CampaignsPage() {
     }
 
     const openCreate = () => {
-        setForm({ type: 'email', status: 'draft' })
+        setForm({ type: 'email', status: 'draft', target_segment: { type: "all_contacts" }, budget: 0 })
         setDialogOpen(true)
     }
 
@@ -109,11 +113,19 @@ export default function CampaignsPage() {
 
     const save = async () => {
         try {
+            const scheduledAt = form.scheduled_at
+                ? new Date(form.scheduled_at).toISOString()
+                : null
             const payload = {
                 name: form.name || "",
                 description: form.description || "",
                 type: form.type || "email",
                 status: form.status || "draft",
+                subject: form.subject || null,
+                content: form.content || null,
+                target_segment: form.target_segment || { type: "all_contacts" },
+                scheduled_at: scheduledAt,
+                budget: Number(form.budget || 0),
             }
             
             const res = await fetch(form.id ? `/api/campaigns/${form.id}` : "/api/campaigns", {
@@ -296,18 +308,35 @@ export default function CampaignsPage() {
                         <div className="space-y-4">
                             <div>
                                 <Label>Nombre*</Label>
-                                <Input 
-                                    value={form.name || ""} 
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })} 
+                                <Input
+                                    value={form.name || ""}
+                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     placeholder="Ej: Campaña Black Friday"
                                 />
                             </div>
                             <div>
                                 <Label>Descripción</Label>
-                                <Textarea 
-                                    value={form.description || ""} 
+                                <Textarea
+                                    value={form.description || ""}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                                     placeholder="Describe el objetivo de la campaña..."
+                                />
+                            </div>
+                            <div>
+                                <Label>Asunto</Label>
+                                <Input
+                                    value={form.subject || ""}
+                                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                                    placeholder="Asunto para email o titulo interno"
+                                />
+                            </div>
+                            <div>
+                                <Label>Contenido</Label>
+                                <Textarea
+                                    value={form.content || ""}
+                                    onChange={(e) => setForm({ ...form, content: e.target.value })}
+                                    placeholder="Mensaje de la campaña..."
+                                    rows={5}
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -338,6 +367,42 @@ export default function CampaignsPage() {
                                     </Select>
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label>Audiencia</Label>
+                                    <Select
+                                        value={(form.target_segment as any)?.type || "all_contacts"}
+                                        onValueChange={(v) => setForm({ ...form, target_segment: { type: v } })}
+                                    >
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all_contacts">Todos los contactos</SelectItem>
+                                            <SelectItem value="hot_leads">Leads calientes</SelectItem>
+                                            <SelectItem value="customers">Clientes</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Presupuesto</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={form.budget ?? 0}
+                                        onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+                            {form.status === "scheduled" && (
+                                <div>
+                                    <Label>Fecha programada</Label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={form.scheduled_at ? form.scheduled_at.slice(0, 16) : ""}
+                                        onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
+                                    />
+                                </div>
+                            )}
                             <div className="flex gap-2 pt-2">
                                 <Button onClick={save}>{form.id ? "Actualizar" : "Crear"}</Button>
                                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

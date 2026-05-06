@@ -84,8 +84,8 @@ const DEFAULT_TOPICS: Record<string, TopicData> = {
   },
   WORKFLOWS: {
     title: "Automatizaciones",
-    summary: "⚡ **Workflows**\n\nSistemas operativos.",
-    details: "No hay alertas de sistema críticas por el momento.",
+    summary: "⚡ **Workflows**\n\nConsultando automatizaciones configuradas...",
+    details: "El procesamiento depende del modo operativo configurado para el entorno.",
     actions: ["Ver Workflows"]
   },
   CALENDAR: {
@@ -138,7 +138,7 @@ const DEFAULT_TOPICS: Record<string, TopicData> = {
   },
   INTEGRATIONS: {
     title: "Integraciones",
-    summary: "🔌 **Integraciones**\n\nSistemas conectados.",
+    summary: "🔌 **Integraciones**\n\nConsultando conexiones registradas...",
     details: "...",
     actions: ["Ver Integraciones"]
   }
@@ -196,7 +196,7 @@ export function ChatbotWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      content: "¡Hola! Soy NEON AI. 👋\n\nEstoy conectado a **tu base de datos real**.\n\n¿Qué módulo quieres auditar hoy?",
+      content: "¡Hola! Soy NEON AI.\n\nPuedo consultar los modulos del CRM desde tus APIs autenticadas.\n\n¿Qué modulo quieres revisar hoy?",
       isAi: true,
       timestamp: new Date(),
     }
@@ -331,7 +331,7 @@ export function ChatbotWidget() {
             title: "Campañas",
             summary: `📢 **Marketing**\n\n**${campaigns.length} campañas** registradas.`,
             details: active > 0
-              ? `🚀 **En Curso**\n\nHay **${active} campañas activas** ahora mismo enviando correos/mensajes.`
+              ? `🚀 **Activas**\n\nHay **${active} campañas activas**. Verifica segmentacion y proveedor de envio antes de ejecutarlas.`
               : "⏸️ **Sin Actividad**\nNo hay campañas activas en este momento.",
             actions: ["Ver Campañas", "Crear Campaña"]
           }
@@ -373,8 +373,8 @@ export function ChatbotWidget() {
 
           next.WORKFLOWS = {
             title: "Automatizaciones",
-            summary: `⚡ **Workflows**\n\n**${active} automatizaciones** están corriendo ahora mismo.`,
-            details: "🤖 **Sistema Operativo**\n\nTodo funciona correctamente. Tus bots están procesando tareas en segundo plano.",
+            summary: `⚡ **Workflows**\n\n**${active} automatizaciones** estan activas/configuradas.`,
+            details: "🤖 **Procesamiento**\n\nLa ejecucion depende de Redis y del modo configurado: drainer programado o worker persistente.",
             actions: ["Ver Workflows", "Nuevo Workflow"]
           }
         }
@@ -388,7 +388,7 @@ export function ChatbotWidget() {
             title: "Integraciones",
             summary: `🔌 **Integraciones**\n\nHay **${connected} herramientas conectadas** al CRM.`,
             details: connected > 0
-              ? "🔗 **Conexiones Activas**\nEstado saludable en tus integraciones (WhatsApp, Email, etc)."
+              ? "🔗 **Conexiones Activas**\nHay integraciones marcadas como conectadas. Revisa cada prueba de conexion antes de operar envios."
               : "❌ **Sin Conexiones**\nNo tienes integraciones activas. Conecta WhatsApp o tu Email para potenciar el CRM.",
             actions: ["Ver Integraciones", "Conectar Apps"]
           }
@@ -481,7 +481,7 @@ export function ChatbotWidget() {
     if (!responseText) {
       switch (intent) {
         case "GREETING":
-          responseText = "¡Hola! Conexión a base de datos establecida 🟢.\n¿Quieres ver el resumen de Ventas, Facturación o Inventario?"
+          responseText = "¡Hola! Puedo consultar tus modulos autenticados.\n¿Quieres ver el resumen de Ventas, Facturación o Inventario?"
           nextState = { currentModule: "NONE", conversationStep: "IDLE" }
           break
         case "HELP":
@@ -491,7 +491,7 @@ export function ChatbotWidget() {
             topicState.INVOICING.summary.split('\n')[0] + "\n" +
             topicState.INVENTORY.summary.split('\n')[0] + "\n" +
             topicState.CAMPAIGNS.summary.split('\n')[0] + "\n" +
-            "\nDi el nombre de un módulo para ver sus datos reales."
+            "\nDi el nombre de un modulo para consultar su estado."
           nextState = { currentModule: "NONE", conversationStep: "IDLE" }
           actions = ["Ver Ventas", "Ver Inventario"]
           break
@@ -516,7 +516,7 @@ export function ChatbotWidget() {
           }
           break
         default:
-          responseText = "No entendí eso. Intenta con 'Resumen de Ventas', 'Ver Inventario' o 'Facturas Vencidas'. Estoy leyendo tu data real."
+          responseText = "No entendí eso. Intenta con 'Resumen de Ventas', 'Ver Inventario' o 'Facturas Vencidas'."
           nextState = { currentModule: "NONE", conversationStep: "IDLE" }
           actions = ["Ver Estado Ventas", "Ver Alertas Stock"]
       }
@@ -586,7 +586,7 @@ export function ChatbotWidget() {
                   <h3 className="font-semibold text-white text-sm">NEON Assistant</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs text-white/40">Connected to DB</span>
+                    <span className="text-xs text-white/40">CRM context</span>
                   </div>
                 </div>
               </div>

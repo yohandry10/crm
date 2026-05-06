@@ -150,10 +150,11 @@ export async function PUT(
             }
         }
 
-        // Test connection before updating
+        // Test connection only when provider/config changes. Status-only toggles must be honored.
         let connectionResult: any
         const providerToTest = (updateData.provider ?? oldData?.provider) as string | undefined
-        if (providerToTest) {
+        const shouldRetestConnection = validation.data.provider !== undefined || validation.data.config !== undefined
+        if (shouldRetestConnection && providerToTest) {
             connectionResult = await testConnection(providerToTest as any, decryptedNewConfig || {})
             if (!connectionResult.success) {
                 updateData.status = "error"
