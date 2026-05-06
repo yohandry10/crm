@@ -68,3 +68,14 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: E2E production smoke
+        run: pnpm test:e2e
+        env:
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          PLAYWRIGHT_BASE_URL: https://crm-trivia1.vercel.app
+          PLAYWRIGHT_SKIP_WEB_SERVER: "1"
