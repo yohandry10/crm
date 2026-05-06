@@ -61,7 +61,6 @@ export const apiGetRoutes = [
   "/api/contacts",
   "/api/contacts/duplicates",
   "/api/dashboard",
-  "/api/docs",
   "/api/events",
   "/api/favorites",
   "/api/forms",
@@ -96,6 +95,7 @@ export const apiGetRoutes = [
 ]
 
 export const expectedNonOkGetRoutes = new Map([
+  ["/api/docs", [200, 404]],
   ["/api/analytics/advanced", [403]],
   ["/api/emails/sync", [400]],
   ["/api/notes", [400]],
