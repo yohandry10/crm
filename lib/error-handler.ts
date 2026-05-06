@@ -188,3 +188,45 @@ export function createErrorResponse(error: any) {
         { status: getHttpStatusForError(error) }
     )
 }
+
+/**
+ * Envoltorio para Route Handlers.
+ * Centraliza sanitización, status HTTP y logging estructurado para que una excepción
+ * no termine en una respuesta rota o con detalles internos.
+ */
+export function withApiErrorHandling<T extends any[]>(
+    handler: (request: Request, ...args: T) => Promise<Response>,
+    options?: { endpoint?: string }
+) {
+    return async (request: Request, ...args: T): Promise<Response> => {
+        try {
+            return await handler(request, ...args)
+        } catch (error: any) {
+            const [{ NextResponse }, { logError }] = await Promise.all([
+                import('next/server'),
+                import('./error-logging'),
+            ])
+
+            let endpoint = options?.endpoint || 'unknown'
+            try {
+                endpoint = new URL(request.url).pathname
+            } catch {
+                // Keep configured endpoint fallback.
+            }
+
+            const errorId = await logError({
+                endpoint,
+                method: request.method || 'REQUEST',
+                error,
+            })
+
+            return NextResponse.json(
+                {
+                    ...formatApiError(error),
+                    errorId,
+                },
+                { status: getHttpStatusForError(error) }
+            )
+        }
+    }
+}

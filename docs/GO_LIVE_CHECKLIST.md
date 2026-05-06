@@ -68,6 +68,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Inbox valida ownership de conversaciones antes de leer/escribir mensajes.
 - [x] Notificaciones se filtran por organizacion activa.
 - [x] Logs de errores sanitizan cuerpos sensibles en rutas auditadas.
+- [x] Manejo global de errores frontend/backend: boundaries globales, reporter de navegador, `/api/client-errors`, captura request-level y mensajes amigables.
 - [x] Logs de acciones criticas centralizados en `auditoria`: auth, pagos, exportaciones, edicion/borrado y consultas admin con IP, dispositivo, usuario, organizacion, timestamp y request id.
 - [x] Webhooks internos pasan CSRF correctamente y el secreto legacy ya no bloquea creacion.
 - [x] Webhooks con service role no aceptan `organization_id` libre desde el body en flujos auditados; usan contexto autenticado o recurso publico validado.

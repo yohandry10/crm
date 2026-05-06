@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, RefreshCw, Home, Bug } from "lucide-react"
+import { reportClientError } from "@/lib/client-error-reporting"
 
 interface ErrorProps {
   error: Error & { digest?: string }
@@ -11,8 +12,13 @@ interface ErrorProps {
 
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log error to console (could send to error tracking service)
     console.error("Application error:", error)
+    void reportClientError({
+      source: "app-error",
+      message: error.message || "Error inesperado de aplicación",
+      stack: error.stack,
+      digest: error.digest,
+    })
   }, [error])
 
   return (

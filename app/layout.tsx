@@ -6,7 +6,9 @@ import { GeistMono } from "geist/font/mono"
 import { NavigationLoadingProvider } from "@/components/providers/navigation-loading-provider"
 import { AuthProvider } from "@/components/providers/auth-provider"
 import { SWRProvider } from "@/components/providers/swr-provider"
+import { GlobalErrorReporter } from "@/components/providers/global-error-reporter"
 import { GlobalChatbotWrapper } from "@/components/chatbot/global-chatbot-wrapper"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { ThemeProvider } from "@/hooks/use-theme"
 import "./globals.css"
 
@@ -39,10 +41,13 @@ export default function RootLayout({
         <SWRProvider>
           <AuthProvider>
             <ThemeProvider>
-              <NavigationLoadingProvider>
-                {children}
-              </NavigationLoadingProvider>
-              <GlobalChatbotWrapper />
+              <ErrorBoundary>
+                <GlobalErrorReporter />
+                <NavigationLoadingProvider>
+                  {children}
+                </NavigationLoadingProvider>
+                <GlobalChatbotWrapper />
+              </ErrorBoundary>
             </ThemeProvider>
           </AuthProvider>
         </SWRProvider>

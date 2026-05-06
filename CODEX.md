@@ -36,11 +36,12 @@ Ultima validacion registrada: 2026-05-06.
 
 - `pnpm typecheck`: OK.
 - `pnpm lint`: OK; solo aviso externo de `baseline-browser-mapping`.
-- `pnpm test -- --reporter=basic`: 210 passed, 4 skipped.
+- `pnpm test -- --reporter=basic`: 211 passed, 4 skipped.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - `pnpm production:verify-db`: 0 failures, 109 checks.
 - `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
 - E2E focal RBAC/admin/local: 28 passed para frontera platform admin y endpoint `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
+- E2E focal error handling/modulos/local: 29 passed.
 - E2E focal RBAC/admin/remoto contra produccion: 39 passed.
 - E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos previo: 51 passed.
 - `pnpm build`: OK.
@@ -73,6 +74,8 @@ Ultima validacion registrada: 2026-05-06.
 - `lib/audit.ts` captura IP, user-agent, dispositivo aproximado, request id, usuario, organizacion, categoria, severidad, exito/fallo y metadata redactada.
 - `/api/admin/audit-logs` permite a platform admin consultar logs con filtros por categoria, severidad, exito, usuario, organizacion, accion, request id y rango temporal.
 - Migracion 114 agrega columnas/indexes de trazabilidad a `auditoria` y restringe lectura por RLS a platform admin, admins/owners del tenant y logs propios globales.
+- Se agrego manejo global de errores frontend/backend: `ErrorBoundary` montado en layout, `app/error.tsx`, `global-error.tsx`, listeners de `window.error/unhandledrejection`, reporter `/api/client-errors` protegido por CSRF/rate limit y `instrumentation.onRequestError` para excepciones request-level.
+- SWR ahora devuelve mensajes amigables y conserva reporte de errores del cliente sin tumbar la UI.
 - Se elimino documentacion desactualizada de analisis previo y se actualizo el indice documental.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
 - Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.

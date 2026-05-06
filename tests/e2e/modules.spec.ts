@@ -14,7 +14,7 @@ test.describe("authenticated module surfaces", () => {
       await page.waitForLoadState("networkidle").catch(() => undefined)
 
       await expect(page).not.toHaveURL(/\/login/)
-      await expect(page.locator("body")).not.toContainText("404")
+      await expect(page.getByRole("heading", { name: /404|No encontrado|Page not found/i })).toHaveCount(0)
       await expectNoTrialGate(page)
       expect(consoleErrors.filter((error) => !error.includes("favicon")), consoleErrors.join("\n")).toEqual([])
     })

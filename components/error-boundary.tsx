@@ -4,8 +4,7 @@ import { Component, ReactNode } from "react"
 import { AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { logError } from "@/lib/error-logging"
-import crypto from "crypto"
+import { reportClientError } from "@/lib/client-error-reporting"
 
 interface Props {
     children: ReactNode
@@ -42,19 +41,13 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: any) {
-        // Log error to console and error logging system
         console.error("ErrorBoundary caught an error:", error, errorInfo)
 
-        // Log to database
-        logError({
-            errorId: crypto.randomUUID(),
-            endpoint: window.location.pathname,
-            method: "RENDER",
-            error: {
-                message: error.message,
-                stack: error.stack,
-                componentStack: errorInfo.componentStack
-            }
+        void reportClientError({
+            source: "react-boundary",
+            message: error.message || "Error inesperado de interfaz",
+            stack: error.stack,
+            componentStack: errorInfo.componentStack,
         })
 
         this.setState({

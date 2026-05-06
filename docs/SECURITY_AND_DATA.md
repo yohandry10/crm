@@ -146,6 +146,9 @@ Estado actual:
 - DB: `pgcrypto` en migraciones historicas.
 - Logging de cuerpos con secretos fue reducido/sanitizado en rutas auditadas.
 - La auditoria centralizada redacta passwords, secrets, tokens, API keys, credenciales, autorizaciones e idempotency keys antes de escribir en DB.
+- Errores frontend se reportan a `/api/client-errors` con CSRF, rate limit, schema estricto y truncado de campos largos.
+- Excepciones no capturadas de requests se registran como JSON estructurado desde `instrumentation.onRequestError`.
+- `withApiErrorHandling` centraliza respuesta JSON sanitizada y `errorId` para nuevas Route Handlers.
 
 Reglas vigentes:
 

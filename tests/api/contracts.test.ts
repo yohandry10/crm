@@ -523,6 +523,30 @@ describe('API contracts', () => {
     expect(audit).not.toContain("registro_id: params.resourceId || 'N/A'")
   })
 
+  it('keeps global error handling and client reporting wired', () => {
+    const layout = readFileSync('app/layout.tsx', 'utf8')
+    const boundary = readFileSync('components/error-boundary.tsx', 'utf8')
+    const reporter = readFileSync('components/providers/global-error-reporter.tsx', 'utf8')
+    const clientRoute = readFileSync('app/api/client-errors/route.ts', 'utf8')
+    const swrProvider = readFileSync('components/providers/swr-provider.tsx', 'utf8')
+    const instrumentation = readFileSync('instrumentation.ts', 'utf8')
+
+    expect(layout).toContain('<ErrorBoundary>')
+    expect(layout).toContain('<GlobalErrorReporter />')
+    expect(boundary).toContain('reportClientError')
+    expect(boundary).not.toContain('from "@/lib/error-logging"')
+    expect(reporter).toContain('window.addEventListener("error"')
+    expect(reporter).toContain('window.addEventListener("unhandledrejection"')
+    expect(clientRoute).toContain('rateLimit(request, RATE_LIMITS.write)')
+    expect(clientRoute).toContain('clientErrorSchema.safeParse')
+    expect(clientRoute).toContain('logError')
+    expect(swrProvider).toContain('onError:')
+    expect(swrProvider).toContain('No pudimos cargar esta información')
+    expect(instrumentation).toContain('export async function onRequestError')
+    expect(instrumentation).toContain('Unhandled request error')
+    expect(instrumentation).not.toContain("import('./lib/error-logging')")
+  })
+
   it('uses active Culqi/PagoEfectivo billing paths instead of Stripe routes', () => {
     const billingProviders = readFileSync('lib/billing-providers.ts', 'utf8')
     const paymentsRoute = readFileSync('app/api/payments/route.ts', 'utf8')

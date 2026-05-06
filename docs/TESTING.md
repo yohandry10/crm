@@ -24,12 +24,13 @@ Ultima ejecucion manual local registrada: 2026-05-06.
 Resultado:
 
 - Typecheck: OK.
-- Unit/contracts: 210 passed, 4 skipped.
+- Unit/contracts: 211 passed, 4 skipped.
 - Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
+- E2E focal error handling/modulos local: 29 passed.
 - E2E focal RBAC/admin remoto contra produccion: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Build: OK.
@@ -54,6 +55,7 @@ Archivos principales:
 - `tests/e2e/role-mutation-guards.spec.ts`: intentos directos de mutacion por API con roles limitados y escalamiento horizontal por registros de otros usuarios.
 - `tests/e2e/multi-tenant-isolation.spec.ts`: aislamiento entre tenants, headers de organizacion, referencias cruzadas y payment links.
 - `tests/e2e/tenant-provisioning.spec.ts`: bloqueo de autoprovicionamiento de organizaciones y bootstrap sin creacion de tenant.
+- `tests/e2e/error-handling.spec.ts`: reporter frontend `/api/client-errors`, CSRF y errores de payload amigables.
 
 `admin-smoke` y `admin-authorization` cubren tambien `/api/admin/audit-logs`: platform admin recibe 200 y usuarios `user/owner/admin/manager/member/viewer` quedan bloqueados.
 
@@ -120,6 +122,7 @@ Resultado observado:
 - Fallos repetidos de login quedan rate-limited sin exponer si la cuenta existe.
 - Recuperacion de contraseña usa API protegida por rate limit y respuesta generica.
 - Cambio de contraseña desde perfil exige contraseña actual y rechaza contraseñas debiles.
+- Reporter de errores del cliente acepta payload valido, rechaza payload malformado con JSON amigable y no rompe las superficies de modulos.
 
 ### Roles de organizacion
 
