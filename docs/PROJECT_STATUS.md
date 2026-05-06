@@ -20,6 +20,7 @@ Estado actual:
 - Manejo global de errores agregado para evitar pantallas rotas: boundaries de Next/React, reporter global de errores del navegador, endpoint `/api/client-errors`, mensajes SWR amigables y captura backend con `instrumentation.onRequestError`.
 - Integridad de base validada con `verify_data_integrity()`: 0 FKs huérfanas, 0 duplicados de claves de negocio auditadas, 0 cruces multi-tenant y 0 cascadas peligrosas.
 - Performance DB reforzada con migracion 116: indices por tenant/fecha/filtro, busquedas trigrama y dashboard agregado via RPC.
+- Seguridad HTTP/app reforzada: headers seguros, CSP minima, CSRF/content-type, rate limit y uploads con path scoped, magic bytes y bloqueo de SVG.
 - Backups diarios y restore test quedaron versionados: GitHub Actions ejecuta `pg_dump`, sube artefacto retenido 30 dias y restaura en staging para validar recuperacion total/parcial.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
@@ -172,6 +173,15 @@ Estado actual:
 - Tareas sin fecha de vencimiento podian ocultar la tarea recien creada fuera de la primera pagina por orden indefinido; ahora se ordenan de forma predecible.
 - Productos recien creados podian quedar fuera de la primera pagina del catalogo cuando el tenant tenia volumen acumulado; ahora el catalogo ordena por `created_at desc` y refleja inmediatamente el registro devuelto por la API.
 - Eventos internos `contact.created` y `payment.completed` quedaban bloqueados por RLS porque `webhook_events.organization_id` no se persistia fuera del payload; ahora se persiste explicitamente.
+- Uploads publicos aceptaban una superficie demasiado amplia para produccion; ahora se bloquea SVG, se valida firma real del archivo y se evita traversal/scope leakage por path.
+
+### Seguridad HTTP y uploads
+
+- `next.config.mjs` aplica HSTS, content-type, referrer, permissions policy, COOP, CORP y CSP con directivas base para produccion.
+- `middleware.ts` valida origen/CSRF/content-type y permite `multipart/form-data` solo donde corresponde.
+- `/api/upload` exige autenticacion, rate limit, bucket allowlist, MIME allowlist, magic bytes y prefijos por usuario/tenant.
+- `production:check` incluye `security:headers`, `security:csrf` y `security:uploads`.
+- `tests/unit/upload-security.test.ts` cubre traversal, extension segura, scope por prefijo y firmas invalidas.
 
 ## Validacion ejecutada
 
@@ -192,7 +202,7 @@ pnpm build
 Resultado observado:
 
 - Typecheck: OK.
-- Unit/contracts: 211 passed, 4 skipped.
+- Unit/contracts: 220 passed, 4 skipped.
 - Lint: OK; solo queda aviso externo de `baseline-browser-mapping`.
 - Production preflight: 0 failures, 0 warnings.
 - Backup/restore local: scripts y workflow validados por preflight/unit tests; restore real requiere `STAGING_DATABASE_URL`.

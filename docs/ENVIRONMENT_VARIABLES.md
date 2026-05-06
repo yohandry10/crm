@@ -120,6 +120,8 @@ pnpm production:verify-db
 
 El preflight carga `.env.production.local`, `.env.production`, `.env.local` y `.env` sin imprimir secretos. Falla si faltan variables requeridas, si CORS publico permite origenes inseguros, si Redis no esta configurado, si falta cron, si falta alguna migracion critica o si se habilita fail-open en rate limiting.
 
+Tambien falla si faltan controles de seguridad HTTP/CSRF/uploads: headers seguros, CSP minima, validacion de origen/token, `Content-Type` estricto, rate limit y validacion de archivos.
+
 `production:verify-db` ejecuta la RPC `verify_production_readiness` contra Supabase con service role. Requiere aplicar las migraciones `101_production_readiness_verification_rpc.sql`, `102_payment_provider_settings.sql` y `103_target_db_verification_fixes.sql` en la base objetivo.
 
 ## Backups y restore
@@ -139,3 +141,17 @@ PSQL_BIN=psql
 `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL` deben configurarse como secretos de GitHub Actions para el workflow diario `.github/workflows/database-backup-restore.yml`. `STAGING_DATABASE_URL` debe apuntar a una base descartable porque el restore test limpia objetos existentes.
 
 Supabase objetivo usa PostgreSQL 17; los binarios `pg_dump`, `pg_restore` y `psql` deben ser version 17 o superior compatible.
+
+## Rotacion de secrets/env vars
+
+Proceso operativo:
+
+1. Generar el nuevo secreto en el proveedor origen o panel correspondiente.
+2. Actualizar Vercel, GitHub Actions y variables locales necesarias sin escribir el valor en el repo.
+3. Desplegar o reiniciar el runtime que consuma la variable.
+4. Ejecutar `pnpm production:check`, `pnpm production:verify-db` y smoke de `/api/health`.
+5. Invalidar el secreto anterior cuando el nuevo este verificado.
+
+Secretos que deben rotarse por separado: Supabase service role/anon key, `CRON_SECRET`, `REDIS_URL`, `RESEND_API_KEY`, `GEMINI_API_KEY`, credenciales Culqi/PagoEfectivo cuando existan, secrets de GitHub Actions y tokens de observabilidad.
+
+`ENCRYPTION_KEY` requiere plan especial de re-encriptado; no se debe reemplazar directamente sin migracion y pruebas de lectura de datos cifrados.

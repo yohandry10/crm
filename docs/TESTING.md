@@ -26,7 +26,7 @@ Ultima ejecucion manual local registrada: 2026-05-06.
 Resultado:
 
 - Typecheck: OK.
-- Unit/contracts: 211 passed, 4 skipped.
+- Unit/contracts: 220 passed, 4 skipped.
 - Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 335 checks.
@@ -39,6 +39,7 @@ Resultado:
 - Build: OK.
 - Produccion Vercel: health remoto OK y E2E focal RBAC/admin remoto 39 passed contra `https://crm-trivia1.vercel.app`.
 - Dashboard local: `/dashboard` probado con usuario E2E; `/api/dashboard` respondio 200 usando la RPC agregada.
+- Seguridad HTTP/uploads: contratos y unit tests cubren headers/CSP, CSRF/content-type, rate limit en uploads, path traversal, magic bytes y bloqueo de SVG publico.
 
 ## E2E actual
 
@@ -60,6 +61,7 @@ Archivos principales:
 - `tests/e2e/multi-tenant-isolation.spec.ts`: aislamiento entre tenants, headers de organizacion, referencias cruzadas y payment links.
 - `tests/e2e/tenant-provisioning.spec.ts`: bloqueo de autoprovicionamiento de organizaciones y bootstrap sin creacion de tenant.
 - `tests/e2e/error-handling.spec.ts`: reporter frontend `/api/client-errors`, CSRF y errores de payload amigables.
+- `tests/unit/upload-security.test.ts`: path traversal, prefijos tenant/usuario, extension por MIME y magic bytes de archivos.
 
 `admin-smoke` y `admin-authorization` cubren tambien `/api/admin/audit-logs`: platform admin recibe 200 y usuarios `user/owner/admin/manager/member/viewer` quedan bloqueados.
 
@@ -97,7 +99,7 @@ pnpm test:coverage -- --reporter=basic
 
 Resultado observado:
 
-- Unit/contracts: `pnpm test -- --reporter=basic` queda en 210 passed, 4 skipped despues de agregar cobertura de auditoria centralizada.
+- Unit/contracts: `pnpm test -- --reporter=basic` queda en 220 passed, 4 skipped despues de agregar cobertura de auditoria centralizada, preflight de seguridad y helpers de upload seguro.
 - Statements: 5.05%.
 - Branches: 27.1%.
 - Functions: 13.44%.
@@ -178,6 +180,10 @@ La matriz valida:
   - indices compuestos/parciales de listados tenant-heavy;
   - busquedas trigrama de productos/oportunidades/tickets;
   - RPC `get_dashboard_metrics()` disponible.
+- Preflight de seguridad HTTP/app:
+  - `security:headers`;
+  - `security:csrf`;
+  - `security:uploads`.
 
 Nota: las migraciones 105-116 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
 
@@ -207,6 +213,7 @@ Resultado posterior:
 - E2E focal remoto de produccion Vercel: 51 passed.
 - Navegador local: dashboard carga en `http://localhost:3000/dashboard`, sin trial gate y sin errores de consola.
 - Navegador local performance: `/api/dashboard` responde 200 con `get_dashboard_metrics()`.
+- Contratos/unit seguridad app: `tests/api/contracts.test.ts`, `tests/unit/production-preflight.test.ts` y `tests/unit/upload-security.test.ts` pasan.
 
 ## Huecos restantes
 

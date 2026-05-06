@@ -6,13 +6,13 @@ Este documento resume el estado actual de seguridad, datos y aislamiento tenant 
 
 ## Estado verificado
 
-- `pnpm production:verify-db`: 0 failures, 318 checks.
+- `pnpm production:verify-db`: 0 failures, 335 checks.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - E2E focal RBAC/admin local: 39 passed.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
-- Migrations objetivo requeridas por preflight: 094-115.
+- Migrations objetivo requeridas por preflight: 094-116.
 - RLS verificado en tablas sensibles usadas por el CRM.
 - Roles de organizacion vigentes: `owner`, `admin`, `manager`, `member`, `viewer`.
 
@@ -44,7 +44,7 @@ Regla vigente:
 
 ## SECURITY DEFINER y RPC
 
-Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112, 113, 114 y 115 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion, cobertura RBAC, auditoria centralizada e integridad de datos.
+Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111, 112, 113, 114, 115 y 116 endurecen funciones sensibles, grants, vistas, triggers, verificacion de produccion, cobertura RBAC, auditoria centralizada, integridad de datos y performance.
 
 ## Integridad de datos
 
@@ -104,6 +104,22 @@ Estado actual:
 - Public pay valida formato de token, body de comprobante y CORS.
 - En produccion, comprobantes publicos exigen URL HTTPS.
 - Webhooks salientes usan validacion SSRF compartida: protocolo HTTP(S), bloqueo localhost/metadata, IPs privadas/reservadas y DNS que resuelve a rangos internos.
+
+## Headers, CSRF y uploads
+
+Estado actual:
+
+- `next.config.mjs` aplica HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` y CSP con `base-uri 'self'`, `object-src 'none'`, `frame-ancestors 'self'`, `form-action 'self'` y `upgrade-insecure-requests`.
+- `middleware.ts` mantiene validacion de origen para mutaciones autenticadas, token CSRF para rutas que lo exigen y validacion estricta de `Content-Type`; `/api/upload` queda autorizado para `multipart/form-data`.
+- `/api/upload` exige autenticacion, rate limit, bucket allowlist, tamano maximo, tipos MIME permitidos, magic bytes reales, extension derivada del MIME y path sanitizado.
+- SVG queda bloqueado en uploads publicos para reducir riesgo XSS por contenido activo.
+- Listado y borrado de archivos se limitan al prefijo del usuario en `organization-assets` o al prefijo del tenant en `payment-proofs`.
+- `production:check` bloquea regresiones con `security:headers`, `security:csrf` y `security:uploads`.
+- `tests/unit/upload-security.test.ts` cubre traversal, scope por prefijo, extension segura y firmas invalidas.
+
+Riesgo residual documentado:
+
+- La CSP conserva `unsafe-inline`/`unsafe-eval` por compatibilidad con el stack actual de Next/Vercel y flujos externos. Para una fase posterior, migrar a nonce/hash CSP antes de retirar esas directivas.
 
 Riesgo residual aceptado/documentado:
 
@@ -170,6 +186,15 @@ Reglas vigentes:
 - Redactar secretos, tokens, passwords, comprobantes y config sensible.
 - No loggear bodies completos por defecto.
 - Nuevas integraciones deben definir claramente si cifran en app o DB y documentar rollback/migracion.
+
+## Rotacion de secretos
+
+Regla operativa:
+
+- Rotar secretos en el proveedor origen, actualizar Vercel/GitHub Actions/Supabase segun corresponda y ejecutar `pnpm production:check`, `pnpm production:verify-db` y health remoto antes de cerrar.
+- `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, Redis, Resend, Gemini, Culqi/PagoEfectivo, `CRON_SECRET` y secretos de CI se rotan como valores independientes.
+- `ENCRYPTION_KEY` no debe cambiarse en caliente sin plan de re-encriptado y verificacion de lectura de datos cifrados.
+- No guardar secretos reales en documentacion, tests, capturas ni logs.
 
 ## Riesgos pendientes reales
 

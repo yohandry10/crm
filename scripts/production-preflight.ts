@@ -504,6 +504,95 @@ function checkForbiddenProductionRoutes(checks: ProductionCheck[], cwd: string) 
   addCheck(checks, "repo:debug-routes", "pass", "Demo/debug routes are absent")
 }
 
+function checkSecurityHeaders(checks: ProductionCheck[], cwd: string) {
+  const nextConfigPath = path.join(cwd, "next.config.mjs")
+  const middlewarePath = path.join(cwd, "middleware.ts")
+  const csrfPath = path.join(cwd, "middleware-csrf.ts")
+  const uploadRoutePath = path.join(cwd, "app", "api", "upload", "route.ts")
+  const uploadSecurityPath = path.join(cwd, "lib", "upload-security.ts")
+
+  const missing = [nextConfigPath, middlewarePath, csrfPath, uploadRoutePath, uploadSecurityPath]
+    .filter((filePath) => !existsSync(filePath))
+    .map((filePath) => path.relative(cwd, filePath).split(path.sep).join("/"))
+
+  if (missing.length > 0) {
+    addCheck(checks, "security:files", "fail", "Security hardening files are missing", `Missing: ${missing.join(", ")}`)
+    return
+  }
+
+  const nextConfig = readFileSync(nextConfigPath, "utf8")
+  const middleware = readFileSync(middlewarePath, "utf8")
+  const csrf = readFileSync(csrfPath, "utf8")
+  const uploadRoute = readFileSync(uploadRoutePath, "utf8")
+  const uploadSecurity = readFileSync(uploadSecurityPath, "utf8")
+
+  const requiredHeaderTokens = [
+    "Content-Security-Policy",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests",
+    "Strict-Transport-Security",
+    "X-Content-Type-Options",
+    "Referrer-Policy",
+    "Permissions-Policy",
+    "Cross-Origin-Opener-Policy",
+    "Cross-Origin-Resource-Policy",
+  ]
+  const missingHeaderTokens = requiredHeaderTokens.filter((token) => !nextConfig.includes(token))
+  if (missingHeaderTokens.length > 0) {
+    addCheck(checks, "security:headers", "fail", "Required security headers/CSP directives are missing", missingHeaderTokens.join(", "))
+    return
+  }
+
+  const requiredMiddlewareTokens = [
+    "csrfMiddleware(request)",
+    "CSRF protection: invalid origin",
+    "'/api/upload'",
+    "multipart/form-data",
+    "Content-Type header is required",
+  ]
+  const missingMiddlewareTokens = requiredMiddlewareTokens.filter((token) => !middleware.includes(token))
+  if (missingMiddlewareTokens.length > 0) {
+    addCheck(checks, "security:middleware", "fail", "CSRF/content-type middleware hardening is incomplete", missingMiddlewareTokens.join(", "))
+    return
+  }
+
+  if (!csrf.includes("return rejectInvalidOrigin(request)") || !csrf.includes("x-csrf-token")) {
+    addCheck(checks, "security:csrf", "fail", "CSRF middleware must enforce origin checks and token validation")
+    return
+  }
+
+  const requiredUploadTokens = [
+    "rateLimit(request, RATE_LIMITS.write)",
+    "validateFormDataContentType(request)",
+    "sanitizeStoragePath",
+    "assertStoragePathWithinPrefix",
+    "assertMagicBytes",
+    "getSafeFileExtension",
+  ]
+  const missingUploadTokens = requiredUploadTokens.filter((token) => !uploadRoute.includes(token))
+  if (missingUploadTokens.length > 0) {
+    addCheck(checks, "security:uploads", "fail", "Upload route hardening is incomplete", missingUploadTokens.join(", "))
+    return
+  }
+
+  if (uploadRoute.includes("image/svg+xml")) {
+    addCheck(checks, "security:uploads", "fail", "Public uploads must not allow SVG files")
+    return
+  }
+
+  if (!uploadSecurity.includes("..") || !uploadSecurity.includes("assertMagicBytes")) {
+    addCheck(checks, "security:uploads", "fail", "Upload path and magic-byte validation helpers are incomplete")
+    return
+  }
+
+  addCheck(checks, "security:headers", "pass", "Security headers and CSP are configured")
+  addCheck(checks, "security:csrf", "pass", "CSRF origin/token protections are configured")
+  addCheck(checks, "security:uploads", "pass", "Upload type/path/ownership protections are configured")
+}
+
 function checkRedis(checks: ProductionCheck[], env: Env) {
   if (!present(env.REDIS_URL) && !present(env.REDIS_HOST)) {
     addCheck(checks, "redis:configured", "fail", "Redis is required for production rate limits and BullMQ")
@@ -730,6 +819,7 @@ export function evaluateProductionReadiness(env: Env = process.env, cwd = proces
   checkMigrations(checks, cwd)
   checkForbiddenReferences(checks, cwd)
   checkForbiddenProductionRoutes(checks, cwd)
+  checkSecurityHeaders(checks, cwd)
   checkBillingProvider(checks, env)
   checkPaymentGateways(checks, env)
   checkAiProvider(checks, env)

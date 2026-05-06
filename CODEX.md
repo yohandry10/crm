@@ -36,9 +36,10 @@ Ultima validacion registrada: 2026-05-06.
 
 - `pnpm typecheck`: OK.
 - `pnpm lint`: OK; solo aviso externo de `baseline-browser-mapping`.
-- `pnpm test -- --reporter=basic`: 211 passed, 4 skipped.
+- `pnpm test -- --reporter=basic`: 220 passed, 4 skipped.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - `pnpm production:verify-db`: 0 failures, 335 checks.
+- Seguridad produccion: headers/CSP, CSRF/content-type y uploads endurecidos; preflight cubre `security:headers`, `security:csrf` y `security:uploads`.
 - Backups/restore: scripts `pnpm db:backup` y `pnpm db:restore:test` agregados; workflow diario de backup + restore staging versionado.
 - Backup local probado con `PG_DUMP_BIN=C:\Program Files\PostgreSQL\17\bin\pg_dump.exe`; dump generado con manifest SHA-256.
 - `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
@@ -81,6 +82,9 @@ Ultima validacion registrada: 2026-05-06.
 - `/api/dashboard` usa RPC agregada en Postgres para metricas/pipeline/actividad; ya no trae listas completas para agregarlas en Node.
 - Se agrego pipeline de backups automaticos: `.github/workflows/database-backup-restore.yml` ejecuta `pg_dump` diario, sube artefacto con retencion 30 dias y prueba restore completo/parcial en staging.
 - Se agregaron scripts `scripts/db-backup.ts` y `scripts/db-restore-test.ts`; el restore test exige `verify_production_readiness`, `verify_security_hardening` y `verify_data_integrity` sin fallos.
+- Se endurecio la superficie HTTP: CSP con `base-uri`, `object-src`, `form-action` y `upgrade-insecure-requests`; headers HSTS, content-type, referrer, permissions policy, COOP y CORP.
+- `/api/upload` queda autenticado, rate-limited, protegido por validacion de `multipart/form-data`, sin SVG publico, con validacion de magic bytes, extension derivada de MIME y path scoped por usuario/tenant.
+- Se agrego `lib/upload-security.ts` y `tests/unit/upload-security.test.ts` para bloquear path traversal, extensiones falsas, firmas invalidas y acceso fuera del prefijo permitido.
 - Se agrego manejo global de errores frontend/backend: `ErrorBoundary` montado en layout, `app/error.tsx`, `global-error.tsx`, listeners de `window.error/unhandledrejection`, reporter `/api/client-errors` protegido por CSRF/rate limit y `instrumentation.onRequestError` para excepciones request-level.
 - SWR ahora devuelve mensajes amigables y conserva reporte de errores del cliente sin tumbar la UI.
 - Se elimino documentacion desactualizada de analisis previo y se actualizo el indice documental.
@@ -144,6 +148,7 @@ Produccion remota quedo desplegada y validada manualmente el 2026-05-06. Pendien
 
 - No reactivar Stripe, proveedores externos de automatizacion ni creacion self-service de tenants.
 - No escribir secretos en docs, tests o logs.
+- La rotacion de secretos se hace en proveedor/Vercel/GitHub Actions; no persistir valores reales en repo ni en bitacora.
 - No revertir cambios locales no propios.
 - Si se toca auth, roles, tenant, RLS, pagos o service role, ejecutar los comandos de validacion recomendados.
 - Mantener este archivo actualizado cuando cambie el estado real del proyecto.

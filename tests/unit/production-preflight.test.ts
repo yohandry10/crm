@@ -46,6 +46,9 @@ describe("production preflight", () => {
     expect(checks.filter((check) => check.status === "warn")).toEqual([])
     expect(checks.find((check) => check.id === "cron:vercel")?.status).toBe("pass")
     expect(checks.find((check) => check.id === "db:migrations")?.status).toBe("pass")
+    expect(checks.find((check) => check.id === "security:headers")?.status).toBe("pass")
+    expect(checks.find((check) => check.id === "security:csrf")?.status).toBe("pass")
+    expect(checks.find((check) => check.id === "security:uploads")?.status).toBe("pass")
   })
 
   it("fails closed when required production env vars are missing", () => {

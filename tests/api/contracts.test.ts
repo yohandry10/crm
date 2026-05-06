@@ -671,6 +671,38 @@ describe('API contracts', () => {
     expect(csrf).toContain('return rejectInvalidOrigin(request)')
   })
 
+  it('hardens production headers, CSRF, and uploads', () => {
+    const nextConfig = readFileSync('next.config.mjs', 'utf8')
+    const middleware = readFileSync('middleware.ts', 'utf8')
+    const csrf = readFileSync('middleware-csrf.ts', 'utf8')
+    const uploadRoute = readFileSync('app/api/upload/route.ts', 'utf8')
+    const uploadSecurity = readFileSync('lib/upload-security.ts', 'utf8')
+    const preflight = readFileSync('scripts/production-preflight.ts', 'utf8')
+
+    expect(nextConfig).toContain('Content-Security-Policy')
+    expect(nextConfig).toContain("base-uri 'self'")
+    expect(nextConfig).toContain("object-src 'none'")
+    expect(nextConfig).toContain("frame-ancestors 'self'")
+    expect(nextConfig).toContain("form-action 'self'")
+    expect(nextConfig).toContain('upgrade-insecure-requests')
+    expect(nextConfig).toContain('Cross-Origin-Opener-Policy')
+    expect(nextConfig).toContain('Cross-Origin-Resource-Policy')
+    expect(middleware).toContain("'/api/upload'")
+    expect(middleware).toContain('multipart/form-data')
+    expect(middleware).toContain('csrfMiddleware(request)')
+    expect(csrf).toContain('x-csrf-token')
+    expect(csrf).toContain('return rejectInvalidOrigin(request)')
+    expect(uploadRoute).toContain('rateLimit(request, RATE_LIMITS.write)')
+    expect(uploadRoute).toContain('validateFormDataContentType(request)')
+    expect(uploadRoute).toContain('sanitizeStoragePath')
+    expect(uploadRoute).toContain('assertStoragePathWithinPrefix')
+    expect(uploadRoute).toContain('assertMagicBytes')
+    expect(uploadRoute).not.toContain('image/svg+xml')
+    expect(uploadSecurity).toContain('segment === ".."')
+    expect(uploadSecurity).toContain('assertMagicBytes')
+    expect(preflight).toContain('checkSecurityHeaders')
+  })
+
   it('checks onboarding against the active organization instead of an arbitrary membership', () => {
     const middleware = readFileSync('middleware.ts', 'utf8')
 

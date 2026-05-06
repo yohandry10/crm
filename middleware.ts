@@ -157,6 +157,7 @@ const protectedApiRoutes = [
     '/api/forms', // Gestión de formularios (protegido)
     '/api/reports',
     '/api/webhooks',
+    '/api/upload',
 ]
 
 // Rutas que requieren Super Admin
@@ -202,6 +203,7 @@ export async function middleware(request: NextRequest) {
             if (!contentType.toLowerCase().includes('application/json')) {
                 // Permitir multipart/form-data solo para rutas específicas de upload
                 const allowsFormData = [
+                    '/api/upload',
                     '/api/contacts/import',
                     '/api/products/import',
                     '/api/documents/upload',

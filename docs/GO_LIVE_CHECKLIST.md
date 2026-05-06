@@ -20,6 +20,11 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [ ] Secretos GitHub Actions `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL` configurados en el repositorio remoto.
 - [ ] Primera corrida remota del workflow `Database backup and restore test` confirmada en GitHub Actions.
 - [x] `pnpm production:verify-db` ejecutado contra Supabase objetivo con 0 failures.
+- [x] Headers seguros y CSP configurados y verificados por `production:check`.
+- [x] CSRF/origin/content-type verificados por preflight de seguridad.
+- [x] Rate limiting requerido en rutas criticas y Redis obligatorio en produccion.
+- [x] Uploads endurecidos: sin SVG publico, magic bytes, path scoped y tipos/tamanos permitidos.
+- [x] Runbook de rotacion de secretos/env vars documentado sin exponer valores reales.
 - [ ] Supabase Auth tiene Site URL y Redirect URLs correctas.
 - [x] Platform admin no depende de superadmin hardcodeado en codigo.
 - [x] Operaciones con service role en onboarding/admin/team/subscriptions validan body/filtros antes de escribir.
@@ -85,6 +90,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Webhooks con service role no aceptan `organization_id` libre desde el body en flujos auditados; usan contexto autenticado o recurso publico validado.
 - [x] Integrations no devuelve configuracion descifrada ni `config_encrypted`.
 - [x] `emitEvent()` persiste `organization_id` top-level para cumplir RLS de `webhook_events`.
+- [x] `/api/upload` valida autenticacion, rate limit, MIME, magic bytes y ownership del path antes de listar/subir/borrar.
 
 ## Modulos criticos
 

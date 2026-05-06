@@ -2,13 +2,21 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { validateFormDataContentType } from "@/lib/validate-content-type"
+import {
+    assertMagicBytes,
+    assertStoragePathWithinPrefix,
+    getSafeFileExtension,
+    sanitizeStoragePath,
+} from "@/lib/upload-security"
 import crypto from "crypto"
 
 // Allowed buckets and their configurations
 const BUCKET_CONFIG = {
     'organization-assets': {
         maxSize: 5 * 1024 * 1024, // 5MB
-        allowedTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'],
+        allowedTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
         public: true,
     },
     'payment-proofs': {
@@ -22,6 +30,12 @@ type BucketType = keyof typeof BUCKET_CONFIG
 
 export async function POST(request: NextRequest) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.write)
+        if (rate) return rate
+
+        const contentTypeError = validateFormDataContentType(request)
+        if (contentTypeError) return contentTypeError
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
 
         const formData = await request.formData()
@@ -39,6 +53,7 @@ export async function POST(request: NextRequest) {
         }
 
         const bucketConfig = BUCKET_CONFIG[bucket as BucketType]
+        const safeCustomPath = sanitizeStoragePath(customPath)
 
         // Validate file size
         if (file.size > bucketConfig.maxSize) {
@@ -50,8 +65,13 @@ export async function POST(request: NextRequest) {
             throw new ValidationError(`Tipo de archivo no permitido. Permitidos: ${bucketConfig.allowedTypes.join(', ')}`)
         }
 
+        // Convert File to ArrayBuffer for upload
+        const arrayBuffer = await file.arrayBuffer()
+        const buffer = new Uint8Array(arrayBuffer)
+        assertMagicBytes(buffer, file.type)
+
         // Generate unique filename
-        const fileExt = file.name.split('.').pop() || 'bin'
+        const fileExt = getSafeFileExtension(file.name, file.type)
         const timestamp = Date.now()
         const uniqueId = crypto.randomBytes(8).toString('hex')
         const fileName = `${timestamp}-${uniqueId}.${fileExt}`
@@ -60,15 +80,11 @@ export async function POST(request: NextRequest) {
         let filePath: string
         if (bucket === 'organization-assets') {
             // User-based folder for organization assets
-            filePath = customPath ? `${user.id}/${customPath}/${fileName}` : `${user.id}/${fileName}`
+            filePath = safeCustomPath ? `${user.id}/${safeCustomPath}/${fileName}` : `${user.id}/${fileName}`
         } else {
             // Organization-based folder for payment proofs
-            filePath = customPath ? `${organizationId}/${customPath}/${fileName}` : `${organizationId}/${fileName}`
+            filePath = safeCustomPath ? `${organizationId}/${safeCustomPath}/${fileName}` : `${organizationId}/${fileName}`
         }
-
-        // Convert File to ArrayBuffer for upload
-        const arrayBuffer = await file.arrayBuffer()
-        const buffer = new Uint8Array(arrayBuffer)
 
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
@@ -126,7 +142,10 @@ export async function POST(request: NextRequest) {
 // GET: List files in a bucket path
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const rate = await rateLimit(request, RATE_LIMITS.read)
+        if (rate) return rate
+
+        const { supabase, user, organizationId } = await getAuthenticatedContext()
 
         const searchParams = request.nextUrl.searchParams
         const bucket = searchParams.get('bucket')
@@ -136,10 +155,15 @@ export async function GET(request: NextRequest) {
             throw new ValidationError(`Bucket inválido`)
         }
 
+        const basePrefix = bucket === "organization-assets" ? user.id : organizationId
+        const safePath = sanitizeStoragePath(path)
+        const listPath = safePath ? `${basePrefix}/${safePath}` : basePrefix
+        assertStoragePathWithinPrefix(listPath, basePrefix)
+
         // List files in the path
         const { data, error } = await supabase.storage
             .from(bucket)
-            .list(path || organizationId, {
+            .list(listPath, {
                 limit: 100,
                 sortBy: { column: 'created_at', order: 'desc' }
             })
@@ -165,7 +189,10 @@ export async function GET(request: NextRequest) {
 // DELETE: Remove a file from storage
 export async function DELETE(request: NextRequest) {
     try {
-        const { supabase } = await getAuthenticatedContext()
+        const rate = await rateLimit(request, RATE_LIMITS.write)
+        if (rate) return rate
+
+        const { supabase, user, organizationId } = await getAuthenticatedContext()
 
         const { bucket, path } = await request.json()
 
@@ -173,13 +200,21 @@ export async function DELETE(request: NextRequest) {
             throw new ValidationError(`Bucket inválido`)
         }
 
-        if (!path) {
+        if (!path || typeof path !== "string") {
             throw new ValidationError(`Path requerido`)
         }
 
+        const safePath = sanitizeStoragePath(path)
+        if (!safePath || safePath !== path) {
+            throw new ValidationError("Path inválido")
+        }
+
+        const basePrefix = bucket === "organization-assets" ? user.id : organizationId
+        assertStoragePathWithinPrefix(safePath, basePrefix)
+
         const { error } = await supabase.storage
             .from(bucket)
-            .remove([path])
+            .remove([safePath])
 
         if (error) throw error
 
