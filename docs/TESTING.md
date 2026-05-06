@@ -30,9 +30,10 @@ Resultado:
 - Production DB verify: 0 failures, 109 checks.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 39 passed.
+- E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Build: OK.
-- Produccion Vercel: health remoto OK y E2E focal remoto 51 passed contra `https://crm-trivia1.vercel.app`.
+- Produccion Vercel: health remoto OK y E2E focal RBAC/admin remoto 39 passed contra `https://crm-trivia1.vercel.app`.
 
 ## E2E actual
 

@@ -41,9 +41,10 @@ Ultima validacion registrada: 2026-05-06.
 - `pnpm production:verify-db`: 0 failures, 109 checks.
 - `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
 - E2E focal RBAC/admin/local: 39 passed.
+- E2E focal RBAC/admin/remoto contra produccion: 39 passed.
 - E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos previo: 51 passed.
 - `pnpm build`: OK.
-- Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_2VrV6qmei2J7UsjaMy4AaeQwgDhJ` Ready, health database/auth/redis healthy.
+- Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_DM8ay74JnwBHhss2vki9Vk35VUhs` Ready, health database/auth/redis healthy.
 - E2E remoto contra produccion: 51 passed.
 - Browser local `http://localhost:3000/dashboard`: carga autenticada sin trial gate y sin errores de consola observados.
 - Health local `/api/health`: database/auth/redis healthy.
@@ -72,7 +73,7 @@ Ultima validacion registrada: 2026-05-06.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
 - Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.
 - Se corrigio el catalogo de productos para ordenar por `created_at desc` y mostrar inmediatamente el producto creado con la respuesta de `/api/products`.
-- Commits recientes desplegados en produccion: `e84d21c`, `742e0ca`, `c3abcaa`.
+- Commit reciente desplegado en produccion: `4cc86f1`.
 
 ## Seguridad y base de datos
 

@@ -167,6 +167,7 @@ Resultado observado:
 - Local health: `GET /api/health` devuelve 200 con database/auth/redis healthy.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 39 passed.
+- E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - E2E focal cubre aislamiento tenant en contactos, oportunidades, payment links y cambio de organizacion por header.
 - E2E focal cubre bloqueo de self-service tenant, bootstrap sin creacion de tenant, frontera platform admin negativa, matriz de roles y guards de mutacion.
@@ -175,11 +176,12 @@ Resultado observado:
 
 Ultima ejecucion remota de produccion registrada: 2026-05-06.
 
-- Deployment Vercel: `dpl_2VrV6qmei2J7UsjaMy4AaeQwgDhJ`.
+- Deployment Vercel: `dpl_DM8ay74JnwBHhss2vki9Vk35VUhs`.
 - URL production alias: `https://crm-trivia1.vercel.app`.
 - `vercel inspect crm-trivia1.vercel.app`: Ready.
 - `GET https://crm-trivia1.vercel.app/api/health`: database/auth/redis healthy.
-- E2E remoto contra produccion: 51 passed.
+- E2E remoto RBAC/admin contra produccion: 39 passed.
+- E2E remoto contra produccion previo: 51 passed.
 
 ## Estado operativo
 
@@ -187,7 +189,7 @@ Ultima ejecucion remota de produccion registrada: 2026-05-06.
 - Endpoint de salud validado durante la prueba: `http://localhost:3000/api/health`.
 - En la ultima validacion E2E se levanto servidor local explicito; `/api/health` respondio healthy antes de correr Playwright.
 - Produccion Vercel esta desplegada y alias final responde healthy.
-- Commits desplegados en la ultima tanda: `e84d21c`, `742e0ca`, `c3abcaa`.
+- Commit desplegado en la ultima tanda: `4cc86f1`.
 
 ## Pendientes posteriores a produccion
 

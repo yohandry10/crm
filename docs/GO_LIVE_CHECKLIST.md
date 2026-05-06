@@ -158,6 +158,7 @@ Automatizado parcialmente por E2E al 2026-05-06:
 - [x] Validar platform admin.
 - [x] Signup real ya no crea organizacion automaticamente; la organizacion se crea desde plataforma/admin y el usuario entra por invitacion/membresia.
 - [x] E2E focal RBAC/admin local: 39 passed para admin boundary, role matrix y mutation guards.
+- [x] E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - [x] E2E focal ampliado local previo: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
 - [x] E2E focal ampliado remoto contra produccion Vercel: 51 passed.
 - [ ] Convertir lead desde UI y mover etapa por drag/drop.

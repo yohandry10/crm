@@ -9,6 +9,7 @@ Este documento resume el estado actual de seguridad, datos y aislamiento tenant 
 - `pnpm production:verify-db`: 0 failures, 109 checks.
 - `pnpm production:check`: 0 failures, 0 warnings.
 - E2E focal RBAC/admin local: 39 passed.
+- E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
 - Migrations objetivo requeridas por preflight: 094-113.
