@@ -42,6 +42,8 @@ Ultima validacion registrada: 2026-05-06.
 - `pnpm test:coverage -- --reporter=basic`: 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
 - E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos: 51 passed.
 - `pnpm build`: OK.
+- Produccion Vercel `https://crm-trivia1.vercel.app`: deployment `dpl_2VrV6qmei2J7UsjaMy4AaeQwgDhJ` Ready, health database/auth/redis healthy.
+- E2E remoto contra produccion: 51 passed.
 - Browser local `http://localhost:3000/dashboard`: carga autenticada sin trial gate y sin errores de consola observados.
 - Health local `/api/health`: database/auth/redis healthy.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes.
@@ -64,6 +66,9 @@ Ultima validacion registrada: 2026-05-06.
 - Migraciones 094-112 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
 - Se elimino documentacion desactualizada de analisis previo y se actualizo el indice documental.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
+- Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.
+- Se corrigio el catalogo de productos para ordenar por `created_at desc` y mostrar inmediatamente el producto creado con la respuesta de `/api/products`.
+- Commits recientes desplegados en produccion: `e84d21c`, `742e0ca`, `c3abcaa`.
 
 ## Seguridad y base de datos
 
@@ -100,13 +105,10 @@ pnpm build
 
 ## Pendientes reales
 
-No afirmar produccion remota cerrada hasta completar:
+Produccion remota quedo desplegada y validada manualmente el 2026-05-06. Pendientes no cerrados:
 
-- Commit y push de cambios.
-- Ejecutar CI/pipeline remoto.
-- Deploy en Vercel production.
-- Smoke autenticado contra URL de produccion.
-- Confirmar Supabase Auth Site URL y Redirect URLs del dominio final.
+- Ejecutar CI/pipeline remoto con la misma matriz como compuerta automatica.
+- Confirmar Supabase Auth Site URL y Redirect URLs del dominio final desde el dashboard.
 - Configurar worker persistente si se promete workflow near-real-time.
 - Probar Culqi/PagoEfectivo cuando existan credenciales reales.
 - Subir coverage por modulo critico y activar umbrales gradualmente.

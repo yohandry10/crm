@@ -4,7 +4,7 @@ Actualizado: 2026-05-06.
 
 ## Resumen ejecutivo
 
-El CRM quedo en estado local verificable para pasar a despliegue: build de produccion OK, Supabase objetivo verificado, health local OK y E2E focal pasando con usuario real, superadmin, aislamiento multi-tenant y matriz de roles de organizacion.
+El CRM quedo desplegado y verificable en produccion: build de produccion OK, Supabase objetivo verificado, health remoto OK y E2E focal pasando contra Vercel con usuario real, superadmin, aislamiento multi-tenant y matriz de roles de organizacion.
 
 Estado actual:
 
@@ -133,6 +133,7 @@ Estado actual:
 - Admin APIs devolvian mapeos de error inconsistentes en algunas rutas.
 - Aceptar una cotizacion creaba factura automaticamente pese a existir un flujo explicito de conversion; ahora solo valida stock y cambia estado.
 - Tareas sin fecha de vencimiento podian ocultar la tarea recien creada fuera de la primera pagina por orden indefinido; ahora se ordenan de forma predecible.
+- Productos recien creados podian quedar fuera de la primera pagina del catalogo cuando el tenant tenia volumen acumulado; ahora el catalogo ordena por `created_at desc` y refleja inmediatamente el registro devuelto por la API.
 
 ## Validacion ejecutada
 
@@ -164,22 +165,27 @@ Resultado observado:
 - E2E auth security incluido en suite completa: 4 passed para redirect de login, forgot-password, rate limit y cambio de contraseña.
 - Auditoria posterior de producto/codigo: dependencias productivas con 0 vulnerabilidades via `pnpm audit --prod --json`.
 
-## Estado operativo local
+Ultima ejecucion remota de produccion registrada: 2026-05-06.
+
+- Deployment Vercel: `dpl_2VrV6qmei2J7UsjaMy4AaeQwgDhJ`.
+- URL production alias: `https://crm-trivia1.vercel.app`.
+- `vercel inspect crm-trivia1.vercel.app`: Ready.
+- `GET https://crm-trivia1.vercel.app/api/health`: database/auth/redis healthy.
+- E2E remoto contra produccion: 51 passed.
+
+## Estado operativo
 
 - Dev server local fue levantado, validado y luego detenido para ejecutar build limpio.
 - Endpoint de salud validado durante la prueba: `http://localhost:3000/api/health`.
 - En la ultima validacion E2E se levanto servidor local explicito; `/api/health` respondio healthy antes de correr Playwright.
-- Los cambios estan locales en el repo.
-- No hay commit, push ni deploy registrados en esta revision.
+- Produccion Vercel esta desplegada y alias final responde healthy.
+- Commits desplegados en la ultima tanda: `e84d21c`, `742e0ca`, `c3abcaa`.
 
-## Pendientes antes de afirmar produccion desplegada
+## Pendientes posteriores a produccion
 
-Estos puntos no bloquean que el codigo este validado localmente, pero si bloquean afirmar que produccion remota ya quedo cerrada:
+Estos puntos no bloquean el despliegue validado, pero siguen siendo mejoras/operacion para venta:
 
-- Hacer commit y push de los cambios.
-- Ejecutar pipeline/CI con las mismas pruebas.
-- Desplegar en Vercel y validar variables reales del entorno Production.
-- Ejecutar smoke contra la URL de produccion despues del deploy.
+- Ejecutar pipeline/CI con las mismas pruebas como compuerta automatica.
 - Confirmar Supabase Auth Site URL y Redirect URLs contra dominio final.
 - Configurar worker persistente si se promete workflow near-real-time.
 - Subir coverage por modulo critico y activar umbrales gradualmente.

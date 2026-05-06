@@ -31,6 +31,7 @@ Resultado:
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
 - Build: OK.
+- Produccion Vercel: health remoto OK y E2E focal remoto 51 passed contra `https://crm-trivia1.vercel.app`.
 
 ## E2E actual
 
@@ -57,6 +58,8 @@ Archivos principales:
 No guardar passwords en documentacion. Las credenciales se cargan por variables locales o las provisiona `global-setup.ts`.
 
 `global-setup.ts` normaliza primero las cuentas E2E configuradas y luego genera storage states. Esto evita sesiones invalidas cuando el setup actualiza contrasenas o metadata.
+
+Tambien marca el tour de bienvenida como visto en los storage states E2E para que los tests remotos validen el modulo objetivo sin quedar bloqueados por un modal transversal de primera visita.
 
 Variables requeridas para ejecutar toda la suite:
 
@@ -164,12 +167,13 @@ Resultado posterior:
 - `verify_security_hardening()`: PASS en grants peligrosos, RPC anon/public y `search_path`.
 - `pnpm production:verify-db`: 0 failures, 109 checks.
 - E2E focal de regresion de seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- E2E focal remoto de produccion Vercel: 51 passed.
 - Navegador local: dashboard carga en `http://localhost:3000/dashboard`, sin trial gate y sin errores de consola.
 
 ## Huecos restantes
 
 - Coverage global tiene compuerta minima activa; falta subir umbrales por modulo critico.
-- Falta ejecutar la misma matriz en CI y contra la URL Vercel production despues del deploy.
+- Falta ejecutar la misma matriz en CI como compuerta automatica.
 - Falta cobertura profunda de concurrencia para booking/pagos fuera de contratos/RPC.
 - Falta prueba con credenciales reales de Culqi/PagoEfectivo.
 - Workflows near-real-time requieren worker persistente si se ofrece esa promesa operativa.

@@ -12,6 +12,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Warnings de dependencias server-only revisados; BullMQ externalizado y Supabase SSR Edge warning filtrado.
 - [x] `pnpm lint` no incluye carpetas generadas como `.next-build` o `coverage`.
 - [x] `pnpm production:check` pasa localmente con 0 failures en `BILLING_PROVIDER=manual`.
+- [x] Produccion Vercel desplegada y health remoto healthy en `https://crm-trivia1.vercel.app/api/health`.
 - [ ] `pnpm production:check` ejecutado en CI/proveedor con variables reales de produccion.
 - [x] `pnpm production:verify-db` ejecutado contra Supabase objetivo con 0 failures.
 - [ ] Supabase Auth tiene Site URL y Redirect URLs correctas.
@@ -84,6 +85,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 
 - [x] Contacts/leads/accounts renderizan y participan en flujo diario E2E.
 - [x] Contacts valida permisos de creacion por rol.
+- [x] Products ordena por creacion reciente y refleja inmediatamente el producto creado para que no quede oculto fuera de la primera pagina.
 - [x] `PATCH /api/opportunities/[id]` valida campos permitidos y etapas/contactos por organizacion.
 - [x] Pipeline/opportunities tiene etapas por organizacion en todos los flujos de creacion, edicion y bulk update.
 - [x] Opportunities valida permisos de creacion por rol y referencias de contacto/etapa.
@@ -153,6 +155,7 @@ Automatizado parcialmente por E2E al 2026-05-06:
 - [x] Validar platform admin.
 - [x] Signup real ya no crea organizacion automaticamente; la organizacion se crea desde plataforma/admin y el usuario entra por invitacion/membresia.
 - [x] E2E focal ampliado local: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
+- [x] E2E focal ampliado remoto contra produccion Vercel: 51 passed.
 - [ ] Convertir lead desde UI y mover etapa por drag/drop.
 - [ ] Registrar pago manual desde UI.
 - [ ] Enviar formulario publico completo.

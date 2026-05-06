@@ -30,6 +30,16 @@ pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-is
 51 passed
 ```
 
+Tambien se ejecuto contra produccion Vercel:
+
+```powershell
+$env:PLAYWRIGHT_SKIP_WEB_SERVER="1"
+$env:PLAYWRIGHT_BASE_URL="https://crm-trivia1.vercel.app"
+pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-isolation.spec.ts tests/e2e/admin-authorization.spec.ts tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/crm-flows.spec.ts tests/e2e/daily-user-journey.spec.ts tests/e2e/daily-advanced-ui.spec.ts tests/e2e/auth-security.spec.ts --reporter=line
+```
+
+Resultado remoto: 51 passed.
+
 - Login autenticado por API con storage state separado para usuario real y superadmin.
 - Usuario real con organización activa sin bloqueo de trial.
 - Superadmin limitado a pruebas de administración sin bloqueo de trial.
@@ -41,6 +51,7 @@ pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-is
 - Matriz de roles de organización: owner, admin, manager, member y viewer.
 - Permisos por rol en contacts, opportunities, products, quotes, invoices, tickets, campaigns, workflows y calendar events.
 - `global-setup.ts` normaliza cuentas E2E antes de generar storage states, para evitar tokens invalidos cuando se actualizan contrasenas/metadata.
+- `global-setup.ts` marca el tour de bienvenida como visto en storage state para que el modal inicial no bloquee pruebas de modulos/perfil en remoto.
 
 ## Notas
 
