@@ -18,6 +18,8 @@
     "test:e2e": "playwright test",
     "production:check": "tsx scripts/production-preflight.ts",
     "production:verify-db": "tsx scripts/production-db-verify.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore:test": "tsx scripts/db-restore-test.ts",
     "worker": "tsx scripts/start-worker.ts",
     "worker:dev": "tsx watch scripts/start-worker.ts",
     "db:types": "npx supabase gen types typescript --project-id YOUR_PROJECT_ID > lib/types/database.types.ts",

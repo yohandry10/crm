@@ -10,6 +10,8 @@ pnpm test -- --reporter=basic
 pnpm lint
 pnpm production:check
 pnpm production:verify-db
+pnpm db:backup
+BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
 pnpm test:e2e -- --reporter=line
 pnpm build
 pnpm test:coverage
@@ -28,6 +30,7 @@ Resultado:
 - Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: 0 failures, 0 warnings.
 - Production DB verify: 0 failures, 109 checks.
+- Backup/restore: automatizacion diaria versionada; restore real requiere `STAGING_DATABASE_URL`.
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos local: 29 passed.
@@ -172,6 +175,19 @@ La matriz valida:
   - referencias cruzadas entre tenants.
 
 Nota: las migraciones 105-115 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
+
+## Backup/restore
+
+La prueba de recuperacion se ejecuta con:
+
+```bash
+pnpm db:backup
+BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
+```
+
+`pnpm db:restore:test` exige `STAGING_DATABASE_URL` y debe apuntar a una base descartable. El proceso restaura el dump completo, ejecuta los verificadores de readiness/security/integrity y prueba recuperacion parcial en una transaccion temporal.
+
+En CI diario lo ejecuta `.github/workflows/database-backup-restore.yml` usando los secretos `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL`.
 
 ## Validacion de seguridad del 2026-05-06
 

@@ -93,6 +93,25 @@ pnpm production:verify-db
 
 `production:check` verifica variables, Redis, CORS publico, crons, migraciones criticas y referencias removidas. `production:verify-db` valida la base objetivo via RPC despues de aplicar migraciones. La alternativa manual es `supabase/verification/production-readiness.sql`.
 
+## Backups y restore
+
+Estado actual:
+
+- `.github/workflows/database-backup-restore.yml` ejecuta backup diario y restore test en staging.
+- `pnpm db:backup` crea dump Postgres custom con manifest SHA-256.
+- `pnpm db:restore:test` restaura en staging, valida recuperacion total con RPCs de produccion/seguridad/integridad y ejecuta probe de recuperacion parcial.
+- Secretos requeridos en GitHub Actions: `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL`.
+- Los artefactos se retienen 30 dias y no se versionan en git.
+
+Comprobacion local:
+
+```bash
+pnpm db:backup
+BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
+```
+
+`STAGING_DATABASE_URL` debe apuntar a una base descartable porque el restore usa `--clean --if-exists`.
+
 ## Health checks recomendados
 
 - Supabase.

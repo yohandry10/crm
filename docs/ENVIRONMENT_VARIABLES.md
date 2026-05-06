@@ -121,3 +121,21 @@ pnpm production:verify-db
 El preflight carga `.env.production.local`, `.env.production`, `.env.local` y `.env` sin imprimir secretos. Falla si faltan variables requeridas, si CORS publico permite origenes inseguros, si Redis no esta configurado, si falta cron, si falta alguna migracion critica o si se habilita fail-open en rate limiting.
 
 `production:verify-db` ejecuta la RPC `verify_production_readiness` contra Supabase con service role. Requiere aplicar las migraciones `101_production_readiness_verification_rpc.sql`, `102_payment_provider_settings.sql` y `103_target_db_verification_fixes.sql` en la base objetivo.
+
+## Backups y restore
+
+Variables para ejecucion local o CI:
+
+```env
+BACKUP_DATABASE_URL=postgresql://...
+STAGING_DATABASE_URL=postgresql://...
+BACKUP_DIR=backups
+BACKUP_RETENTION_DAYS=30
+PG_DUMP_BIN=pg_dump
+PG_RESTORE_BIN=pg_restore
+PSQL_BIN=psql
+```
+
+`BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL` deben configurarse como secretos de GitHub Actions para el workflow diario `.github/workflows/database-backup-restore.yml`. `STAGING_DATABASE_URL` debe apuntar a una base descartable porque el restore test limpia objetos existentes.
+
+Supabase objetivo usa PostgreSQL 17; los binarios `pg_dump`, `pg_restore` y `psql` deben ser version 17 o superior compatible.

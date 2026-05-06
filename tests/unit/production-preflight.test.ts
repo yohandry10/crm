@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
@@ -8,6 +8,7 @@ import {
   findForbiddenProductionRoutes,
   HOBBY_CRON_PATHS,
   hasProductionBlockers,
+  REQUIRED_BACKUP_FILES,
   REQUIRED_CRON_PATHS,
 } from "@/scripts/production-preflight"
 
@@ -75,6 +76,16 @@ describe("production preflight", () => {
     expect(cronCheck?.status).toBe("pass")
     for (const cronPath of [...REQUIRED_CRON_PATHS, ...HOBBY_CRON_PATHS]) {
       expect(cronCheck?.detail || "").not.toContain(cronPath)
+    }
+  })
+
+  it("keeps daily database backup and staging restore-test automation registered", () => {
+    const checks = evaluateProductionReadiness(completeEnv(), process.cwd())
+    const backupCheck = checks.find((check) => check.id === "backup:automation")
+
+    expect(backupCheck?.status).toBe("pass")
+    for (const requiredFile of REQUIRED_BACKUP_FILES) {
+      expect(existsSync(path.join(process.cwd(), requiredFile))).toBe(true)
     }
   })
 

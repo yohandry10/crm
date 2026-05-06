@@ -67,6 +67,12 @@ export const HOBBY_CRON_PATHS = [
   "/api/cron/process-workflows",
 ] as const
 
+export const REQUIRED_BACKUP_FILES = [
+  path.join(".github", "workflows", "database-backup-restore.yml"),
+  path.join("scripts", "db-backup.ts"),
+  path.join("scripts", "db-restore-test.ts"),
+] as const
+
 const PLACEHOLDER_RE = /^(changeme|change-me|secret|password|example|your-|your_|todo|test)$/i
 const TEXT_EXTENSIONS = new Set([
   ".css",
@@ -358,6 +364,66 @@ function checkMigrations(checks: ProductionCheck[], cwd: string) {
   }
 
   addCheck(checks, "db:migrations", "pass", "Required production hardening migrations exist")
+}
+
+function checkBackupAutomation(checks: ProductionCheck[], cwd: string) {
+  const missing = REQUIRED_BACKUP_FILES.filter((relativePath) => !existsSync(path.join(cwd, relativePath)))
+
+  if (missing.length > 0) {
+    addCheck(
+      checks,
+      "backup:automation",
+      "fail",
+      "Database backup and restore-test automation is missing",
+      `Missing files: ${missing.map((item) => item.split(path.sep).join("/")).join(", ")}`
+    )
+    return
+  }
+
+  const workflow = readFileSync(
+    path.join(cwd, ".github", "workflows", "database-backup-restore.yml"),
+    "utf8"
+  )
+  const packageJson = readFileSync(path.join(cwd, "package.json"), "utf8")
+
+  const requiredWorkflowTokens = [
+    "cron:",
+    "pnpm db:backup",
+    "pnpm db:restore:test",
+    "BACKUP_DATABASE_URL",
+    "STAGING_DATABASE_URL",
+    "upload-artifact",
+    "retention-days: 30",
+  ]
+  const missingWorkflowTokens = requiredWorkflowTokens.filter((token) => !workflow.includes(token))
+
+  if (missingWorkflowTokens.length > 0) {
+    addCheck(
+      checks,
+      "backup:automation",
+      "fail",
+      "Database backup workflow is incomplete",
+      `Missing workflow tokens: ${missingWorkflowTokens.join(", ")}`
+    )
+    return
+  }
+
+  if (!packageJson.includes('"db:backup"') || !packageJson.includes('"db:restore:test"')) {
+    addCheck(
+      checks,
+      "backup:scripts",
+      "fail",
+      "Backup and restore test scripts must be exposed in package.json"
+    )
+    return
+  }
+
+  addCheck(
+    checks,
+    "backup:automation",
+    "pass",
+    "Daily database backup and staging restore-test automation is configured"
+  )
 }
 
 function scanTextFiles(cwd: string, visitor: (relativePath: string, content: string) => void) {
@@ -659,6 +725,7 @@ export function evaluateProductionReadiness(env: Env = process.env, cwd = proces
 
   checkRedis(checks, env)
   checkRequiredCrons(checks, env, cwd)
+  checkBackupAutomation(checks, cwd)
   checkMigrations(checks, cwd)
   checkForbiddenReferences(checks, cwd)
   checkForbiddenProductionRoutes(checks, cwd)

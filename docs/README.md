@@ -24,12 +24,13 @@ Para continuidad entre sesiones, leer primero [`../CODEX.md`](../CODEX.md). Ese 
 - Unit/contracts: 207 passed, 4 skipped.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed local y 51 passed remoto contra produccion.
 - Production DB verify: 0 failures, 109 checks.
+- Backup/restore: workflow diario versionado con backup, artefacto retenido 30 dias y restore test contra staging.
 - Roles probados: owner, admin, manager, member, viewer.
-- Supabase objetivo tiene aplicadas y registradas las migraciones 094-112.
+- Supabase objetivo tiene aplicadas y registradas las migraciones 094-115.
 - La base esta alineada con el codigo: 0 tablas faltantes y 0 RPC faltantes en el cruce codigo-BD del 2026-05-06.
 - El contrato SaaS vigente es: superadmin/platform admin provisiona organizaciones; usuarios regulares solo operan dentro de tenants con membresia activa.
 - Localhost validado en `http://localhost:3000` con `/api/health` healthy.
-- Pendiente operativo: CI con la misma matriz, Supabase Auth URLs finales, worker persistente si se vende near-real-time, y elevar coverage por modulo.
+- Pendiente operativo: configurar secretos GitHub Actions de backup/restore, CI con la misma matriz, Supabase Auth URLs finales, worker persistente si se vende near-real-time, y elevar coverage por modulo.
 
 Verificacion adicional: `pnpm production:check` para entorno/config y `pnpm production:verify-db` para la base objetivo. La version SQL manual vive en `supabase/verification/production-readiness.sql`.
 

@@ -19,6 +19,7 @@ Estado actual:
 - Auditoria operativa centralizada agregada para soporte/debugging: auth, pagos, exportaciones, ediciones, borrados y consultas admin quedan trazados con IP, user-agent, dispositivo, usuario, organizacion, timestamp, request id, categoria, severidad y exito/fallo.
 - Manejo global de errores agregado para evitar pantallas rotas: boundaries de Next/React, reporter global de errores del navegador, endpoint `/api/client-errors`, mensajes SWR amigables y captura backend con `instrumentation.onRequestError`.
 - Integridad de base validada con `verify_data_integrity()`: 0 FKs huérfanas, 0 duplicados de claves de negocio auditadas, 0 cruces multi-tenant y 0 cascadas peligrosas.
+- Backups diarios y restore test quedaron versionados: GitHub Actions ejecuta `pg_dump`, sube artefacto retenido 30 dias y restaura en staging para validar recuperacion total/parcial.
 - Auditoria de seguridad de BD reforzada: privilegios peligrosos revocados, RPC sensibles cerradas a anon/public y verificador de hardening activo.
 - Billing configurado como `manual`; no se usa Stripe. Culqi/PagoEfectivo quedan condicionados a credenciales reales.
 - No hay proveedor externo de automatizaciones activo fuera de los workflows internos del CRM.
@@ -123,6 +124,14 @@ Estado actual:
 - `scripts/production-preflight.ts` ahora exige las migraciones 105-115.
 - `scripts/production-db-verify.ts` ejecuta `verify_security_hardening()` y valida grants/RPC/search_path.
 
+### Backups y recuperacion
+
+- Se agrego `.github/workflows/database-backup-restore.yml` con schedule diario y `workflow_dispatch`.
+- `pnpm db:backup` crea dump custom de Postgres con `pg_dump`, manifest JSON y SHA-256.
+- `pnpm db:restore:test` restaura el dump en `STAGING_DATABASE_URL` con `pg_restore --clean --if-exists`, ejecuta readiness/security/data-integrity RPCs y prueba recuperacion parcial en una transaccion.
+- `pnpm production:check` ahora valida que la automatizacion de backup/restore exista y este cableada.
+- Pendiente operativo externo: configurar secretos GitHub Actions `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL`, y confirmar la primera corrida remota.
+
 ### Seguridad auditada en BD
 
 - RLS esta habilitado en las tablas sensibles verificadas por `production:verify-db`.
@@ -163,6 +172,8 @@ pnpm test -- --reporter=basic
 pnpm lint
 pnpm production:check
 pnpm production:verify-db
+pnpm db:backup
+BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
 pnpm test:e2e -- --reporter=line
 pnpm build
 ```
@@ -173,6 +184,8 @@ Resultado observado:
 - Unit/contracts: 211 passed, 4 skipped.
 - Lint: OK; solo queda aviso externo de `baseline-browser-mapping`.
 - Production preflight: 0 failures, 0 warnings.
+- Backup/restore local: scripts y workflow validados por preflight/unit tests; restore real requiere `STAGING_DATABASE_URL`.
+- Backup local real ejecutado con cliente PostgreSQL 17: dump y manifest generados en `/backups`; restore real queda pendiente de `STAGING_DATABASE_URL` descartable.
 - Production DB verify: 0 failures, 109 checks.
 - Production DB verify con integridad de datos: 0 failures, 318 checks.
 - Build: OK.

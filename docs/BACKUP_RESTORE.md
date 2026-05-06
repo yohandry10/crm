@@ -1,32 +1,100 @@
-# Backups y Restore (Supabase / Postgres)
+# Backups y restore
 
-## Backups
-- Programa un dump diario de la base de datos:
-  ```bash
-  pg_dump "$SUPABASE_DB_URL" --format=custom --file=backup_$(date +%Y%m%d).dump
-  ```
-- Guarda los dumps en almacenamiento duradero (S3/GCS) con retención mínima de 30 días.
-- Incluye los storage assets si los usas (`supabase storage`) con `aws s3 sync`.
+Estado actualizado: 2026-05-06.
 
-## Restore
-- Restaura en un entorno aislado antes de producción:
-  ```bash
-  pg_restore --clean --no-owner --dbname="$RESTORE_DB_URL" backup_YYYYMMDD.dump
-  ```
-- Verifica que las migraciones de `supabase/migrations/` se hayan aplicado con Supabase CLI o con el historial de migraciones del proyecto remoto.
-- Ejecuta smoke tests (login, contactos, facturación/pagos, workflows).
+## Estrategia activa
 
-## Cron de limpieza de logs/cache
-- Ejecuta semanalmente las funciones (cron/vercel cron/supabase scheduled):
-  ```sql
-  select cleanup_auditoria(90);
-  select cleanup_analytics_cache_ttl(30);
-  ```
-- Define `CRON_SECRET` (ej. un UUID v4 o 256 bits random) en tu entorno y configúralo en Vercel/Supabase. Llama a los cron endpoints con header `Authorization: Bearer $CRON_SECRET`.
-- Programa un job (cron/vercel cron/supabase scheduled function) que llame a estas funciones.
+El CRM usa backups logicos de Postgres con `pg_dump --format=custom`.
 
-## Checklist antes de restaurar en prod
-- Confirmar origen del backup y fecha.
-- Verificar claves/env vars actualizadas (anon/service role).
-- Pausar tareas programadas durante el restore.
-- Tras restore: validar RLS habilitado y `040_validate_rls.sql`.
+Automatizacion versionada:
+
+- Workflow diario: `.github/workflows/database-backup-restore.yml`.
+- Backup: `pnpm db:backup`.
+- Restore test: `pnpm db:restore:test`.
+- Retencion de artefactos: 30 dias.
+
+Secretos requeridos en GitHub Actions:
+
+- `BACKUP_DATABASE_URL`: URL Postgres de produccion con permisos suficientes para `pg_dump`.
+- `STAGING_DATABASE_URL`: URL Postgres de staging. Este entorno se sobrescribe durante la prueba de restore.
+
+No guardar dumps en git. El repo ignora `/backups`, `*.dump` y manifests locales.
+
+## Backup manual
+
+```bash
+pnpm db:backup
+```
+
+Variables aceptadas:
+
+- `BACKUP_DATABASE_URL`, `DATABASE_URL` o `SUPABASE_DB_URL`.
+- `BACKUP_DIR`, por defecto `backups`.
+- `BACKUP_RETENTION_DAYS`, por defecto `30`.
+- `PG_DUMP_BIN`, si `pg_dump` no esta en PATH.
+
+El cliente debe ser compatible con la version del servidor. Supabase objetivo esta en PostgreSQL 17; en Windows usar, por ejemplo:
+
+```powershell
+$env:PG_DUMP_BIN="C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"
+pnpm db:backup
+```
+
+Salida:
+
+- `backups/crm-postgres-<timestamp>.dump`.
+- `backups/crm-postgres-<timestamp>.dump.manifest.json`.
+
+El manifest contiene host, fecha, tamano y SHA-256 para verificar integridad del artefacto.
+
+## Restore test total
+
+```bash
+BACKUP_FILE=backups/crm-postgres-YYYY-MM-DD.dump pnpm db:restore:test
+```
+
+Requiere:
+
+- `STAGING_DATABASE_URL`.
+- `BACKUP_FILE`, salvo que se use `CREATE_BACKUP_BEFORE_RESTORE=true`.
+- `pg_restore` y `psql` compatibles con PostgreSQL 17; usar `PG_RESTORE_BIN` y `PSQL_BIN` si PATH apunta a otra version.
+
+El restore test ejecuta:
+
+- `pg_restore --clean --if-exists --no-owner --no-privileges` contra staging.
+- `verify_production_readiness()`.
+- `verify_security_hardening()`.
+- `verify_data_integrity()`.
+
+Si cualquier check devuelve fallos, el job falla.
+
+## Recuperacion parcial
+
+`pnpm db:restore:test` tambien prueba recuperacion parcial con una transaccion de probe:
+
+- Crea schema temporal `restore_probe`.
+- Materializa una muestra de `organizations`.
+- Verifica que puede leer datos restaurados.
+- Hace `rollback` para no dejar residuos.
+
+Esto valida que el dump permite extraer subconjuntos sin hacer restore directo sobre produccion.
+
+## Restore en produccion
+
+Pasos obligatorios:
+
+1. Confirmar fecha y SHA-256 del manifest.
+2. Restaurar primero en staging y exigir `pnpm db:restore:test` OK.
+3. Pausar crons/workers.
+4. Hacer backup nuevo de seguridad antes del restore.
+5. Restaurar con `pg_restore` en ventana de mantenimiento.
+6. Ejecutar:
+
+```bash
+pnpm production:verify-db
+pnpm production:check
+```
+
+7. Rehabilitar crons/workers.
+
+Nunca probar restore directamente contra produccion.

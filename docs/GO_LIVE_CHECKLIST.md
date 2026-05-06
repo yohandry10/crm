@@ -14,6 +14,11 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] `pnpm production:check` pasa localmente con 0 failures en `BILLING_PROVIDER=manual`.
 - [x] Produccion Vercel desplegada y health remoto healthy en `https://crm-trivia1.vercel.app/api/health`.
 - [ ] `pnpm production:check` ejecutado en CI/proveedor con variables reales de produccion.
+- [x] Backup diario automatizado versionado en GitHub Actions con `pnpm db:backup`.
+- [x] Restore test de staging automatizado con `pnpm db:restore:test`.
+- [x] Restore test valida recuperacion total con readiness/security/integrity RPCs y recuperacion parcial con probe transaccional.
+- [ ] Secretos GitHub Actions `BACKUP_DATABASE_URL` y `STAGING_DATABASE_URL` configurados en el repositorio remoto.
+- [ ] Primera corrida remota del workflow `Database backup and restore test` confirmada en GitHub Actions.
 - [x] `pnpm production:verify-db` ejecutado contra Supabase objetivo con 0 failures.
 - [ ] Supabase Auth tiene Site URL y Redirect URLs correctas.
 - [x] Platform admin no depende de superadmin hardcodeado en codigo.

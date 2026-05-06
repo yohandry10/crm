@@ -36,6 +36,11 @@ next-env.d.ts
 /tests/e2e/.auth/
 .codex-dev*.log
 
+# local database backups
+/backups/
+*.dump
+*.dump.manifest.json
+
 # Sentry Config File
 .env.sentry-build-plugin
 .vercel
