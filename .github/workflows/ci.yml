@@ -61,7 +61,7 @@ jobs:
           EMAIL_FROM: CRM <no-reply@example.com>
           PUBLIC_API_DOCS: "false"
           BILLING_PROVIDER: manual
-          PAYMENT_GATEWAYS_ENABLED: culqi,pagoefectivo
+          PAYMENT_GATEWAYS_ENABLED: bank_transfer,cash,yape,plin,manual
           AI_PROVIDER: local
           WORKFLOW_PROCESSING_MODE: cron-drainer
           VERCEL_PLAN: pro
