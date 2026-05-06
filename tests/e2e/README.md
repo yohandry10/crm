@@ -1,20 +1,26 @@
 # E2E Tests (Playwright)
 
-## Prerrequisitos
-- Node 20+
-- pnpm
-- Variables de entorno para entorno de pruebas:
-  - NEXT_PUBLIC_SUPABASE_URL
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - TEST_USER_EMAIL / TEST_USER_PASSWORD (credenciales de prueba)
-
 ## Ejecutar
+
 ```bash
-pnpm dlx playwright install
+pnpm exec playwright install chromium
+$env:TEST_USER_EMAIL="admin@example.com"
+$env:TEST_USER_PASSWORD="..."
 pnpm test:e2e
 ```
 
-## Escenarios cubiertos
-- Login con credenciales válidas (flujo Supabase con email/password).
-- Acceso a dashboard tras login.
-- CRUD básico de cuentas (crear y ver en listado).
+Por defecto usa `http://localhost:3000` y arranca/reutiliza `pnpm dev`.
+Para apuntar a otro entorno:
+
+```bash
+$env:PLAYWRIGHT_BASE_URL="https://crm-trivia1.vercel.app"
+pnpm test:e2e
+```
+
+## Cobertura
+
+- Login autenticado por API y storage state compartido.
+- Superadmin sin bloqueo de trial.
+- Carga de módulos principales sin redirect, 404 ni errores de consola.
+- Smoke GET autenticado de APIs principales.
+- Flujo CRM real: cuenta -> contacto -> producto -> inventario -> oportunidad -> tarea -> ticket -> cotización -> reglas de cierre/estado -> cleanup.

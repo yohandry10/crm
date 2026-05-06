@@ -31,6 +31,9 @@ next-env.d.ts
 /coverage
 /.nyc_output
 *.lcov
+/playwright-report/
+/test-results/
+/tests/e2e/.auth/
 
 # Sentry Config File
 .env.sentry-build-plugin
