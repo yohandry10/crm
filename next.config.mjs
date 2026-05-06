@@ -10,6 +10,16 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+const isKnownServerDependencyWarning = (warning) => {
+  const message = warning?.message || String(warning)
+  const resource = warning?.module?.resource || ''
+
+  return (
+    /Critical dependency: the request of a dependency is an expression/i.test(message) &&
+    (resource.includes('@opentelemetry') || resource.includes('@protobufjs'))
+  )
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // ==============================
@@ -56,6 +66,7 @@ const nextConfig = {
           ...(config.ignoreWarnings ?? []),
           /require function is used in a way in which dependencies cannot be statically extracted/i,
           /A Node\.js API is used .* not supported in the Edge Runtime/i,
+          isKnownServerDependencyWarning,
         ]
 
         if (!isServer) {

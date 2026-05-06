@@ -178,7 +178,7 @@ Mejoras aplicadas:
 - `PATCH /api/payments/[id]` ahora filtra sumas/updates por `organization_id`.
 - `PATCH /api/payments/[id]` bloquea aprobaciones manuales que excedan el saldo pendiente observado.
 - La integracion activa de pagos queda movida a Culqi/PagoEfectivo o confirmacion manual; las rutas activas de Stripe fueron eliminadas.
-- La migracion historica `096_stripe_event_processing_status.sql` queda como hardening de compatibilidad para bases que ya tienen esa tabla.
+- La migracion `104_remove_legacy_stripe_artifacts.sql` elimina artefactos heredados de Stripe del esquema final.
 - `/api/pay/[token]` valida formato de token y comprobante antes de usar service role.
 - `/api/pay/[token]` falla cerrado en CORS de produccion si `PUBLIC_PAY_ALLOWED_ORIGINS` no esta configurado.
 - `POST /api/payment-links` valida exactamente un recurso (`quote_id` o `invoice_id`) y delega la verificacion de tenant a `generate_payment_token`.

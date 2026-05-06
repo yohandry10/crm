@@ -61,7 +61,7 @@ Accion esperada:
 
 - Preflight/limpieza de duplicados antes de aplicar la migracion en entornos con datos reales.
 - Tests de concurrencia o doble webhook contra la RPC.
-- Aplicar y validar `096_stripe_event_processing_status.sql` solo como compatibilidad historica si el entorno conserva esas tablas.
+- Aplicar `104_remove_legacy_stripe_artifacts.sql` para que el esquema final no conserve artefactos heredados de Stripe.
 - Las rutas activas de Stripe fueron eliminadas; pagos nuevos deben usar Culqi/PagoEfectivo o confirmacion manual.
 - Payment links ya se crean por RPC `generate_payment_token`, que valida membership, tenant del recurso y exactamente un recurso.
 - La migracion 099 impide insercion/borrado directo de payment tokens desde clientes autenticados y limita update a desactivacion.

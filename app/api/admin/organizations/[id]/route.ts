@@ -39,7 +39,7 @@ export async function GET(
     // Get organization
     const { data: organization, error: orgError } = await supabaseAdmin
       .from("organizations")
-      .select("*")
+      .select("id, name, slug, ruc, is_active, subscription_status, subscription_plan, trial_ends_at, subscription_ends_at, onboarding_completed, created_at, max_users, max_contacts")
       .eq("id", id)
       .single()
 
@@ -66,8 +66,6 @@ export async function GET(
     const safeOrganization = {
       ...organization,
       ruc: maskRUC(organization.ruc),
-      // Remover identificador heredado de pasarela externa si existe.
-      stripe_customer_id: undefined,
     }
 
     const safeMembers = (members || []).map((m: any) => ({

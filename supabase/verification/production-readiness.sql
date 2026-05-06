@@ -1,5 +1,5 @@
 -- Production readiness verification.
--- Run this in the target Supabase SQL editor after applying migrations 094-101.
+-- Run this in the target Supabase SQL editor after applying migrations 094-104.
 -- It is read-only: every result row should return pass = true before go-live.
 -- CI/CD can run the same checks through:
 --   pnpm production:verify-db
@@ -17,7 +17,10 @@ with required(version, file_name) as (
     ('098', '098_atomic_public_booking.sql'),
     ('099', '099_public_payment_tokens_hardening.sql'),
     ('100', '100_revenue_inventory_consistency.sql'),
-    ('101', '101_production_readiness_verification_rpc.sql')
+    ('101', '101_production_readiness_verification_rpc.sql'),
+    ('102', '102_payment_provider_settings.sql'),
+    ('103', '103_target_db_verification_fixes.sql'),
+    ('104', '104_remove_legacy_stripe_artifacts.sql')
 )
 select
   'migration_applied:' || required.file_name as check_name,
@@ -179,18 +182,65 @@ select
   ) as pass;
 
 select
-  'stripe_events_processing_contract' as check_name,
+  'payment_provider_settings_contract' as check_name,
   exists (
     select 1
     from information_schema.columns
     where table_schema = 'public'
-      and table_name = 'stripe_events'
-      and column_name = 'status'
+      and table_name = 'platform_settings'
+      and column_name = 'culqi_enabled'
   )
   and exists (
     select 1
     from information_schema.columns
     where table_schema = 'public'
-      and table_name = 'stripe_events'
-      and column_name = 'processing_started_at'
+      and table_name = 'platform_settings'
+      and column_name = 'pagoefectivo_enabled'
+  )
+  and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'platform_settings'
+      and column_name in ('stripe_enabled', 'mercadopago_enabled')
   ) as pass;
+
+with legacy_artifacts(name, present) as (
+  values
+    ('table:stripe_events', to_regclass('public.stripe_events') is not null),
+    ('table:stripe_invoices', to_regclass('public.stripe_invoices') is not null),
+    (
+      'columns:organizations_stripe',
+      exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'organizations'
+          and column_name in ('stripe_customer_id', 'stripe_subscription_id', 'stripe_price_id')
+      )
+    ),
+    (
+      'columns:subscription_plans_stripe',
+      exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'subscription_plans'
+          and column_name in ('stripe_price_id_monthly', 'stripe_price_id_yearly')
+      )
+    ),
+    (
+      'functions:process_stripe',
+      exists (
+        select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.proname like 'process_stripe_%'
+      )
+    )
+)
+select
+  'legacy_stripe_artifacts_removed' as check_name,
+  not coalesce(bool_or(legacy_artifacts.present), false) as pass
+from legacy_artifacts;

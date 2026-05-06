@@ -40,6 +40,7 @@ export const REQUIRED_MIGRATIONS = [
   "101_production_readiness_verification_rpc.sql",
   "102_payment_provider_settings.sql",
   "103_target_db_verification_fixes.sql",
+  "104_remove_legacy_stripe_artifacts.sql",
 ] as const
 
 export const REQUIRED_CRON_PATHS = [
