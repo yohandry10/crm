@@ -575,6 +575,19 @@ describe('API contracts', () => {
     expect(helper).toContain('hydrateCalendarEventOwners')
   })
 
+  it('does not join inventory movements directly to profiles', () => {
+    const route = readFileSync('app/api/inventory/movements/route.ts', 'utf8')
+
+    expect(route).not.toContain('profiles!performed_by')
+    expect(route).not.toContain('performed_by: user.id')
+    expect(route).toContain('const performerIds = Array.from(new Set')
+    expect(route).toContain('movement.created_by')
+    expect(route).toContain('created_by: user.id')
+    expect(route).toContain('.from("profiles")')
+    expect(route).toContain('performed_by_user: movement.created_by ? profilesMap.get(movement.created_by) || null : null')
+    expect(route).not.toContain('notes,')
+  })
+
   it('validates public payment tokens and proof payloads before privileged writes', () => {
     const route = readFileSync('app/api/pay/[token]/route.ts', 'utf8')
     const middleware = readFileSync('middleware.ts', 'utf8')

@@ -38,8 +38,7 @@ export async function GET(request: NextRequest) {
             .from("inventory_movements")
             .select(`
                 *,
-                product:products(id, name, sku),
-                performed_by_user:profiles!performed_by(id, email)
+                product:products(id, name, sku)
             `, { count: "exact" })
             .eq("organization_id", organizationId)
             .order("created_at", { ascending: false })
@@ -57,9 +56,29 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
+        const performerIds = Array.from(new Set((data || [])
+            .map((movement: any) => movement.created_by)
+            .filter(Boolean)))
+
+        let profilesMap = new Map()
+        if (performerIds.length > 0) {
+            const { data: profiles, error: profilesError } = await supabase
+                .from("profiles")
+                .select("id, email")
+                .in("id", performerIds)
+
+            if (profilesError) throw profilesError
+            profilesMap = new Map((profiles || []).map((profile: any) => [profile.id, profile]))
+        }
+
+        const movements = (data || []).map((movement: any) => ({
+            ...movement,
+            performed_by_user: movement.created_by ? profilesMap.get(movement.created_by) || null : null,
+        }))
+
         return NextResponse.json({
             success: true,
-            data,
+            data: movements,
             pagination: {
                 page,
                 limit,
@@ -87,18 +106,19 @@ export async function GET(request: NextRequest) {
  * Records a new inventory movement (in/out/adjustment)
  */
 export async function POST(request: NextRequest) {
+    let requestBody: any = undefined
     try {
         // MULTI-TENANT: Get organization context
         const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        requestBody = await request.json()
 
         // ✅ Validación con Zod
-        const validation = movementSchema.safeParse(body)
+        const validation = movementSchema.safeParse(requestBody)
         if (!validation.success) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
 
-        const { product_id, type, quantity, reason, notes, reference_type, reference_id } = validation.data
+        const { product_id, type, quantity, reason, reference_type, reference_id } = validation.data
 
         // Get current product to calculate new quantity
         const { data: product, error: productError } = await supabase
@@ -149,10 +169,9 @@ export async function POST(request: NextRequest) {
                 previous_quantity: currentQuantity,
                 new_quantity: newQuantity,
                 reason,
-                notes,
                 reference_type,
                 reference_id,
-                performed_by: user.id
+                created_by: user.id
             })
             .select()
             .single()
@@ -181,7 +200,7 @@ export async function POST(request: NextRequest) {
             endpoint: "/api/inventory/movements",
             method: "POST",
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) },
