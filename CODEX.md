@@ -45,6 +45,7 @@ Ultima validacion registrada: 2026-05-06.
 - `pnpm test:coverage -- --reporter=basic`: ultima corrida previa 207 passed, 4 skipped; coverage gate activo con statements 5, branches 27, functions 13, lines 5.
 - E2E focal RBAC/admin/local: 28 passed para frontera platform admin y endpoint `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos/local: 29 passed.
+- E2E critico local `tests/e2e/critical-regression.spec.ts`: 4 passed para login/registro, pagos, workflow usuario-admin y regresiones edge.
 - E2E focal RBAC/admin/remoto contra produccion: 39 passed.
 - E2E focal ampliado seguridad/RBAC/multi-tenant/provisionamiento/flujos previo: 51 passed.
 - `pnpm build`: OK.
@@ -61,13 +62,14 @@ Ultima validacion registrada: 2026-05-06.
 - Se separo platform admin de usuarios de tenant.
 - Se centralizaron permisos con `lib/role-permissions.ts`.
 - `lib/role-permissions.ts` ahora valida permisos por recurso y propiedad del registro para cerrar escalamiento horizontal.
-- Se agregaron pruebas E2E para usuario diario, UI avanzada, matriz de roles, guards de mutacion, admin smoke, auth security, multi-tenant y tenant provisioning.
+- Se agregaron pruebas E2E para usuario diario, UI avanzada, matriz de roles, guards de mutacion, admin smoke, auth security, multi-tenant, tenant provisioning y regresion critica.
 - Se corrigio el cache de `getAuthenticatedContext`: `x-organization-id` ya no puede contaminar la organizacion por defecto de usuarios multi-tenant.
 - Header `x-organization-id` ahora exige membership activa y devuelve 403 si es forjado.
 - Login, OAuth callback y `/api/auth/bootstrap` ya no crean tenants automaticamente.
 - `/api/organizations POST` devuelve 403 para usuarios regulares.
 - Se agrego `tests/e2e/multi-tenant-isolation.spec.ts`.
 - Se agrego `tests/e2e/tenant-provisioning.spec.ts`.
+- Se agrego `tests/e2e/critical-regression.spec.ts`.
 - Se agrego `supabase/migrations/112_tenant_provisioning_and_schema_alignment.sql`.
 - La migracion 112 crea `user_settings` con RLS, revoca inserts directos en `organizations` para `anon/authenticated` y amplia `verify_production_readiness()`.
 - Migraciones 094-116 estan aplicadas/registradas en la base Supabase objetivo usada para validacion.
@@ -126,6 +128,7 @@ pnpm production:verify-db
 pnpm db:backup
 BACKUP_FILE=backups/<archivo>.dump pnpm db:restore:test
 pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line
+pnpm test:e2e -- tests/e2e/critical-regression.spec.ts --reporter=line
 pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-isolation.spec.ts tests/e2e/admin-authorization.spec.ts tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/crm-flows.spec.ts tests/e2e/daily-user-journey.spec.ts tests/e2e/daily-advanced-ui.spec.ts tests/e2e/auth-security.spec.ts --reporter=line
 pnpm build
 ```

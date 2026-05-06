@@ -182,6 +182,7 @@ Automatizado parcialmente por E2E al 2026-05-06:
 - [x] E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - [x] E2E focal ampliado local previo: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
 - [x] E2E focal ampliado remoto contra produccion Vercel: 51 passed.
+- [x] Suite E2E critica automatizada agregada: login/registro, pagos, workflow usuario-admin, uploads/jobs edge y regresiones principales.
 - [ ] Convertir lead desde UI y mover etapa por drag/drop.
 - [ ] Registrar pago manual desde UI.
 - [ ] Enviar formulario publico completo.

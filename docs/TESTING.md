@@ -34,6 +34,7 @@ Resultado:
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos local: 29 passed.
+- E2E critico local: 4 passed en `tests/e2e/critical-regression.spec.ts`.
 - E2E focal RBAC/admin remoto contra produccion: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - Build: OK.
@@ -61,6 +62,7 @@ Archivos principales:
 - `tests/e2e/multi-tenant-isolation.spec.ts`: aislamiento entre tenants, headers de organizacion, referencias cruzadas y payment links.
 - `tests/e2e/tenant-provisioning.spec.ts`: bloqueo de autoprovicionamiento de organizaciones y bootstrap sin creacion de tenant.
 - `tests/e2e/error-handling.spec.ts`: reporter frontend `/api/client-errors`, CSRF y errores de payload amigables.
+- `tests/e2e/critical-regression.spec.ts`: login, registro fuerte sin autoprovicionamiento tenant cuando el proveedor lo permite, error controlado de rate limit externo, pagos idempotentes, bloqueo de sobrepago, auditoria billing, checkout manual, activacion admin, workflow encolado/trazable, pantalla admin de colas y regresiones upload/job.
 - `tests/unit/upload-security.test.ts`: path traversal, prefijos tenant/usuario, extension por MIME y magic bytes de archivos.
 
 `admin-smoke` y `admin-authorization` cubren tambien `/api/admin/audit-logs`: platform admin recibe 200 y usuarios `user/owner/admin/manager/member/viewer` quedan bloqueados.
@@ -209,6 +211,7 @@ Resultado posterior:
 - `verify_security_hardening()`: PASS en grants peligrosos, RPC anon/public y `search_path`.
 - `pnpm production:verify-db`: 0 failures, 335 checks.
 - `pnpm test:e2e -- tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts tests/e2e/admin-authorization.spec.ts --reporter=line`: 39 passed.
+- `pnpm test:e2e -- tests/e2e/critical-regression.spec.ts --reporter=line`: 4 passed.
 - E2E focal de regresion de seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
 - E2E focal remoto de produccion Vercel: 51 passed.
 - Navegador local: dashboard carga en `http://localhost:3000/dashboard`, sin trial gate y sin errores de consola.
@@ -220,6 +223,7 @@ Resultado posterior:
 - Coverage global tiene compuerta minima activa; falta subir umbrales por modulo critico.
 - Falta ejecutar la misma matriz en CI como compuerta automatica.
 - Falta cobertura profunda de concurrencia para booking/pagos fuera de contratos/RPC.
+- Signup real puede quedar rate-limited por Supabase Auth; la suite critica acepta ese estado solo si el error es visible y no se crea usuario/tenant.
 - Falta prueba con credenciales reales de Culqi/PagoEfectivo.
 - Workflows near-real-time requieren worker persistente si se ofrece esa promesa operativa.
 

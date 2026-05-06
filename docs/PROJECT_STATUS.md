@@ -35,6 +35,7 @@ Estado actual:
 - La frontera platform admin quedo auditada: usuarios de organizacion, incluso `owner/admin`, no pueden entrar ni mutar APIs de superadmin.
 - La frontera tenant quedo revalidada como contrato de negocio: el superadmin vende organizaciones y cada organizacion aisla datos, permisos, cotizaciones y enlaces de pago.
 - La base de datos quedo alineada con las tablas/RPC usadas por el codigo: se agrego `user_settings`, se amplio el verificador de produccion y se bloqueo la creacion self-service de organizaciones.
+- Se agrego suite E2E critica `tests/e2e/critical-regression.spec.ts` para cubrir login/registro, pagos, workflow usuario-admin, uploads y jobs edge.
 
 ## Cambios recientes importantes
 
@@ -105,6 +106,7 @@ Estado actual:
 - Los guards de mutacion validan que `viewer/member/manager` no puedan saltarse permisos via API en contactos, productos, oportunidades, facturas, tareas, tickets, workflows y pagos.
 - Se agrego smoke E2E para platform admin en `tests/e2e/admin-smoke.spec.ts`.
 - Se agrego `/api/admin/audit-logs` para consulta filtrada de trazas por platform admin y se incluyo en smoke/authorization E2E.
+- Se agrego `tests/e2e/critical-regression.spec.ts` para una compuerta mas vendible: auth, registro, pagos idempotentes, auditoria billing, checkout/activacion admin, workflow encolado y regresiones de upload/job.
 - Se monto `ErrorBoundary` en el layout raiz y `GlobalErrorReporter` escucha `window.error` y `unhandledrejection`.
 - `/api/client-errors` valida payload con Zod, exige CSRF/rate limit y registra errores frontend mediante `logError`.
 - `withApiErrorHandling` queda disponible para nuevas Route Handlers con respuesta JSON sanitizada y `errorId`.
@@ -214,6 +216,7 @@ Resultado observado:
 - Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
 - E2E focal RBAC/admin local: 28 passed para frontera platform admin y `/api/admin/audit-logs`; corrida previa ampliada 39 passed.
 - E2E focal error handling/modulos local: 29 passed.
+- E2E critico local: 4 passed.
 - E2E focal RBAC/admin remoto contra produccion: 39 passed.
 - E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API previo: 51 passed.
 - E2E focal cubre aislamiento tenant en contactos, oportunidades, payment links y cambio de organizacion por header.
