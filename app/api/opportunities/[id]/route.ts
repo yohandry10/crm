@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
 import { z } from 'zod'
 
@@ -66,7 +67,8 @@ export async function PATCH(
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "opportunities", "can_update")
         const body = await request.json()
 
         const validation = opportunityUpdateSchema.safeParse(body)
@@ -193,7 +195,8 @@ export async function DELETE(
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "opportunities", "can_delete")
 
         // Verify the opportunity exists
         const { data: existing, error: checkError } = await supabase

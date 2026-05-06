@@ -56,7 +56,7 @@ export default function OnboardingPage() {
   })
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [newMember, setNewMember] = useState({ email: "", role: "sales" })
+  const [newMember, setNewMember] = useState({ email: "", role: "member" })
 
   useEffect(() => {
     setSupabase(getSupabaseBrowserClient())
@@ -77,12 +77,25 @@ export default function OnboardingPage() {
       }
 
       // Get user's organization
-      const { data: membership } = await supabase
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("current_organization_id")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      let membershipQuery = supabase
         .from("organization_members")
-        .select("organization_id, organizations(*)")
+        .select("organization_id, role, organizations(*)")
         .eq("user_id", user.id)
         .eq("is_active", true)
-        .single()
+
+      if (profile?.current_organization_id) {
+        membershipQuery = membershipQuery.eq("organization_id", profile.current_organization_id)
+      } else {
+        membershipQuery = membershipQuery.order("accepted_at", { ascending: true, nullsFirst: false }).limit(1)
+      }
+
+      const { data: membership } = await membershipQuery.maybeSingle()
 
       if (!membership) {
         router.push("/login")
@@ -110,8 +123,12 @@ export default function OnboardingPage() {
 
   const handleNext = () => {
     if (currentStep === 1) {
-      if (!companyData.name || !companyData.ruc) {
-        toast.error("Nombre y RUC son requeridos")
+      if (!companyData.name.trim()) {
+        toast.error("El nombre de la empresa es requerido")
+        return
+      }
+      if (companyData.ruc && !/^\d{11}$/.test(companyData.ruc)) {
+        toast.error("El RUC debe tener 11 dígitos")
         return
       }
     }
@@ -132,7 +149,7 @@ export default function OnboardingPage() {
       return
     }
     setTeamMembers(prev => [...prev, { ...newMember }])
-    setNewMember({ email: "", role: "sales" })
+    setNewMember({ email: "", role: "member" })
   }
 
   const removeTeamMember = (email: string) => {
@@ -231,7 +248,7 @@ export default function OnboardingPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>RUC *</Label>
+                    <Label>RUC</Label>
                     <Input
                       value={companyData.ruc}
                       onChange={(e) => setCompanyData(prev => ({ ...prev, ruc: e.target.value }))}
@@ -356,8 +373,7 @@ export default function OnboardingPage() {
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="sales">Vendedor</SelectItem>
-                      <SelectItem value="support">Soporte</SelectItem>
+                      <SelectItem value="member">Miembro</SelectItem>
                       <SelectItem value="viewer">Viewer</SelectItem>
                     </SelectContent>
                   </Select>

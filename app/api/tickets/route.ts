@@ -6,6 +6,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { validatePagination } from "@/lib/auth-helpers"
 import { validateTicketReferences } from "@/lib/work-item-references"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -66,12 +67,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: unknown
     try {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tickets", "can_create")
+
         const body = await request.json()
+        requestBody = body
 
         const validation = ticketSchema.safeParse(body)
         if (!validation.success) {
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/tickets", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/tickets", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

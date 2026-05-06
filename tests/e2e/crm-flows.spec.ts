@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test"
 import { expectJsonSuccess } from "./helpers"
 
-type CreatedRecords = Partial<Record<"account" | "contact" | "product" | "opportunity" | "task" | "ticket" | "quote", string>>
+type CreatedRecords = Partial<Record<"account" | "contact" | "product" | "opportunity" | "task" | "ticket" | "quote" | "invoice", string>>
 
 async function deleteIfPresent(request: APIRequestContext, path: string, id?: string) {
   if (!id) return
@@ -10,6 +10,8 @@ async function deleteIfPresent(request: APIRequestContext, path: string, id?: st
 }
 
 test("core CRM entities connect through the expected business flow", async ({ request }) => {
+  test.setTimeout(180_000)
+
   const suffix = Date.now()
   const created: CreatedRecords = {}
 
@@ -119,11 +121,32 @@ test("core CRM entities connect through the expected business flow", async ({ re
 
     const draftConvert = await request.post(`/api/quotes/${created.quote}/convert`, { data: {} })
     expect(draftConvert.status(), await draftConvert.text()).toBe(400)
+
+    await expectJsonSuccess(await request.patch(`/api/quotes/${created.quote}`, { data: { status: "sent" } }))
+    const acceptedQuote = await expectJsonSuccess(await request.patch(`/api/quotes/${created.quote}`, { data: { status: "accepted" } }))
+    expect(acceptedQuote.data.status).toBe("accepted")
+    expect(acceptedQuote.data.invoice_id).toBeFalsy()
+
+    const inventoryAfterAccept = await expectJsonSuccess(await request.get(`/api/inventory/${created.product}`))
+    expect(inventoryAfterAccept.data.quantity).toBe(7)
+
+    const convertedQuote = await expectJsonSuccess(await request.post(`/api/quotes/${created.quote}/convert`, { data: {} }))
+    created.invoice = convertedQuote.data.invoice_id
+    expect(created.invoice).toBeTruthy()
+
+    const quoteAfterConvert = await expectJsonSuccess(await request.get(`/api/quotes/${created.quote}`))
+    expect(quoteAfterConvert.data.status).toBe("converted")
+    expect(quoteAfterConvert.data.invoice_id).toBe(created.invoice)
+
+    const inventoryAfterConvert = await expectJsonSuccess(await request.get(`/api/inventory/${created.product}`))
+    expect(inventoryAfterConvert.data.quantity).toBe(6)
+
     await expectJsonSuccess(await request.post(`/api/opportunities/${created.opportunity}/win`, { data: {} }))
     await expectJsonSuccess(await request.patch(`/api/tasks/${created.task}`, { data: { status: "completed" } }))
     await expectJsonSuccess(await request.patch(`/api/tickets/${created.ticket}`, { data: { status: "resolved" } }))
   } finally {
     await deleteIfPresent(request, "/api/quotes", created.quote)
+    await deleteIfPresent(request, "/api/invoices", created.invoice)
     await deleteIfPresent(request, "/api/opportunities", created.opportunity)
     await deleteIfPresent(request, "/api/tasks", created.task)
     await deleteIfPresent(request, "/api/tickets", created.ticket)

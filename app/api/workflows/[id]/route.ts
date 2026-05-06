@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { updateWorkflowSchema } from "@/lib/schemas"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 export async function GET(
@@ -46,7 +47,8 @@ export async function PUT(
     try {
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "workflows", "can_update")
         const body = await request.json()
 
         // ✅ Validación con Zod
@@ -113,7 +115,8 @@ export async function DELETE(
     try {
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "workflows", "can_delete")
 
         // Get old data for audit
         const { data: oldData } = await supabase

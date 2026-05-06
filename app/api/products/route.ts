@@ -6,6 +6,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 const productSchema = z.object({
     sku: z.string().optional().nullable(),
@@ -67,7 +68,9 @@ export async function POST(request: NextRequest) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_create")
+
         const body = await request.json()
 
         const validation = productSchema.safeParse(body)

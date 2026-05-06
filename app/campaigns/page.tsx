@@ -307,32 +307,36 @@ export default function CampaignsPage() {
                         </DialogHeader>
                         <div className="space-y-4">
                             <div>
-                                <Label>Nombre*</Label>
+                                <Label htmlFor="campaign-name">Nombre*</Label>
                                 <Input
+                                    id="campaign-name"
                                     value={form.name || ""}
                                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     placeholder="Ej: Campaña Black Friday"
                                 />
                             </div>
                             <div>
-                                <Label>Descripción</Label>
+                                <Label htmlFor="campaign-description">Descripción</Label>
                                 <Textarea
+                                    id="campaign-description"
                                     value={form.description || ""}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                                     placeholder="Describe el objetivo de la campaña..."
                                 />
                             </div>
                             <div>
-                                <Label>Asunto</Label>
+                                <Label htmlFor="campaign-subject">Asunto</Label>
                                 <Input
+                                    id="campaign-subject"
                                     value={form.subject || ""}
                                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
                                     placeholder="Asunto para email o titulo interno"
                                 />
                             </div>
                             <div>
-                                <Label>Contenido</Label>
+                                <Label htmlFor="campaign-content">Contenido</Label>
                                 <Textarea
+                                    id="campaign-content"
                                     value={form.content || ""}
                                     onChange={(e) => setForm({ ...form, content: e.target.value })}
                                     placeholder="Mensaje de la campaña..."
@@ -383,8 +387,9 @@ export default function CampaignsPage() {
                                     </Select>
                                 </div>
                                 <div>
-                                    <Label>Presupuesto</Label>
+                                    <Label htmlFor="campaign-budget">Presupuesto</Label>
                                     <Input
+                                        id="campaign-budget"
                                         type="number"
                                         min="0"
                                         step="0.01"
@@ -395,8 +400,9 @@ export default function CampaignsPage() {
                             </div>
                             {form.status === "scheduled" && (
                                 <div>
-                                    <Label>Fecha programada</Label>
+                                    <Label htmlFor="campaign-scheduled-at">Fecha programada</Label>
                                     <Input
+                                        id="campaign-scheduled-at"
                                         type="datetime-local"
                                         value={form.scheduled_at ? form.scheduled_at.slice(0, 16) : ""}
                                         onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}

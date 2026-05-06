@@ -109,7 +109,8 @@ export function TaskDialog({
         try {
             const payload = {
                 ...values,
-                contact_id: values.contact_id === "none" ? null : values.contact_id
+                contact_id: values.contact_id === "none" ? null : values.contact_id,
+                due_date: values.due_date || null,
             }
 
             const response = await fetch(

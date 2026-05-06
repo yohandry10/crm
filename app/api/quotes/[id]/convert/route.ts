@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 interface RouteParams {
@@ -18,7 +19,9 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "invoices", "can_create")
+        await requireRolePermission(supabase, role, "quotes", "can_update")
         const { id: quoteId } = await params
 
         if (!quoteId) {

@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, NotFoundError, ValidationError } from "@/lib/error-handler"
 import { validateTicketReferences } from "@/lib/work-item-references"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 const WRITE_LIMIT = RATE_LIMITS.write
@@ -49,7 +50,8 @@ async function updateTicket(request: NextRequest, { params }: { params: Promise<
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tickets", "can_update")
         const { id } = await params
         const body = await request.json()
 
@@ -105,7 +107,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tickets", "can_delete")
         const { id } = await params
 
         const { error } = await supabase

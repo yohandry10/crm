@@ -3,6 +3,7 @@ import { createSupabaseRouteHandler } from "@/lib/supabase-server"
 import { rateLimit } from "@/lib/rate-limit"
 import { createClient } from "@supabase/supabase-js"
 import { createRequestLogger } from "@/lib/logger"
+import { validateAuthPassword } from "@/lib/auth-password-policy"
 
 // Rate limit: max 5 intentos por minuto (previene brute force)
 const CHANGE_PASSWORD_LIMIT = { interval: 60 * 1000, maxRequests: 5 }
@@ -25,7 +26,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { currentPassword, newPassword } = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "JSON inválido" },
+        { status: 400 }
+      )
+    }
+
+    const { currentPassword, newPassword } = body as {
+      currentPassword?: string
+      newPassword?: string
+    }
 
     // 3. Validate inputs
     if (!currentPassword || !newPassword) {
@@ -35,9 +49,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (newPassword.length < 8) {
+    const passwordError = validateAuthPassword(newPassword, "La nueva contraseña")
+    if (passwordError) {
       return NextResponse.json(
-        { success: false, error: "La nueva contraseña debe tener al menos 8 caracteres" },
+        { success: false, error: passwordError },
         { status: 400 }
       )
     }
@@ -46,15 +61,6 @@ export async function POST(request: NextRequest) {
     if (newPassword === currentPassword) {
       return NextResponse.json(
         { success: false, error: "La nueva contraseña debe ser diferente a la actual" },
-        { status: 400 }
-      )
-    }
-
-    // Prevenir contraseñas comunes
-    const commonPasswords = ['12345678', 'password', 'qwerty123', 'admin123']
-    if (commonPasswords.includes(newPassword.toLowerCase())) {
-      return NextResponse.json(
-        { success: false, error: "La contraseña es demasiado común. Elige una más segura" },
         { status: 400 }
       )
     }

@@ -7,6 +7,7 @@ import { motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Lock, AlertCircle, CheckCircle, ArrowLeft, Loader2 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { validateAuthPassword } from "@/lib/auth-password-policy"
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
@@ -115,8 +116,9 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError("")
 
-    if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres")
+    const passwordError = validateAuthPassword(password)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
     if (password !== confirmPassword) {
@@ -219,9 +221,9 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   required
-                  minLength={8}
+                  minLength={10}
                   disabled={loading || !sessionReady}
                 />
               </div>
@@ -238,7 +240,7 @@ export default function ResetPasswordPage() {
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
                   placeholder="Repite tu contraseña"
                   required
-                  minLength={8}
+                  minLength={10}
                   disabled={loading || !sessionReady}
                 />
               </div>

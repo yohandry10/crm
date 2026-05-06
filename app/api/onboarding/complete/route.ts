@@ -6,6 +6,7 @@ import { z } from "zod"
 
 const onboardingRoleSchema = z.enum(["admin", "manager", "member", "viewer"])
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable()
+const taxRateSchema = z.number().min(0).max(100).transform((value) => value > 1 ? value / 100 : value)
 
 const onboardingSchema = z.object({
   organizationId: z.string().uuid("Organization ID inválido"),
@@ -18,7 +19,7 @@ const onboardingSchema = z.object({
   }),
   configData: z.object({
     currency: z.enum(["PEN", "USD"]).default("PEN"),
-    taxRate: z.number().min(0).max(1).default(0.18),
+    taxRate: taxRateSchema.default(0.18),
     serieFactura: z.string().trim().regex(/^[A-Z0-9]{1,10}$/i, "Serie de factura inválida").default("F001"),
     serieBoleta: z.string().trim().regex(/^[A-Z0-9]{1,10}$/i, "Serie de boleta inválida").default("B001"),
     timezone: z.string().trim().min(1).max(80).default("America/Lima"),

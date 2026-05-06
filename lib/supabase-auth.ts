@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers'
 import type { OrgRole } from '@/lib/types/organization'
 import { logger } from './logger'
 import { getRedisClient } from './redis'
+import { ForbiddenError } from '@/lib/error-handler'
 
 type CachedAuthContext = {
     organizationId: string
@@ -56,7 +57,8 @@ async function getCachedAuthContext(userId: string, organizationId?: string) {
     return entry.data
 }
 
-async function setCachedAuthContext(userId: string, data: CachedAuthContext) {
+async function setCachedAuthContext(userId: string, data: CachedAuthContext, options: { cacheAsDefault?: boolean } = {}) {
+    const cacheAsDefault = options.cacheAsDefault !== false
     const redis = getRedisClient()
     const key = getAuthContextCacheKey(userId, data.organizationId)
     const fallbackKey = getAuthContextCacheKey(userId)
@@ -65,7 +67,9 @@ async function setCachedAuthContext(userId: string, data: CachedAuthContext) {
     if (redis) {
         try {
             await redis.set(key, payload, 'EX', AUTH_CONTEXT_TTL_SECONDS)
-            await redis.set(fallbackKey, payload, 'EX', AUTH_CONTEXT_TTL_SECONDS)
+            if (cacheAsDefault) {
+                await redis.set(fallbackKey, payload, 'EX', AUTH_CONTEXT_TTL_SECONDS)
+            }
         } catch {
             // Ignore cache errors
         }
@@ -73,7 +77,9 @@ async function setCachedAuthContext(userId: string, data: CachedAuthContext) {
 
     const expiresAt = Date.now() + AUTH_CONTEXT_TTL_SECONDS * 1000
     authContextMemoryCache.set(key, { data, expiresAt })
-    authContextMemoryCache.set(fallbackKey, { data, expiresAt })
+    if (cacheAsDefault) {
+        authContextMemoryCache.set(fallbackKey, { data, expiresAt })
+    }
 }
 
 /**
@@ -144,7 +150,7 @@ export async function getAuthenticatedContext() {
     try {
         const { supabase, user } = await getAuthenticatedClientAndUser()
         const headersList = await headers()
-        const orgHint = headersList.get('x-organization-id') || undefined
+        const orgHint = headersList.get('x-organization-id')?.trim() || undefined
 
         const cached = await getCachedAuthContext(user.id, orgHint)
         if (cached) {
@@ -159,7 +165,7 @@ export async function getAuthenticatedContext() {
         }
 
         // Get organization from header or profile
-        let orgId = headersList.get('x-organization-id')
+        let orgId = orgHint
 
         if (!orgId) {
             const { data: profile } = await supabase
@@ -196,7 +202,7 @@ export async function getAuthenticatedContext() {
             .maybeSingle()
 
         if (memError || !membership) {
-            throw new Error('Not a member of this organization')
+            throw new ForbiddenError('No perteneces a esta organización')
         }
 
         const orgIdValue = orgId as string
@@ -206,7 +212,7 @@ export async function getAuthenticatedContext() {
             membership,
             role: membership.role as OrgRole,
         }
-        await setCachedAuthContext(user.id, context)
+        await setCachedAuthContext(user.id, context, { cacheAsDefault: !orgHint })
 
         return {
             supabase,

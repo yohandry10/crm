@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, Lock, User, Building2, AlertCircle, ArrowRight, Loader2, CheckCircle, Shield } from "lucide-react"
 import { getClientAppBaseUrl } from "@/lib/client-app-url"
+import { validateAuthPassword } from "@/lib/auth-password-policy"
 
 interface Invitation {
   id: string
@@ -116,8 +117,9 @@ export default function SignupPage() {
     setError("")
     setRequiresLoginToAccept(false)
 
-    if (formData.password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres")
+    const passwordError = validateAuthPassword(formData.password)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
     if (formData.password !== formData.confirmPassword) {
@@ -159,18 +161,11 @@ export default function SignupPage() {
         return
       }
 
-      if (authData.user) {
-        // Create profile
-        const { error: profileError } = await supabase.from("profiles").upsert({
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.fullName,
-          current_organization_id: invitation?.organization_id || null,
+      if (authData.session) {
+        await fetch("/api/auth/bootstrap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
         })
-
-        if (profileError) {
-          console.error("Error creating profile on signup:", profileError)
-        }
       }
 
       if (inviteToken) {
@@ -299,12 +294,13 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nombre completo</label>
+              <label htmlFor="signup-full-name" className="block text-sm font-medium text-gray-700 mb-2">Nombre completo</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  id="signup-full-name"
                   type="text"
                   name="fullName"
                   value={formData.fullName}
@@ -318,10 +314,11 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label htmlFor="signup-email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  id="signup-email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -336,11 +333,12 @@ export default function SignupPage() {
 
             {!invitation && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Empresa (opcional)</label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
+                  <label htmlFor="signup-company-name" className="block text-sm font-medium text-gray-700 mb-2">Empresa (opcional)</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="signup-company-name"
+                      type="text"
                     name="companyName"
                     value={formData.companyName}
                     onChange={handleChange}
@@ -353,28 +351,30 @@ export default function SignupPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+              <label htmlFor="signup-password" className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  id="signup-password"
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   required
-                  minLength={8}
+                  minLength={10}
                   disabled={loading}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirmar contraseña</label>
+              <label htmlFor="signup-confirm-password" className="block text-sm font-medium text-gray-700 mb-2">Confirmar contraseña</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  id="signup-confirm-password"
                   type="password"
                   name="confirmPassword"
                   value={formData.confirmPassword}

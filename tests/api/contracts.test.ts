@@ -32,6 +32,10 @@ vi.mock('@/lib/events', () => ({
   processWebhookEvents: vi.fn(),
 }))
 
+vi.mock('@/lib/role-permissions', () => ({
+  requireRolePermission: vi.fn(),
+}))
+
 describe('API contracts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -95,6 +99,7 @@ describe('API contracts', () => {
       },
       user: { id: 'user-123' },
       organizationId: 'org-123',
+      role: 'owner',
     } as any)
 
     vi.mocked(addWorkflowJob).mockResolvedValue({ id: 'job-123' } as any)
@@ -278,6 +283,7 @@ describe('API contracts', () => {
       },
       user: { id: 'user-123' },
       organizationId: 'org-123',
+      role: 'owner',
     } as any)
 
     const { GET } = await import('@/app/api/integrations/route')
@@ -607,6 +613,16 @@ describe('API contracts', () => {
     expect(middleware).toContain("'/api/calendar/booking'")
     expect(middleware).toContain("'/api/public/forms'")
     expect(csrf).toContain('"/api/pay"')
+  })
+
+  it('keeps authenticated webhook management out of token CSRF while enforcing Origin checks', () => {
+    const middleware = readFileSync('middleware.ts', 'utf8')
+    const csrf = readFileSync('middleware-csrf.ts', 'utf8')
+
+    expect(middleware).toContain("'/api/webhooks'")
+    expect(csrf).toContain('"/api/webhooks"')
+    expect(csrf).toContain('PUBLIC_MUTATION_PATHS')
+    expect(csrf).toContain('return rejectInvalidOrigin(request)')
   })
 
   it('checks onboarding against the active organization instead of an arbitrary membership', () => {
@@ -1013,5 +1029,37 @@ describe('API contracts', () => {
     expect(exportRoute).toContain('exportFormatSchema.safeParse')
     expect(exportRoute).toContain('safeFilename')
     expect(exportRoute).toContain('rows: z.array(z.record(z.any())).max(5000)')
+  })
+
+  it('keeps authentication flows hardened against common account attacks', () => {
+    const loginPage = readFileSync('app/login/page.tsx', 'utf8')
+    const forgotPage = readFileSync('app/forgot-password/page.tsx', 'utf8')
+    const resetPage = readFileSync('app/reset-password/page.tsx', 'utf8')
+    const profilePage = readFileSync('app/profile/page.tsx', 'utf8')
+    const loginRoute = readFileSync('app/api/auth/login/route.ts', 'utf8')
+    const forgotRoute = readFileSync('app/api/auth/forgot-password/route.ts', 'utf8')
+    const changePasswordRoute = readFileSync('app/api/auth/change-password/route.ts', 'utf8')
+    const passwordPolicy = readFileSync('lib/auth-password-policy.ts', 'utf8')
+
+    expect(loginPage).toContain('sanitizeAuthRedirect')
+    expect(loginPage).not.toContain('searchParams?.get("redirect") || "/dashboard"')
+    expect(loginRoute).toContain('checkAuthRateLimit')
+    expect(loginRoute).toContain('recordFailedLogin')
+    expect(loginRoute).toContain('clearLoginAttempts')
+    expect(loginRoute).toContain('X-Session-Regenerated')
+    expect(forgotPage).toContain('/api/auth/forgot-password')
+    expect(forgotPage).not.toContain('resetPasswordForEmail')
+    expect(forgotRoute).toContain('FORGOT_PASSWORD_LIMIT')
+    expect(forgotRoute).toContain('resetPasswordForEmail')
+    expect(forgotRoute).toContain('Si el email existe')
+    expect(resetPage).toContain('validateAuthPassword')
+    expect(changePasswordRoute).toContain('validateAuthPassword')
+    expect(changePasswordRoute).toContain('signInWithPassword')
+    expect(changePasswordRoute).toContain('persistSession: false')
+    expect(profilePage).toContain('id="current-password"')
+    expect(profilePage).toContain('/api/auth/change-password')
+    expect(profilePage).not.toContain('supabase.auth.updateUser({\n        password: passwords.new')
+    expect(passwordPolicy).toContain('sanitizeAuthRedirect')
+    expect(passwordPolicy).toContain('startsWith("//")')
   })
 })

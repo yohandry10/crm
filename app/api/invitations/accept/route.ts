@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server"
 import { createSupabaseRouteHandler } from "@/lib/supabase-server"
+import { z } from "zod"
+
+const acceptInvitationSchema = z.object({
+  token: z.string().trim().min(32).max(128).regex(/^[A-Za-z0-9_-]+$/),
+})
 
 export async function POST(request: Request) {
   try {
@@ -9,13 +14,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const body = await request.json().catch(() => null)
-    const token = body?.token
-    if (!token || typeof token !== "string") {
-      return NextResponse.json({ error: "Missing token" }, { status: 400 })
+    const parsed = acceptInvitationSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invitación inválida" }, { status: 400 })
     }
 
-    const { data, error } = await supabase.rpc("accept_organization_invitation", { p_token: token })
+    const { data, error } = await supabase.rpc("accept_organization_invitation", { p_token: parsed.data.token })
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
@@ -29,4 +33,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
 }
-

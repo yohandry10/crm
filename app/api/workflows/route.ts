@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 export async function GET(request: NextRequest) {
@@ -43,12 +44,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: unknown = undefined
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "workflows", "can_create")
+        requestBody = await request.json()
+        const body = requestBody
 
         const validation = workflowSchema.safeParse(body)
         if (!validation.success) {
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/workflows", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/workflows", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

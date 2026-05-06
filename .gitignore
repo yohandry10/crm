@@ -34,6 +34,7 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 /tests/e2e/.auth/
+.codex-dev*.log
 
 # Sentry Config File
 .env.sentry-build-plugin

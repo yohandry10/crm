@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createRequestLogger } from '@/lib/logger'
 import { ensureUserBootstrap } from '@/lib/auth-bootstrap'
+import { sanitizeAuthRedirect } from '@/lib/auth-password-policy'
 
 export async function GET(request: NextRequest) {
     const log = createRequestLogger(request)
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
-    const redirect = requestUrl.searchParams.get('redirect') || '/dashboard'
+    const redirect = sanitizeAuthRedirect(requestUrl.searchParams.get('redirect'), '/dashboard')
     const error = requestUrl.searchParams.get('error')
     const errorDescription = requestUrl.searchParams.get('error_description')
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
                     email: session.user.email,
                     fullName,
                     avatarUrl,
-                    createOrganizationIfMissing: !invitationToken,
+                    createOrganizationIfMissing: false,
                 })
             } catch (bootstrapError) {
                 log.error('Error bootstrapping user after OAuth', bootstrapError)
@@ -89,14 +90,14 @@ export async function GET(request: NextRequest) {
             }
 
             try {
-                // 2) Final reconciliation: if invitation failed or user still has no org,
-                // create a personal workspace to avoid broken sessions.
+                // 2) Final reconciliation: keep profile aligned after invitation handling.
+                // Organizations are provisioned by platform admins, not by self-service signup.
                 await ensureUserBootstrap({
                     userId: session.user.id,
                     email: session.user.email,
                     fullName,
                     avatarUrl,
-                    createOrganizationIfMissing: true,
+                    createOrganizationIfMissing: false,
                 })
             } catch (bootstrapError) {
                 log.error('Error reconciling user bootstrap after OAuth', bootstrapError)

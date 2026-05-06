@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
 import { encryptSecret, decryptSecret } from "@/lib/encryption"
@@ -52,7 +52,11 @@ const settingsSchema = z.object({
 export async function GET(_request: NextRequest) {
     try {
         const log = createRequestLogger(_request)
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden ver configuración sensible")
+        }
 
         // Get all organization data (now includes settings)
         const { data: org, error } = await supabase
@@ -121,7 +125,11 @@ export async function GET(_request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const log = createRequestLogger(request)
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden modificar configuración")
+        }
         const body = await request.json()
 
         const validation = settingsSchema.safeParse(body)

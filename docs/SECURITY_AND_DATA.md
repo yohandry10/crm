@@ -1,161 +1,149 @@
 # Seguridad y datos
 
-Este documento lista riesgos de datos y seguridad que deben resolverse antes de declarar produccion.
+Actualizado: 2026-05-06.
 
-## Riesgos criticos
+Este documento resume el estado actual de seguridad, datos y aislamiento tenant despues de la auditoria de produccion local. Ya no lista migraciones 095-112 como pendientes: fueron aplicadas/registradas en la base Supabase objetivo y verificadas con `pnpm production:verify-db`.
 
-### Secretos descifrados en vistas
+## Estado verificado
 
-`supabase/migrations/080_encrypt_credentials.sql` crea `organizations_decrypted` y concedia `SELECT` a `authenticated`. Esa vista descifra credenciales SUNAT/OSE y datos bancarios.
+- `pnpm production:verify-db`: 0 failures, 109 checks.
+- `pnpm production:check`: 0 failures, 0 warnings.
+- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes para el codigo actual.
+- Migrations objetivo requeridas por preflight: 094-112.
+- RLS verificado en tablas sensibles usadas por el CRM.
+- Roles de organizacion vigentes: `owner`, `admin`, `manager`, `member`, `viewer`.
 
-Estado actual:
+## Contrato multi-tenant
 
-- `supabase/migrations/095_security_definer_hardening.sql` revoca `SELECT` a `PUBLIC`/`authenticated` y deja la vista solo para `service_role`.
-- Sigue pendiente aplicar y validar esa migracion en cada base objetivo.
+El negocio es SaaS B2B:
 
-Accion esperada:
+- El superadmin/platform admin vende y provisiona organizaciones.
+- Cada organizacion es un tenant.
+- Usuarios regulares operan solo dentro de organizaciones donde tienen membership activa.
+- Signup, login, OAuth callback y bootstrap no crean organizaciones automaticamente.
+- `/api/organizations POST` esta bloqueado para usuarios regulares; la creacion de tenants queda en rutas de plataforma como `/api/admin/organizations`.
+- `x-organization-id` solo puede seleccionar organizaciones donde el usuario es miembro activo.
+- Una solicitud con `x-organization-id` ya no contamina el cache de organizacion por defecto del usuario multi-tenant.
 
-- Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted`.
-- Reemplazar la vista de compatibilidad por RPCs minimas con validacion explicita de membership/rol y columnas estrictas si la app necesita leer secretos descifrados.
+## Secretos descifrados
 
-### Funciones SECURITY DEFINER
+`organizations_decrypted` fue endurecida:
 
-Hay funciones SQL sensibles con `SECURITY DEFINER` que deben validar tenant internamente o limitar grants.
-
-Revisar:
-
-- `supabase/migrations/050_decrement_stock_function.sql`
-- `supabase/migrations/047_check_quote_stock.sql`
-- `supabase/migrations/084_quotes_payments_hardening.sql`
-- `supabase/migrations/064_public_payment_tokens.sql`
-- `supabase/migrations/080_encrypt_credentials.sql`
-- RPCs expuestas por app: `search_contacts`, `get_or_create_conversation`, `add_ai_message`, `check_subscription_status`, `check_plan_limits`, `get_workflow_execution_logs`.
-
-Accion esperada:
-
-- Aplicar y validar `095_security_definer_hardening.sql`.
-- Aplicar y validar `097_security_definer_rpc_hardening.sql`.
-- Aplicar y validar `098_atomic_public_booking.sql`.
-- Aplicar y validar `099_public_payment_tokens_hardening.sql`.
-- Aplicar y validar `100_revenue_inventory_consistency.sql`.
-- Aplicar `101_production_readiness_verification_rpc.sql` y ejecutar `pnpm production:verify-db` contra la base objetivo.
-- Alternativa manual: ejecutar `supabase/verification/production-readiness.sql` en la base objetivo despues de aplicar migraciones.
-- Mantener `REVOKE EXECUTE FROM PUBLIC` donde aplique.
-- No conceder a `authenticated` si la funcion no verifica membership.
-- Agregar checks con `auth.uid()` y membership/role en cualquier nueva RPC.
-- Fijar `search_path` en funciones `SECURITY DEFINER`.
-
-### Idempotencia de pagos
-
-La idempotencia por `(organization_id, gateway, transaction_id)` debe estar respaldada por indice unico, no solo por `SELECT` previo.
-
-Estado actual:
-
-- `POST /api/payments` usa la RPC `record_payment_atomic` para validar membership, bloquear la factura con `FOR UPDATE`, verificar saldo, aplicar idempotencia e insertar el pago en una sola transaccion.
-- Se agrego indice unico parcial por `(organization_id, gateway, transaction_id)` cuando `transaction_id IS NOT NULL`.
-- El trigger de invoices se corrigio para marcar `paid` solo cuando la suma de pagos completados cubre el total.
-- La aprobacion manual de pagos pendientes bloquea sobrepago con el saldo observado.
-- La migracion debe validarse contra datos existentes porque duplicados historicos de `(organization_id, gateway, transaction_id)` pueden impedir crear el indice unico.
-
-Accion esperada:
-
-- Preflight/limpieza de duplicados antes de aplicar la migracion en entornos con datos reales.
-- Tests de concurrencia o doble webhook contra la RPC.
-- Aplicar `104_remove_legacy_stripe_artifacts.sql` para que el esquema final no conserve artefactos heredados de Stripe.
-- Las rutas activas de Stripe fueron eliminadas; pagos nuevos deben usar Culqi/PagoEfectivo o confirmacion manual.
-- Payment links ya se crean por RPC `generate_payment_token`, que valida membership, tenant del recurso y exactamente un recurso.
-- La migracion 099 impide insercion/borrado directo de payment tokens desde clientes autenticados y limita update a desactivacion.
-
-### Tenant isolation
-
-Riesgos a revisar:
-
-- Header `x-organization-id` se lee en app, pero funciones SQL usan `current_setting('app.current_organization_id')`.
-- Service role en workflows puede saltarse RLS.
-- Se elimino el endpoint de automatizacion externa que aceptaba tenant desde el body.
-- Algunas actualizaciones de workflow filtran por `id` sin `organization_id`.
-- Policies con `WITH CHECK (true)` deben justificarse o restringirse.
-
-Mitigaciones aplicadas:
-
-- Platform admin ya no depende de un UUID hardcodeado en codigo.
-- `PATCH /api/opportunities/[id]` usa allowlist estricta y valida `stage_id`/`contact_id` contra `organization_id`.
-- `GET /api/cron/process-workflows` valida `CRON_SECRET` antes de procesar jobs.
-- Los endpoints `/api/cron/*` usan validacion centralizada de `CRON_SECRET` y fallan cerrado si no esta configurado.
-- Los cron de mantenimiento usan service role solo despues de validar `CRON_SECRET`.
-- Onboarding, admin organizations/users, team invite y subscription checkout/cancel validan entrada con Zod antes de usar service role.
-- Esos endpoints usan `createSupabaseServiceClient` en vez de clientes service-role ad hoc.
-- Pagos manuales usan RPC transaccional con validacion de tenant, saldo e idempotencia.
-- Workflow executor filtra updates de contactos por `organization_id` y valida contactos/usuarios antes de acciones con service role.
-- Forms por id filtra `GET/PUT/DELETE` por `organization_id`.
-- Public forms y booking requieren allowlist CORS en produccion.
-- GET/POST/OPTIONS de public forms fallan cerrado en produccion si no hay allowlist.
-- Public forms valida campos enviados contra la definicion del formulario.
-- Forms privados validan campos/theme/emails/redirect y usuario asignado antes de escribir configuraciones del tenant.
-- Public forms sanitiza errores de backend y conserva el origen permitido en respuestas de error.
-- Booking publico valida slot contra reglas de agenda antes de crear eventos.
-- Booking publico crea la reserva por RPC `book_public_calendar_slot`, con lock transaccional por owner/dia y revalidacion de overlaps.
-- Calendario usa `calendar_events` como tabla canonica y valida contacto/oportunidad contra el tenant antes de escribir eventos manuales.
-- Public pay valida formato de token, body del comprobante y CORS de produccion antes de usar service role.
-- Public pay exige URL HTTPS para comprobantes en produccion.
-- Form submissions por id verifican ownership del formulario y filtran submissions por `organization_id`.
-- Webhooks salientes usan validacion SSRF compartida antes de `fetch`: protocolo HTTP(S), bloqueo de localhost/metadata, IPs privadas/reservadas y DNS que resuelve a rangos internos.
+- La migracion 095 revoca `SELECT` para `PUBLIC` y `authenticated`.
+- La vista queda solo para `service_role`.
+- La verificacion de produccion confirma que clientes autenticados no dependen de esa vista.
 - Integrations devuelve configuracion redactada y no expone `config_encrypted`.
-- Quotes validan contacto, oportunidad y productos contra `organization_id` antes de insertar items.
-- Sales orders validan cuenta, contacto, oportunidad y productos antes de insertar/actualizar y antes de descontar stock al completar.
-- Tasks validan contacto, workflow y usuario asignado contra el tenant antes de crear/actualizar, incluyendo bulk updates.
-- Tickets validan cuenta, contacto y usuario asignado contra el tenant antes de crear/actualizar, incluyendo bulk updates.
-- Inbox valida contacto/canal al crear conversaciones y verifica que la conversacion pertenezca a la organizacion antes de leer o escribir mensajes.
-- Notificaciones privadas se leen/marcan por `organization_id` + `user_id`; notificaciones de sistema se limitan a la organizacion activa.
-- Eventos que insertan notificaciones incluyen `organization_id` y usan roles reales del enum (`owner/admin/manager`).
-- Reports usa contrato compartido para entidades, metricas, agrupaciones y filtros antes de ejecutar/guardar/exportar reportes.
-- Analytics advanced no devuelve placeholders; responde `501` hasta conectarse a datos reales.
-- Analytics aggregated ya no depende de RPCs no versionadas y consulta datos filtrados por `organization_id`.
-- Facturas creadas por RPC validan `auth.uid()`, membership, contacto y productos del tenant antes de insertar `invoice_items` o generar `inventory_movements`.
-- La migracion 095 endurece el primer bloque de funciones `SECURITY DEFINER`: stock, quote stock, tokens publicos, reconciliacion, cifrado y helpers de credenciales.
-- La migracion 097 endurece RPCs expuestas con `SECURITY DEFINER`: tenant helpers, busqueda de contactos, chat IA, suscripciones, limites de plan, logs de workflows, cron/forms/webhooks server-only.
-- La migracion 100 alinea contratos revenue-inventory y reemplaza `create_invoice_with_items_atomic` con validacion interna de tenant.
-- `organizations_decrypted` queda sin `SELECT` para `authenticated` en la migracion 095.
 
-Riesgos pendientes de endpoint:
+Regla vigente:
 
-- Booking publico requiere aplicar y validar la migracion 098 en cada base objetivo.
-- Payment tokens requieren aplicar y validar la migracion 099 en cada base objetivo.
-- Revenue/inventory requiere aplicar y validar la migracion 100 en cada base objetivo.
-- Webhooks con service role deben limitarse a proveedores activos y con verificacion propia.
-- Webhooks salientes podrian requerir allowlist por tenant/dominio si el despliegue exige una politica mas estricta que el bloqueo SSRF general.
-- Endpoints auxiliares de integrations deben revisarse para confirmar redaccion en todos los flujos.
-- `system_notifications` globales no tienen estado de lectura por usuario; si se requiere lectura individual hace falta tabla puente o duplicacion por usuario.
-- Falta ejecutar pruebas SQL reales de las migraciones 095, 097 y 098 con usuarios de distintas organizaciones y concurrencia.
+- Nuevas lecturas de secretos descifrados deben exponerse solo mediante RPC/ruta server-side minima, con validacion explicita de tenant, rol y columnas estrictas.
+- No se deben loggear secretos ni credenciales.
 
-### Cifrado
+## SECURITY DEFINER y RPC
 
-Hay dos estrategias documentadas/implementadas:
+Las migraciones 095, 097, 098, 099, 100, 101, 109, 110, 111 y 112 endurecen funciones sensibles, grants, vistas, triggers y verificacion de produccion.
 
-- App: `lib/encryption.ts`, formato `iv:ciphertext`.
-- DB: `pgcrypto` en migraciones.
+Estado actual:
 
-Accion esperada:
+- RPC sensibles de cifrado, credenciales, pagos atomicos, inventario y reconciliacion no son ejecutables por `anon` ni `public`.
+- Funciones `SECURITY DEFINER` publicas verificadas tienen `search_path` definido.
+- Funciones expuestas a clientes deben validar `auth.uid()`, membership y tenant internamente.
+- Las rutas que necesitan service role usan `createSupabaseServiceClient` despues de autorizacion de aplicacion.
 
-- Elegir una estrategia canonica.
-- No devolver texto original silenciosamente si falla decrypt.
-- Redactar secretos en logs.
-- Probar cifrado, migracion y rollback.
+Reglas para nuevas funciones:
 
-### Logging sensible
+- Fijar `search_path`.
+- Revocar `EXECUTE FROM PUBLIC` por defecto.
+- Conceder a `authenticated` solo si la funcion valida tenant y rol por dentro.
+- No confiar en `organization_id` recibido desde body cuando la accion es autenticada.
 
-`withApiMiddleware` puede registrar cuerpos de requests. En pagos, integraciones, webhooks o credenciales esto puede filtrar secretos.
+## Pagos e ingresos
 
-Accion esperada:
+Stripe no se usa en el producto activo. El billing esta configurado como `manual`; Culqi/PagoEfectivo quedan pendientes de credenciales reales.
 
-- Redactar campos sensibles.
+Estado actual:
+
+- Rutas activas de Stripe eliminadas.
+- Artefactos legacy de Stripe removidos por migracion.
+- `POST /api/payments` usa `record_payment_atomic` para validar membership, bloquear factura con `FOR UPDATE`, verificar saldo, aplicar idempotencia e insertar pago en una transaccion.
+- Existe indice unico parcial para `(organization_id, gateway, transaction_id)` cuando `transaction_id IS NOT NULL`.
+- `payments.idempotency_key` existe en la base objetivo.
+- La aprobacion manual bloquea sobrepago con saldo observado.
+- Payment links se crean por RPC `generate_payment_token`, validando membership, tenant del recurso y exactamente un recurso.
+- Tokens publicos fueron endurecidos para impedir insercion/borrado directo desde clientes autenticados.
+
+Pendiente externo:
+
+- Conectar credenciales reales de Culqi/PagoEfectivo y ejecutar smoke de pasarela real cuando existan.
+
+## Endpoints publicos
+
+Estado actual:
+
+- Public forms requiere allowlist CORS en produccion y falla cerrado si no existe.
+- Public forms valida campos enviados contra la definicion del formulario.
+- Booking publico usa RPC `book_public_calendar_slot`, lock transaccional por owner/dia y revalidacion de overlaps.
+- Public pay valida formato de token, body de comprobante y CORS.
+- En produccion, comprobantes publicos exigen URL HTTPS.
+- Webhooks salientes usan validacion SSRF compartida: protocolo HTTP(S), bloqueo localhost/metadata, IPs privadas/reservadas y DNS que resuelve a rangos internos.
+
+Riesgo residual aceptado/documentado:
+
+- Webhooks salientes podrian requerir allowlist por tenant/dominio si se vende a clientes con politica mas estricta que bloqueo SSRF general.
+- Public forms puede necesitar antispam/rate limit mas fuerte cuando haya trafico real.
+
+## Service role y plataforma
+
+Estado actual:
+
+- Rutas de plataforma usan `requirePlatformAdmin`.
+- Usuarios de organizacion, incluso `owner/admin`, no pueden entrar ni mutar APIs `/api/admin`.
+- Webhooks/cron/service role validan secretos o autorizacion antes de usar privilegios elevados.
+- `webhook_events` no acepta inserts anonimos; usuarios autenticados solo insertan eventos dentro de su organizacion.
+- `organizations` no acepta inserts directos de `anon/authenticated`.
+- `user_settings` existe con RLS de usuario propietario.
+
+Regla vigente:
+
+- El service role solo debe aparecer despues de una autorizacion de aplicacion verificable, nunca como sustituto de RLS en rutas de usuario.
+
+## Cifrado y logging
+
+Estado actual:
+
+- App: `lib/encryption.ts`.
+- DB: `pgcrypto` en migraciones historicas.
+- Logging de cuerpos con secretos fue reducido/sanitizado en rutas auditadas.
+
+Reglas vigentes:
+
+- Redactar secretos, tokens, passwords, comprobantes y config sensible.
 - No loggear bodies completos por defecto.
-- Agregar allowlist de campos seguros.
+- Nuevas integraciones deben definir claramente si cifran en app o DB y documentar rollback/migracion.
 
-## Checks recomendados
+## Riesgos pendientes reales
 
-- Test SQL de RLS con usuarios de distintas organizaciones.
-- Test de funciones RPC con usuario sin membership.
-- Test de pagos duplicados.
-- Test de workflow con payload malicioso.
-- Test de logs sin secretos.
+Estos puntos no bloquean el estado local verificado, pero si bloquean afirmar produccion remota completamente cerrada:
+
+- Commit, push y deploy en Vercel production.
+- Ejecutar CI/pipeline remoto con la misma suite.
+- Smoke autenticado contra la URL de produccion despues del deploy.
+- Confirmar Supabase Auth Site URL y Redirect URLs del dominio final.
+- Configurar worker persistente si se promete workflow near-real-time.
+- Activar umbrales de coverage gradualmente en modulos criticos.
+- Probar pasarela real cuando existan credenciales de Culqi/PagoEfectivo.
+
+## Checks recomendados al tocar seguridad
+
+Ejecutar, como minimo:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test -- --reporter=basic
+pnpm production:check
+pnpm production:verify-db
+pnpm test:e2e -- tests/e2e/tenant-provisioning.spec.ts tests/e2e/multi-tenant-isolation.spec.ts tests/e2e/admin-authorization.spec.ts tests/e2e/role-matrix.spec.ts tests/e2e/role-mutation-guards.spec.ts --reporter=line
+pnpm build
+```

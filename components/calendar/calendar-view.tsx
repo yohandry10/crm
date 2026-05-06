@@ -53,7 +53,15 @@ export function CalendarView({
     const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
     const getEventsForDay = (date: Date) => {
-        return events.filter(event => isSameDay(new Date(event.start_time), date))
+        return events
+            .filter(event => isSameDay(new Date(event.start_time), date))
+            .sort((a, b) => {
+                const startDiff = new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+                if (startDiff !== 0) return startDiff
+
+                return new Date(b.created_at || b.updated_at || b.start_time).getTime() -
+                    new Date(a.created_at || a.updated_at || a.start_time).getTime()
+            })
     }
 
     const handleMonthChange = (newDate: Date, dir: number) => {

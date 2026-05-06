@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -40,7 +41,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "invoices", "can_update")
         const { id } = await context.params
         const body = await request.json()
 
@@ -95,7 +97,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "invoices", "can_update")
         const { id } = await context.params
         const body = await request.json()
 
@@ -196,7 +199,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "invoices", "can_delete")
         const { id } = await context.params
 
         const { data: invoice } = await supabase

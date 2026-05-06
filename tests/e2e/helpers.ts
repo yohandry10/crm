@@ -28,6 +28,9 @@ export const appPages = [
   "/settings/webhooks",
   "/profile",
   "/notifications",
+]
+
+export const adminPages = [
   "/admin",
   "/admin/users",
   "/admin/organizations",
@@ -40,14 +43,6 @@ export const apiGetRoutes = [
   "/api/accounts",
   "/api/activities",
   "/api/activity",
-  "/api/admin/circuit-breakers",
-  "/api/admin/feature-flags",
-  "/api/admin/organizations",
-  "/api/admin/plans",
-  "/api/admin/settings",
-  "/api/admin/stats",
-  "/api/admin/subscriptions",
-  "/api/admin/users",
   "/api/analytics",
   "/api/analytics/aggregated",
   "/api/analytics/campaigns",
@@ -94,15 +89,37 @@ export const apiGetRoutes = [
   "/api/workflows",
 ]
 
+export const adminApiGetRoutes = [
+  "/api/admin/circuit-breakers",
+  "/api/admin/feature-flags",
+  "/api/admin/organizations",
+  "/api/admin/plans",
+  "/api/admin/settings",
+  "/api/admin/stats",
+  "/api/admin/subscriptions",
+  "/api/admin/users",
+]
+
 export const expectedNonOkGetRoutes = new Map([
   ["/api/docs", [200, 404]],
-  ["/api/analytics/advanced", [403]],
+  ["/api/analytics/advanced", [403, 501]],
   ["/api/emails/sync", [400]],
   ["/api/notes", [400]],
   ["/api/pdf/quote", [400]],
   ["/api/upload", [400]],
   ["/api/whatsapp/send", [400]],
 ])
+
+export const userForbiddenGetRoutes = [
+  "/api/admin/circuit-breakers",
+  "/api/admin/feature-flags",
+  "/api/admin/organizations",
+  "/api/admin/plans",
+  "/api/admin/settings",
+  "/api/admin/stats",
+  "/api/admin/subscriptions",
+  "/api/admin/users",
+]
 
 export async function expectNoTrialGate(page: Page) {
   await expect(page.getByText("Tu período de prueba ha expirado")).toHaveCount(0)

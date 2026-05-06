@@ -119,24 +119,36 @@ export default function ProfilePage() {
   }
 
   const changePassword = async () => {
-    if (!supabase) return
+    if (!passwords.current) {
+      toast.error("Ingresa tu contraseña actual")
+      return
+    }
+
     if (passwords.new !== passwords.confirm) {
       toast.error("Las contraseñas no coinciden")
       return
     }
 
-    if (passwords.new.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres")
+    if (passwords.new.length < 10) {
+      toast.error("La contraseña debe tener al menos 10 caracteres")
       return
     }
 
     setChangingPassword(true)
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwords.new,
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwords.current,
+          newPassword: passwords.new,
+        }),
       })
+      const json = await response.json()
 
-      if (error) throw error
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Error al cambiar contraseña")
+      }
 
       toast.success("Contraseña actualizada")
       setPasswords({ current: "", new: "", confirm: "" })
@@ -353,13 +365,27 @@ export default function ProfilePage() {
                 <CardContent className="space-y-6 p-8">
                   <div className="grid gap-6 max-w-lg">
                     <div className="space-y-2">
+                      <Label htmlFor="current-password">Contraseña Actual</Label>
+                      <Input
+                        id="current-password"
+                        type="password"
+                        value={passwords.current}
+                        onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
+                        placeholder="Tu contraseña actual"
+                        autoComplete="current-password"
+                        className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-purple-500 focus:ring-purple-500 transition-all dark:text-gray-100"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor="new-password">Nueva Contraseña</Label>
                       <Input
                         id="new-password"
                         type="password"
                         value={passwords.new}
                         onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
-                        placeholder="Mínimo 8 caracteres"
+                        placeholder="Mínimo 10 caracteres"
+                        autoComplete="new-password"
                         className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-purple-500 focus:ring-purple-500 transition-all dark:text-gray-100"
                       />
                     </div>
@@ -372,13 +398,14 @@ export default function ProfilePage() {
                         value={passwords.confirm}
                         onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
                         placeholder="Repite la contraseña"
+                        autoComplete="new-password"
                         className="bg-white/50 dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 focus:border-purple-500 focus:ring-purple-500 transition-all dark:text-gray-100"
                       />
                     </div>
                   </div>
 
                   <div className="flex justify-start pt-4">
-                    <Button onClick={changePassword} disabled={changingPassword || !passwords.new} className="bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20">
+                    <Button onClick={changePassword} disabled={changingPassword || !passwords.current || !passwords.new} className="bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20">
                       {changingPassword && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Actualizar Contraseña
                     </Button>

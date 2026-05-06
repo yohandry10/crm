@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from "@/lib/auth-context"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { validateOpportunityReferences } from "@/lib/work-item-references"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
 
 const opportunityIdsSchema = z.array(z.string().uuid()).min(1, "Se requiere un array de IDs").max(100, "Máximo 100 registros por operación")
@@ -31,10 +32,11 @@ export async function DELETE(request: NextRequest) {
     const rate = await rateLimit(request, RATE_LIMITS.write)
     if (rate) return rate
 
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
     if (!organizationId) {
       return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 })
     }
+    await requireRolePermission(supabase, role, "opportunities", "can_delete")
 
     const { ids } = await request.json()
     const validation = opportunityIdsSchema.safeParse(ids)
@@ -69,10 +71,11 @@ export async function PATCH(request: NextRequest) {
     const rate = await rateLimit(request, RATE_LIMITS.write)
     if (rate) return rate
 
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
     if (!organizationId) {
       return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 })
     }
+    await requireRolePermission(supabase, role, "opportunities", "can_update")
 
     const body = await request.json()
     const validation = opportunityBulkUpdateSchema.safeParse(body)

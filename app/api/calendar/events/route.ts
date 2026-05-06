@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { rateLimit } from "@/lib/rate-limit"
 import { assertCalendarDateRange, hydrateCalendarEventOwners, serializeCalendarEvent, validateCalendarEventReferences } from "@/lib/calendar-events"
 import crypto from "crypto"
@@ -104,7 +105,8 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
     if (rateLimitResponse) return rateLimitResponse
 
-    const { supabase, user, organizationId } = await getAuthenticatedContext()
+    const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+    await requireRolePermission(supabase, role, "tasks", "can_create")
     const body = await request.json()
 
     const validation = eventSchema.safeParse(body)

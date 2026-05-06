@@ -41,6 +41,14 @@ export const REQUIRED_MIGRATIONS = [
   "102_payment_provider_settings.sql",
   "103_target_db_verification_fixes.sql",
   "104_remove_legacy_stripe_artifacts.sql",
+  "105_webhook_secret_nullable.sql",
+  "106_fix_invoice_free_items.sql",
+  "107_add_payment_role_permissions.sql",
+  "108_ensure_payment_idempotency_column.sql",
+  "109_security_hardening_grants_and_rls_audit.sql",
+  "110_security_hardening_views_and_trigger_functions.sql",
+  "111_webhook_events_authenticated_insert_policy.sql",
+  "112_tenant_provisioning_and_schema_alignment.sql",
 ] as const
 
 export const REQUIRED_CRON_PATHS = [

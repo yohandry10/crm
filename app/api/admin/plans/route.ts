@@ -1,26 +1,6 @@
 import { NextResponse } from "next/server"
-import { createAuthenticatedClient } from "@/lib/supabase-auth"
-
-async function requirePlatformAdmin() {
-  const { supabase } = await createAuthenticatedClient()
-  
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) {
-    throw new Error("Unauthorized")
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_platform_admin")
-    .eq("id", user.id)
-    .single()
-
-  if (!profile?.is_platform_admin) {
-    throw new Error("Forbidden: Platform admin required")
-  }
-
-  return { supabase, user }
-}
+import { requirePlatformAdmin } from "@/lib/auth-helpers"
+import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 
 export async function GET() {
   try {
@@ -36,8 +16,9 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
-    const status = error.message === "Unauthorized" ? 401 : 
-                   error.message.includes("Forbidden") ? 403 : 500
-    return NextResponse.json({ success: false, error: error.message }, { status })
+    return NextResponse.json(
+      { success: false, error: sanitizeErrorForClient(error) },
+      { status: getHttpStatusForError(error) }
+    )
   }
 }

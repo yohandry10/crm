@@ -1,49 +1,37 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, AlertCircle, ArrowLeft, Loader2, CheckCircle } from "lucide-react"
-import { getClientAppBaseUrl } from "@/lib/client-app-url"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const supabaseRef = useRef<SupabaseClient | null>(null)
-
-  useEffect(() => {
-    import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {
-      supabaseRef.current = getSupabaseBrowserClient()
-    })
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    const supabase = supabaseRef.current
-    if (!supabase) {
-      setError("Error de conexión")
-      return
-    }
 
     setLoading(true)
     setError("")
 
     try {
-      const resetUrl = new URL("/reset-password", getClientAppBaseUrl())
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: resetUrl.toString(),
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       })
+      const json = await response.json()
 
-      if (error) throw error
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Error al enviar el email")
+      }
       setSuccess(true)
-    } catch {
-      setError("Error al enviar el email")
+    } catch (error: any) {
+      setError(error.message || "Error al enviar el email")
     } finally {
       setLoading(false)
     }

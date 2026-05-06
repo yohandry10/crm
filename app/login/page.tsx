@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { Mail, Lock, AlertCircle, ArrowRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { getClientAppBaseUrl } from "@/lib/client-app-url"
+import { sanitizeAuthRedirect } from "@/lib/auth-password-policy"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const supabaseRef = useRef<SupabaseClient | null>(null)
 
   const searchParams = useSearchParams()
-  const redirect = searchParams?.get("redirect") || "/dashboard"
+  const redirect = sanitizeAuthRedirect(searchParams?.get("redirect"), "/dashboard")
 
   useEffect(() => {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {

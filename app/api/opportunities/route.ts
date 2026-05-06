@@ -4,6 +4,7 @@ import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createRequestLogger } from '@/lib/logger'
+import { requireRolePermission } from '@/lib/role-permissions'
 import { validateOpportunityReferences } from '@/lib/work-item-references'
 import { z } from 'zod'
 import crypto from 'crypto'
@@ -92,7 +93,8 @@ export async function POST(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "opportunities", "can_create")
         const body = await request.json()
 
         log.info("Opportunity create requested", { organizationId, userId: user.id })

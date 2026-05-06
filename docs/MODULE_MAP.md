@@ -10,15 +10,15 @@ Este mapa describe el estado funcional observado desde `app/`, `components/` y `
 | Ventas/revenue | `/quotes`, `/invoicing/*`, `/orders`, `/pay/[token]` | `/api/quotes/*`, `/api/invoices/*`, `/api/orders/*`, `/api/pay/*`, `/api/payments/*`, `/api/payment-links`, `/api/comprobantes` | Riesgo alto en pagos, tokens, idempotencia y PDF/envio. |
 | Catalogo/stock | `/products`, `/inventory` | `/api/products/*`, `/api/inventory/*` | `/inventory` redirige a productos; decidir si mantener API inventory como fachada. |
 | Marketing | `/campaigns`, `/forms`, `/forms/[id]/submissions`, `/f/[slug]` | `/api/campaigns/*`, `/api/forms/*`, `/api/public/forms/*` | Public forms necesitan allowlists, rate limit y antispam. |
-| Calendario | `/calendar`, `/book/[configId]` | `/api/calendar/events/*`, `/api/calendar/booking`, `/api/events/*` legacy | `calendar_events` es canonico; `/api/events` queda como compatibilidad. |
+| Calendario | `/calendar`, `/book/[configId]` | `/api/calendar/events/*`, `/api/calendar/booking`, `/api/events/*` legacy | `calendar_events` es canonico; `/api/events` queda como compatibilidad, sin escribir en tabla legacy. |
 | Soporte/trabajo | `/tasks`, `/tickets`, `/inbox` | `/api/tasks/*`, `/api/tickets/*`, `/api/chat/*`, `/api/notes/*`, `/api/notifications` | Inbox usa chat, no `/api/inbox`; tasks/tickets/inbox ya validan referencias de tenant antes de escribir. |
 | Automatizacion/integraciones | `/workflows`, `/workflows/[id]/builder`, `/integrations`, `/settings/webhooks`, `/ai` | `/api/workflows/*`, `/api/jobs/*`, `/api/integrations/*`, `/api/webhooks/*`, `/api/chat`, `/api/whatsapp/send`, `/api/emails/sync` | Unificar motores workflow y operacion worker. |
-| Organizacion/admin/settings | `/settings/*`, `/admin/*`, `/onboarding` | `/api/settings`, `/api/team/*`, `/api/subscriptions/*`, `/api/organizations/*`, `/api/onboarding/complete` | Alta sensibilidad multi-tenant y platform admin; `/admin/queues` lee estadisticas reales de BullMQ desde Redis. |
+| Organizacion/admin/settings | `/settings/*`, `/admin/*`, `/onboarding` | `/api/settings`, `/api/team/*`, `/api/subscriptions/*`, `/api/organizations/*`, `/api/admin/organizations/*`, `/api/onboarding/complete` | SaaS B2B: tenants se crean desde plataforma/superadmin; `/api/organizations POST` esta bloqueado para usuarios regulares; `/admin/queues` lee estadisticas reales de BullMQ desde Redis. |
 | Operacional | Sin UI directa | `/api/cron/*`, `/api/health`, `/api/upload`, `/api/search`, `/api/docs`, `/api/v1/version` | Cron y diagnostico requieren proteccion y contrato claro. |
 
-## Inconsistencias a resolver
+## Inconsistencias y decisiones vivas
 
-- Existe tabla historica `events`; la UI ya consume `calendar_events` y falta decidir migracion/retiro de datos legacy.
+- Existe tabla historica `events`; la UI/API activa usa `calendar_events`. Queda decidir si se conserva como historico o se retira en una migracion de limpieza.
 - `/api/v1/version` solo expone metadata; los recursos siguen en rutas `/api/*` no versionadas.
 - OpenAPI debe mantenerse sin `/v1` hasta que existan recursos versionados reales.
 - `/sales` redirige a `/pipeline`, mientras la API real es opportunities.

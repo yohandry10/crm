@@ -60,14 +60,13 @@ describe('Multi-Tenant Security', () => {
   })
 
   describe('User Role Permissions', () => {
-    const roles = ['owner', 'admin', 'manager', 'sales', 'support', 'viewer']
-    
+    const roles = ['owner', 'admin', 'manager', 'member', 'viewer']
+
     const permissions = {
       owner: ['read', 'write', 'delete', 'admin', 'billing'],
       admin: ['read', 'write', 'delete', 'admin'],
       manager: ['read', 'write', 'delete'],
-      sales: ['read', 'write'],
-      support: ['read', 'write'],
+      member: ['read', 'write'],
       viewer: ['read'],
     }
 
@@ -96,8 +95,8 @@ describe('Multi-Tenant Security', () => {
       expect(permissions.owner.length).toBeGreaterThan(permissions.admin.length)
       // Admin tiene más permisos que manager
       expect(permissions.admin.length).toBeGreaterThan(permissions.manager.length)
-      // Manager tiene más permisos que sales
-      expect(permissions.manager.length).toBeGreaterThan(permissions.sales.length)
+      // Manager tiene más permisos que member
+      expect(permissions.manager.length).toBeGreaterThan(permissions.member.length)
     })
   })
 

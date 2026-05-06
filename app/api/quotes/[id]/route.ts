@@ -1,8 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
-import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
+import { requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
+import { z } from 'zod'
+
+const quoteStatusSchema = z.enum(['draft', 'sent', 'accepted', 'rejected', 'expired'])
+
+const quoteItemSchema = z.object({
+    product_id: z.preprocess(
+        (val) => (val === '' || val === 'none' ? null : val),
+        z.string().uuid("ID de producto inválido").optional().nullable()
+    ),
+    description: z.string().min(1, "Descripción requerida"),
+    quantity: z.coerce.number().positive("Cantidad debe ser positiva"),
+    unit_price: z.coerce.number().min(0, "Precio no puede ser negativo")
+})
+
+const editableQuoteSchema = z.object({
+    contact_id: z.string().uuid("ID de contacto inválido"),
+    opportunity_id: z.preprocess(
+        (val) => (!val || val === '' || val === 'none' ? null : val),
+        z.string().uuid("ID de oportunidad inválido").optional().nullable()
+    ),
+    valid_until: z.string().optional().nullable().transform(val => (!val || val === '') ? null : val),
+    notes: z.string().max(1000).optional().nullable(),
+    terms: z.string().max(2000).optional().nullable(),
+    items: z.array(quoteItemSchema).min(1, "Se requiere al menos un item")
+})
+
+async function validateQuoteReferences(
+    supabase: any,
+    organizationId: string,
+    contactId: string,
+    opportunityId: string | null,
+    items: Array<{ product_id?: string | null }>
+) {
+    const { data: contact, error: contactError } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('id', contactId)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+
+    if (contactError) throw contactError
+    if (!contact) throw new ValidationError("El contacto seleccionado no existe o no pertenece a tu organización")
+
+    if (opportunityId) {
+        const { data: opportunity, error: opportunityError } = await supabase
+            .from('opportunities')
+            .select('id')
+            .eq('id', opportunityId)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+        if (opportunityError) throw opportunityError
+        if (!opportunity) throw new ValidationError("La oportunidad seleccionada no existe o no pertenece a tu organización")
+    }
+
+    const productIds = [...new Set(items.map((item) => item.product_id).filter(Boolean))] as string[]
+    if (productIds.length === 0) return
+
+    const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .in('id', productIds)
+
+    if (productsError) throw productsError
+    if ((products || []).length !== productIds.length) {
+        throw new ValidationError("Uno o más productos no existen o no pertenecen a tu organización")
+    }
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -42,23 +112,91 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let requestBody: any
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "quotes", "can_update")
         const { id } = await params
         requestBody = await request.json()
-
-        const { status } = requestBody
 
         // Get current quote status
         const { data: currentQuote, error: fetchError } = await supabase
             .from('quotes')
-            .select('status, contact_id, notes')
+            .select('status, contact_id, notes, invoice_id')
             .eq('id', id)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchError) throw fetchError
 
-        // Check if status is changing to 'accepted'
+        const hasEditablePayload = Array.isArray(requestBody?.items)
+
+        if (hasEditablePayload) {
+            if (currentQuote.invoice_id || ['converted', 'paid'].includes(currentQuote.status)) {
+                throw new ValidationError("No se puede editar una cotización ya facturada o pagada")
+            }
+
+            const validation = editableQuoteSchema.safeParse(requestBody)
+            if (!validation.success) {
+                throw new ValidationError("Datos inválidos", validation.error.format())
+            }
+
+            const { contact_id, opportunity_id, valid_until, notes, terms, items } = validation.data
+            await validateQuoteReferences(supabase, organizationId, contact_id, opportunity_id ?? null, items)
+
+            const total_amount = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price)), 0)
+
+            const { data, error } = await supabase
+                .from('quotes')
+                .update({
+                    contact_id,
+                    opportunity_id: opportunity_id ?? null,
+                    valid_until,
+                    notes,
+                    terms,
+                    total_amount,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .eq('organization_id', organizationId)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            const { error: deleteItemsError } = await supabase
+                .from('quote_items')
+                .delete()
+                .eq('quote_id', id)
+
+            if (deleteItemsError) throw deleteItemsError
+
+            const itemsWithQuoteId = items.map((item) => ({
+                quote_id: id,
+                description: item.description,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total: Number(item.quantity) * Number(item.unit_price),
+                product_id: item.product_id || null,
+            }))
+
+            const { error: insertItemsError } = await supabase.from('quote_items').insert(itemsWithQuoteId)
+            if (insertItemsError) throw insertItemsError
+
+            return NextResponse.json({ success: true, data })
+        }
+
+        if (['converted', 'paid'].includes(requestBody?.status)) {
+            throw new ValidationError("Usa el flujo de facturación o pagos para cambiar a ese estado")
+        }
+
+        const statusValidation = quoteStatusSchema.safeParse(requestBody?.status)
+        if (!statusValidation.success) {
+            throw new ValidationError("Estado de cotización inválido")
+        }
+
+        const status = statusValidation.data
+
+        // Accepting a quote validates stock, but does not create an invoice.
+        // Billing is an explicit action through /api/quotes/[id]/convert.
         if (status === 'accepted' && currentQuote.status !== 'accepted') {
             // Fetch quote items
             const { data: quoteItems, error: itemsError } = await supabase
@@ -92,53 +230,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         }, { status: 400 })
                     }
                 }
-
-                // Map quote items to invoice items
-                const invoiceItems = quoteItems.map(item => ({
-                    product_id: item.product_id || null,
-                    description: item.description,
-                    quantity: item.quantity,
-                    unit_price: item.unit_price
-                }))
-
-                // Create invoice using atomic RPC - MULTI-TENANT
-                const { data: invoiceData, error: invoiceError } = await supabase
-                    .rpc('create_invoice_with_items_atomic', {
-                        p_org_id: organizationId,
-                        p_user_id: user.id,
-                        p_contact_id: currentQuote.contact_id,
-                        p_items: invoiceItems,
-                        p_due_date: null,
-                        p_notes: `Creado desde cotización: ${currentQuote.notes || ''}`
-                    })
-                    .single()
-
-                if (invoiceError) {
-                    console.error("Error creating invoice from quote:", invoiceError)
-                    throw new Error(`Error creating invoice: ${invoiceError.message}`)
-                }
-
-                // Update quote with new status AND invoice_id
-                const { data, error } = await supabase
-                    .from('quotes')
-                    .update({
-                        status,
-                        invoice_id: (invoiceData as any).invoice_id
-                    })
-                    .eq('id', id)
-                    .eq('organization_id', organizationId)
-                    .select()
-                    .single()
-
-                if (error) throw error
-                return NextResponse.json({ success: true, data })
             }
         }
 
-        // Normal update if not accepted or no items
         const { data, error } = await supabase
             .from('quotes')
-            .update({ status })
+            .update({ status, updated_at: new Date().toISOString() })
             .eq('id', id)
             .eq('organization_id', organizationId)
             .select()
@@ -165,7 +262,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "quotes", "can_delete")
         const { id } = await params
 
         const { error } = await supabase

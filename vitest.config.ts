@@ -9,7 +9,7 @@ export default defineConfig({
     exclude: ['node_modules', '.next', '.next-build', 'tests/e2e/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'json-summary', 'html', 'lcov'],
       reportsDirectory: './coverage',
       exclude: [
         'node_modules',
@@ -25,8 +25,14 @@ export default defineConfig({
         'scripts/**', // Scripts de deploy
         'docs/**',
       ],
-      // Coverage is reported in CI, but not gated yet. The current baseline is
-      // low and must be raised by module before enabling hard thresholds.
+      thresholds: {
+        statements: 5,
+        branches: 27,
+        functions: 13,
+        lines: 5,
+      },
+      // This is a conservative baseline gate. Raise it module by module as
+      // critical API/auth/tenant coverage increases.
     },
     setupFiles: ['./tests/setup.ts'],
   },

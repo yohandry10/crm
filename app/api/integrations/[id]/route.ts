@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { decryptJSON, encryptJSON } from "@/lib/encryption"
 import { createRequestLogger } from "@/lib/logger"
@@ -56,7 +56,11 @@ export async function GET(
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden ver integraciones")
+        }
 
         const { data, error } = await supabase
             .from("integrations")
@@ -97,14 +101,21 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const log = createRequestLogger(request)
+    let requestBody: unknown
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden gestionar integraciones")
+        }
+
         const body = await request.json()
+        requestBody = body
 
         // ✅ Validación con Zod
         const validation = updateIntegrationSchema.safeParse(body)
@@ -203,7 +214,7 @@ export async function PUT(
             endpoint: `/api/integrations/[id]`,
             method: "PUT",
             error,
-            requestBody: await request.clone().json().catch(() => undefined),
+            requestBody,
         })
         return NextResponse.json(
             { success: false, error: sanitizeErrorForClient(error) }, 
@@ -223,7 +234,11 @@ export async function DELETE(
 
         const { id } = await params
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden gestionar integraciones")
+        }
 
         // Get old data for audit
         const { data: oldData } = await supabase

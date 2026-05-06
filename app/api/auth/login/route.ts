@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
                 email: data.user.email,
                 fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null,
                 avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null,
-                createOrganizationIfMissing: true,
+                createOrganizationIfMissing: false,
             })
         } catch (bootstrapError) {
             log.error('Login bootstrap failed', bootstrapError)

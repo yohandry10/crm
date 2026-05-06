@@ -5,6 +5,7 @@ import { sanitizeErrorForClient, getHttpStatusForError, NotFoundError, Validatio
 import { taskSchema } from '@/lib/schemas'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { validateTaskReferences } from '@/lib/work-item-references'
+import { requireRolePermission } from '@/lib/role-permissions'
 import crypto from 'crypto'
 
 const updateTaskSchema = taskSchema.partial()
@@ -52,7 +53,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tasks", "can_update")
         const { id } = await params
         const body = await request.json()
 
@@ -101,7 +103,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         if (rate) return rate
 
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tasks", "can_delete")
         const { id } = await params
 
         const { error } = await supabase

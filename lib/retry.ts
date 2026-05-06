@@ -154,10 +154,16 @@ export async function trackRetryAttempt(
     error: Error
 ): Promise<void> {
     try {
+        const { data: current } = await supabase
+            .from(tableName)
+            .select('retry_count')
+            .eq('id', recordId)
+            .maybeSingle()
+
         await supabase
             .from(tableName)
             .update({
-                retry_count: supabase.rpc('increment', { row_id: recordId, field: 'retry_count' }),
+                retry_count: Number(current?.retry_count || 0) + 1,
                 last_retry_at: new Date().toISOString(),
                 last_error: error.message
             })

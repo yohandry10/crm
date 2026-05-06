@@ -7,6 +7,7 @@ import { taskSchema } from "@/lib/schemas"
 import { validatePagination } from "@/lib/auth-helpers"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { validateTaskReferences } from "@/lib/work-item-references"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
             .select("*, contact:contacts(name, email)", { count: "exact" })
             .eq("organization_id", organizationId)
             .order("due_date", { ascending: true, nullsFirst: false })
+            .order("created_at", { ascending: false })
 
         if (filters.data.status) query = query.eq("status", filters.data.status)
         if (filters.data.priority) query = query.eq("priority", filters.data.priority)
@@ -68,12 +70,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: unknown
     try {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tasks", "can_create")
+
         const body = await request.json()
+        requestBody = body
 
         const validation = taskSchema.safeParse(body)
         if (!validation.success) {
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/tasks", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/tasks", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

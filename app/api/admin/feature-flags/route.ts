@@ -21,6 +21,7 @@ import {
 } from '@/lib/feature-flags'
 import { requirePlatformAdmin } from '@/lib/auth-helpers'
 import { createRequestLogger } from '@/lib/logger'
+import { getHttpStatusForError, sanitizeErrorForClient } from '@/lib/error-handler'
 
 /**
  * GET - Obtener todos los feature flags
@@ -56,9 +57,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al obtener feature flags',
+        error: getHttpStatusForError(error) === 500 ? 'Error al obtener feature flags' : sanitizeErrorForClient(error),
       },
-      { status: 500 }
+      { status: getHttpStatusForError(error) }
     )
   }
 }
@@ -70,6 +71,16 @@ export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   try {
     const { user } = await requirePlatformAdmin()
+
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_ADMIN_MUTATIONS !== 'true') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Los feature flags en memoria no se pueden modificar en producción. Configura un backend persistente para este control.',
+        },
+        { status: 501 }
+      )
+    }
 
     const body = await request.json()
     const { action, flagKey } = body
@@ -124,9 +135,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al actualizar feature flag',
+        error: getHttpStatusForError(error) === 500 ? 'Error al actualizar feature flag' : sanitizeErrorForClient(error),
       },
-      { status: 500 }
+      { status: getHttpStatusForError(error) }
     )
   }
 }

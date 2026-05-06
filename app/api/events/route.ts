@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
 import { assertCalendarDateRange, hydrateCalendarEventOwners, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
+import { requireRolePermission } from '@/lib/role-permissions'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -59,9 +60,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: unknown = undefined
     try {
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "tasks", "can_create")
+        requestBody = await request.json()
+        const body = requestBody
 
         const validation = eventSchema.safeParse(body)
         if (!validation.success) {
@@ -101,7 +105,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/events", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/events", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

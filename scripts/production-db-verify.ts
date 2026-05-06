@@ -51,7 +51,19 @@ export async function verifyProductionDatabase() {
     )
   }
 
-  return (data || []) as DbReadinessCheck[]
+  const checks = (data || []) as DbReadinessCheck[]
+
+  const { data: securityData, error: securityError } = await supabase.rpc("verify_security_hardening")
+  if (securityError) {
+    checks.push({
+      check_name: "security_hardening_rpc",
+      pass: false,
+      details: `verify_security_hardening failed. Apply migration 109 first. Supabase error: ${securityError.message}`,
+    })
+    return checks
+  }
+
+  return checks.concat((securityData || []) as DbReadinessCheck[])
 }
 
 const currentFile = fileURLToPath(import.meta.url)

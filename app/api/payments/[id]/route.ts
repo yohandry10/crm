@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 type RouteContext = {
@@ -14,7 +15,8 @@ export async function GET(
 ) {
     try {
         // MULTI-TENANT: Get organization context
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "payments", "can_update")
         const { id } = await context.params
 
         // Get payment with invoice and contact details

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       fullName: user.user_metadata?.full_name || user.user_metadata?.name || null,
       avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-      createOrganizationIfMissing: true,
+      createOrganizationIfMissing: false,
     })
 
     return NextResponse.json({ success: true, data: result })

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { WEBHOOK_EVENTS } from "@/lib/webhooks"
 import { encryptSecret } from "@/lib/encryption"
@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = await rateLimit(request, READ_LIMIT)
     if (rateLimitResponse) return rateLimitResponse
 
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden ver webhooks")
+    }
 
     const { data, error } = await supabase
       .from("webhooks")
@@ -71,7 +75,12 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
     if (rateLimitResponse) return rateLimitResponse
 
-    const { supabase, user, organizationId } = await getAuthenticatedContext()
+    const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden gestionar webhooks")
+    }
+
     const body = await request.json()
 
     const validation = webhookSchema.safeParse(body)

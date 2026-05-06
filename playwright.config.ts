@@ -19,7 +19,7 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    storageState: "tests/e2e/.auth/superadmin.json",
+    storageState: "tests/e2e/.auth/user.json",
   },
   globalSetup: "./tests/e2e/global-setup.ts",
   webServer: process.env.PLAYWRIGHT_SKIP_WEB_SERVER

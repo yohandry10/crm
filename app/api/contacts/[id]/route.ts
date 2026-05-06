@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { contactSchema } from "@/lib/schemas"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -42,7 +43,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "contacts", "can_update")
         const body = await request.json()
 
         const validation = contactSchema.partial().safeParse(body)
@@ -86,7 +88,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "contacts", "can_delete")
 
         const { data: oldData } = await supabase.from("contacts").select("*").eq("id", id).eq("organization_id", organizationId).single()
         if (!oldData) return NextResponse.json({ success: false, error: "Contact not found" }, { status: 404 })

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/auth-context"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 // Bulk delete invoices (only drafts can be deleted)
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
     if (!organizationId) {
       return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 })
     }
+    await requireRolePermission(supabase, role, "invoices", "can_delete")
 
     const { ids } = await request.json()
 
@@ -48,10 +50,11 @@ export async function DELETE(request: NextRequest) {
 // Bulk update invoices (e.g., change status)
 export async function PATCH(request: NextRequest) {
   try {
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
     if (!organizationId) {
       return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 })
     }
+    await requireRolePermission(supabase, role, "invoices", "can_update")
 
     const { ids, updates } = await request.json()
 

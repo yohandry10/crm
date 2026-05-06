@@ -16,6 +16,7 @@ import { Settings, User, Bell, Database, Phone, Building, Loader2, Users, Credit
 import { toast } from "sonner"
 import { resetAllTutorials, resetWelcomeTour } from "@/components/tutorials"
 import { useTheme } from "@/hooks/use-theme"
+import { validateAuthPassword } from "@/lib/auth-password-policy"
 
 // Appearance Settings Component
 function AppearanceSettings() {
@@ -117,8 +118,9 @@ function SecuritySettings() {
       return
     }
 
-    if (newPassword.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres")
+    const passwordError = validateAuthPassword(newPassword)
+    if (passwordError) {
+      toast.error(passwordError)
       return
     }
 

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 import crypto from "crypto"
@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden ver integraciones")
+        }
 
         const { data, error } = await supabase
             .from("integrations")
@@ -54,12 +58,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     const log = createRequestLogger(request)
+    let requestBody: unknown
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+        if (!["owner", "admin"].includes(role)) {
+            throw new ForbiddenError("Solo owner/admin pueden gestionar integraciones")
+        }
+
         const body = await request.json()
+        requestBody = body
 
         const validation = integrationSchema.safeParse(body)
         if (!validation.success) {
@@ -126,7 +137,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: responseData, connection: connectionResult })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/integrations", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/integrations", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

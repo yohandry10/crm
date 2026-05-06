@@ -1,14 +1,17 @@
 # Testing
 
+Actualizado: 2026-05-06.
+
 ## Comandos reales
 
 ```bash
-pnpm exec vitest run
 pnpm typecheck
+pnpm test -- --reporter=basic
 pnpm lint
 pnpm production:check
 pnpm production:verify-db
-pnpm test:e2e
+pnpm test:e2e -- --reporter=line
+pnpm build
 pnpm test:coverage
 ```
 
@@ -16,57 +19,170 @@ pnpm test:coverage
 
 ## Estado observado
 
-Ultima ejecucion manual local registrada: 2026-05-05.
+Ultima ejecucion manual local registrada: 2026-05-06.
 
-Validacion reciente:
+Resultado:
 
-- Unit/integration: 193 passed, 4 skipped.
 - Typecheck: OK.
-- Lint: OK con 73 warnings.
-- Production preflight: OK con 0 failures y 0 warnings locales en `BILLING_PROVIDER=manual`.
-- Production DB verify: OK contra Supabase objetivo con 0 failures y 75 checks.
-- Coverage: OK como comando; cobertura global observada: statements/lines 4.99%, branches 26.78%, functions 13.5%.
+- Unit/contracts: 207 passed, 4 skipped.
+- Lint: OK, con aviso externo de `baseline-browser-mapping` desactualizado.
+- Production preflight: 0 failures, 0 warnings.
+- Production DB verify: 0 failures, 109 checks.
+- Coverage gate: OK con thresholds minimos activos (`statements 5`, `branches 27`, `functions 13`, `lines 5`).
+- E2E focal seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- Build: OK.
 
-## Estado de coverage
+## E2E actual
 
-`pnpm test:coverage` usa `@vitest/coverage-v8` alineado con `vitest@1.6.x`.
+La suite E2E usa Playwright y storage states separados.
 
-Decision actual:
+Archivos principales:
 
-- CI puede generar reporte de cobertura.
-- No hay umbrales globales obligatorios hasta subir una base por modulo.
-- El objetivo sigue siendo llevar los modulos criticos a umbrales verificables antes de go-live.
+- `tests/e2e/global-setup.ts`: provisiona usuarios y sesiones.
+- `tests/e2e/login.spec.ts`: login regular, bloqueo admin para usuario regular y acceso platform admin.
+- `tests/e2e/auth-security.spec.ts`: redirect seguro de login, recuperacion generica, rate limit de fallos y cambio de contraseña.
+- `tests/e2e/admin-smoke.spec.ts`: paginas y APIs platform admin.
+- `tests/e2e/modules.spec.ts`: carga de superficies UI principales.
+- `tests/e2e/api-smoke.spec.ts`: smoke GET autenticado de APIs principales.
+- `tests/e2e/crm-flows.spec.ts`: flujo CRM core e interconexion de entidades.
+- `tests/e2e/daily-user-journey.spec.ts`: actividad diaria como usuario real.
+- `tests/e2e/daily-advanced-ui.spec.ts`: actividad avanzada por UI real en modulos interconectados.
+- `tests/e2e/role-matrix.spec.ts`: permisos por rol de organizacion.
+- `tests/e2e/role-mutation-guards.spec.ts`: intentos directos de mutacion por API con roles limitados.
+- `tests/e2e/multi-tenant-isolation.spec.ts`: aislamiento entre tenants, headers de organizacion, referencias cruzadas y payment links.
+- `tests/e2e/tenant-provisioning.spec.ts`: bloqueo de autoprovicionamiento de organizaciones y bootstrap sin creacion de tenant.
 
-## Huecos importantes
+## Usuarios E2E
 
-- Solo hay una suite API dedicada fuerte para contacts.
-- Hay muchos `app/api/**/route.ts` sin tests directos.
-- Los contratos estaticos cubren booking atomico, calendario canonico sobre `calendar_events`, forms privados, public pay, payment links, submissions, campaigns, SSRF de webhooks salientes, revenue-inventory, tasks/tickets, inbox/notificaciones y reportes/analytics, pero faltan pruebas runtime/concurrencia contra DB.
-- `middleware*.ts`, `instrumentation.ts` y `scripts/**` estan excluidos de coverage.
-- E2E actual cubre poco frente a la superficie funcional.
-- La verificacion DB de produccion (`pnpm production:verify-db`) aun debe ejecutarse contra la base objetivo despues de aplicar migraciones.
+No guardar passwords en documentacion. Las credenciales se cargan por variables locales o las provisiona `global-setup.ts`.
 
-Prioridad de nuevos tests:
+`global-setup.ts` normaliza primero las cuentas E2E configuradas y luego genera storage states. Esto evita sesiones invalidas cuando el setup actualiza contrasenas o metadata.
 
-1. Payments con Culqi/PagoEfectivo, confirmacion manual y payment links.
-2. Facturas/orders con stock y productos de varios tenants.
-3. Public forms y booking.
-4. Admin/platform admin.
-5. Cron y workers.
-6. Tasks/tickets/inbox con permisos por rol y UI.
-7. Workflows.
-8. Middleware, CORS, CSRF y rate limit.
-9. Tenant isolation.
+Variables requeridas para ejecutar toda la suite:
 
-## Pruebas manuales
+```powershell
+$env:TEST_USER_EMAIL="..."
+$env:TEST_USER_PASSWORD="..."
+$env:TEST_ADMIN_EMAIL="..."
+$env:TEST_ADMIN_PASSWORD="..."
+pnpm test:e2e
+```
 
-Estas pruebas no sustituyen Vitest/Playwright. Son utilidades locales para validar integraciones puntuales:
+Usuarios de rol provisionados automaticamente:
+
+- `e2e.owner.crm@example.com`
+- `e2e.admin.crm@example.com`
+- `e2e.manager.crm@example.com`
+- `e2e.member.crm@example.com`
+- `e2e.viewer.crm@example.com`
+
+## Coverage gate
+
+```bash
+pnpm test:coverage -- --reporter=basic
+```
+
+Resultado observado:
+
+- Unit/contracts: 207 passed, 4 skipped.
+- Statements: 5.05%.
+- Branches: 27.1%.
+- Functions: 13.44%.
+- Lines: 5.05%.
+
+`vitest.config.ts` exige un baseline minimo: statements 5, branches 27, functions 13, lines 5. Es una compuerta conservadora para que CI no baje la cobertura mientras se sube por modulo critico.
+
+## Cobertura funcional probada
+
+### Usuario regular
+
+- Entra al dashboard sin bloqueo de trial.
+- No ve enlaces ni superficies de Super Admin.
+- Crea cuenta, contacto, lead, producto, tarea, ticket, formulario y webhook.
+- Valida inventario via redireccion canonica a productos.
+
+### Platform admin
+
+- Entra a `/admin` sin bloqueo de trial.
+- Renderiza paginas admin principales.
+- APIs admin principales responden correctamente.
+
+### Auth y seguridad de cuenta
+
+- Login neutraliza redirects externos y entra solo a rutas internas.
+- Fallos repetidos de login quedan rate-limited sin exponer si la cuenta existe.
+- Recuperacion de contraseña usa API protegida por rate limit y respuesta generica.
+- Cambio de contraseña desde perfil exige contraseña actual y rechaza contraseñas debiles.
+
+### Roles de organizacion
+
+Roles cubiertos:
+
+- `owner`
+- `admin`
+- `manager`
+- `member`
+- `viewer`
+
+La matriz valida:
+
+- Lectura de dashboard, contacts, leads, products, tasks, tickets, analytics y reports builder.
+- Sin leakage de Super Admin.
+- Sin trial gate.
+- Contexto de rol desde `/api/team`.
+- Acceso sensible a settings/integrations/webhooks solo cuando corresponde.
+- Invitacion de equipo solo para roles autorizados.
+- Escritura o denegacion en contacts, opportunities, products, quotes, invoices, tickets, campaigns, workflows y calendar events.
+- Denegacion explicita de mutaciones no autorizadas en contacts, opportunities, invoices, products, tasks, tickets, workflows y payments.
+
+## Cobertura DB/produccion
+
+`pnpm production:verify-db` valida:
+
+- `schema_migrations`.
+- Migraciones criticas 094-112 desde RPC de readiness.
+- RLS habilitado en tablas sensibles.
+- Funciones RPC requeridas.
+- Alineacion codigo-BD: tablas y RPC usadas por `app/`, `lib/` y `scripts/` existen en Supabase objetivo.
+- Bloqueo de creacion self-service de organizaciones.
+- Contrato `user_settings` con RLS.
+- Contratos de payment tokens, invoice items, sales orders y payment provider settings.
+- Remocion de artefactos legacy de Stripe.
+- Hardening de seguridad de BD mediante `verify_security_hardening()`:
+  - sin privilegios peligrosos `TRUNCATE`, `REFERENCES`, `TRIGGER` para `anon`/`authenticated`;
+  - sin ejecucion anon/public de RPC sensibles;
+  - funciones `SECURITY DEFINER` con `search_path` definido.
+
+Nota: las migraciones 105-112 son exigidas por `production:check`; fueron aplicadas en la base objetivo y registradas en `schema_migrations` durante la validacion del 2026-05-06.
+
+## Validacion de seguridad del 2026-05-06
+
+Se auditaron grants, RLS, policies, triggers y RPC `SECURITY DEFINER` en la base Supabase objetivo. El hardening se implemento en las migraciones 109-112.
+
+Resultado posterior:
+
+- `verify_security_hardening()`: PASS en grants peligrosos, RPC anon/public y `search_path`.
+- `pnpm production:verify-db`: 0 failures, 109 checks.
+- E2E focal de regresion de seguridad/RBAC/multi-tenant/provisionamiento y flujos diarios/API: 51 passed.
+- Navegador local: dashboard carga en `http://localhost:3000/dashboard`, sin trial gate y sin errores de consola.
+
+## Huecos restantes
+
+- Coverage global tiene compuerta minima activa; falta subir umbrales por modulo critico.
+- Falta ejecutar la misma matriz en CI y contra la URL Vercel production despues del deploy.
+- Falta cobertura profunda de concurrencia para booking/pagos fuera de contratos/RPC.
+- Falta prueba con credenciales reales de Culqi/PagoEfectivo.
+- Workflows near-real-time requieren worker persistente si se ofrece esa promesa operativa.
+
+## Pruebas manuales utiles
+
+Rate limit:
 
 ```bash
 node scripts/manual/test-rate-limit.js
 ```
 
-Para CORS, abrir manualmente:
+CORS:
 
 ```text
 scripts/manual/test-cors.html

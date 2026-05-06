@@ -42,6 +42,8 @@ const WEBHOOK_EVENTS = [
   { id: "task.completed", name: "Tarea completada", category: "Tareas" },
 ]
 
+const DEFAULT_WEBHOOK_EVENTS = ["contact.created"]
+
 interface WebhookType {
   id: string
   name: string
@@ -60,7 +62,7 @@ export default function WebhooksSettingsPage() {
   const [formData, setFormData] = useState({
     name: "",
     url: "",
-    events: [] as string[],
+    events: [...DEFAULT_WEBHOOK_EVENTS] as string[],
   })
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function WebhooksSettingsPage() {
       }
 
       setDialogOpen(false)
-      setFormData({ name: "", url: "", events: [] })
+      setFormData({ name: "", url: "", events: [...DEFAULT_WEBHOOK_EVENTS] })
       fetchWebhooks()
     } catch (error) {
       toast.error("Error al crear webhook")

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -54,7 +55,8 @@ export async function PUT(
 ) {
     try {
         const { id } = await params
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_update")
         const body = await request.json()
 
         const validation = productUpdateSchema.safeParse(body)
@@ -97,7 +99,8 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params
-        const { supabase, organizationId } = await getAuthenticatedContext()
+        const { supabase, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "products", "can_delete")
 
         // Verificar que el producto pertenece a la organización
         const { data: existing, error: checkError } = await supabase

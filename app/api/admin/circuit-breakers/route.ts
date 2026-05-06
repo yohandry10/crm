@@ -15,6 +15,7 @@ import {
 } from '@/lib/circuit-breaker'
 import { requirePlatformAdmin } from '@/lib/auth-helpers'
 import { createRequestLogger } from '@/lib/logger'
+import { getHttpStatusForError, sanitizeErrorForClient } from '@/lib/error-handler'
 
 /**
  * GET - Obtener estadísticas de circuit breakers
@@ -48,9 +49,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al obtener estadísticas',
+        error: getHttpStatusForError(error) === 500 ? 'Error al obtener estadísticas' : sanitizeErrorForClient(error),
       },
-      { status: 500 }
+      { status: getHttpStatusForError(error) }
     )
   }
 }
@@ -62,6 +63,16 @@ export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   try {
     await requirePlatformAdmin()
+
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_ADMIN_MUTATIONS !== 'true') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Los circuit breakers en memoria no se pueden reiniciar en producción. Configura almacenamiento persistente para este control.',
+        },
+        { status: 501 }
+      )
+    }
 
     const body = await request.json()
     const { name } = body
@@ -85,9 +96,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al reiniciar circuit breaker',
+        error: getHttpStatusForError(error) === 500 ? 'Error al reiniciar circuit breaker' : sanitizeErrorForClient(error),
       },
-      { status: 500 }
+      { status: getHttpStatusForError(error) }
     )
   }
 }

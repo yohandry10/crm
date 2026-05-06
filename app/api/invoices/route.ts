@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
 
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
             .select("*, contact:contacts(name, email)", { count: "exact" })
             .eq("organization_id", organizationId)
             .order("issue_date", { ascending: false })
+            .order("created_at", { ascending: false })
             .range(offset, offset + limit - 1)
 
         if (status) query = query.eq("status", status)
@@ -49,13 +51,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    let requestBody: unknown = undefined
     try {
         const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
         if (rateLimitResponse) return rateLimitResponse
 
         // MULTI-TENANT: Get organization context
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
-        const body = await request.json()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "invoices", "can_create")
+        requestBody = await request.json()
+        const body = requestBody
 
         const validation = invoiceSchema.safeParse(body)
         if (!validation.success) {
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
             message: `Factura ${data.invoice_number} creada exitosamente`
         })
     } catch (error: any) {
-        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/invoices", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
+        await logError({ errorId: crypto.randomUUID(), endpoint: "/api/invoices", method: "POST", error, requestBody })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
     }
 }

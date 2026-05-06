@@ -301,7 +301,7 @@ export default function QuotesPage() {
                                                         </Button>
                                                     )}
 
-                                                    {/* Aceptar: sent → accepted (auto-creates invoice) */}
+                                                    {/* Aceptar: sent → accepted */}
                                                     {quote.status === 'sent' && (
                                                         <Button
                                                             variant="default"
@@ -309,7 +309,7 @@ export default function QuotesPage() {
                                                             className="bg-green-600 hover:bg-green-700"
                                                             disabled={changingStatus === quote.id}
                                                             onClick={() => handleStatusChange(quote.id, 'accepted', 'Aceptada')}
-                                                            title="Cliente aceptó - genera factura automáticamente"
+                                                            title="Cliente aceptó la cotización"
                                                         >
                                                             {changingStatus === quote.id ? (
                                                                 <Loader2 className="h-4 w-4 animate-spin" />

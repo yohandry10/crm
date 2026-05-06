@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { ForbiddenError, sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { decryptSecret, encryptSecret } from "@/lib/encryption"
 import { validateOutboundWebhookUrl } from "@/lib/outbound-url-security"
@@ -35,7 +35,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden ver webhooks")
+    }
 
     const { data, error } = await supabase
       .from("webhooks")
@@ -87,7 +91,12 @@ export async function PUT(
     if (rateLimitResponse) return rateLimitResponse
 
     const { id } = await params
-    const { supabase, user, organizationId } = await getAuthenticatedContext()
+    const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden gestionar webhooks")
+    }
+
     const body = await request.json()
 
     const validation = updateWebhookSchema.safeParse(body)
@@ -192,7 +201,11 @@ export async function DELETE(
     if (rateLimitResponse) return rateLimitResponse
 
     const { id } = await params
-    const { supabase, user, organizationId } = await getAuthenticatedContext()
+    const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden gestionar webhooks")
+    }
 
     const { data: existing } = await supabase
       .from("webhooks")
@@ -253,7 +266,11 @@ export async function POST(
     if (rateLimitResponse) return rateLimitResponse
 
     const { id } = await params
-    const { supabase, organizationId } = await getAuthenticatedContext()
+    const { supabase, organizationId, role } = await getAuthenticatedContext()
+
+    if (!["owner", "admin"].includes(role)) {
+      throw new ForbiddenError("Solo owner/admin pueden probar webhooks")
+    }
 
     const { data: webhook } = await supabase
       .from("webhooks")

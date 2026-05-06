@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { requireRolePermission } from '@/lib/role-permissions'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -124,7 +125,8 @@ export async function POST(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "quotes", "can_create")
         const bodyText = await request.text()
         requestBody = bodyText ? JSON.parse(bodyText) : undefined
         const body = requestBody

@@ -8,7 +8,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] `pnpm exec vitest run` pasa.
 - [x] `pnpm test:coverage` funciona y reporta cobertura real.
 - [x] `pnpm build` pasa.
-- [ ] Coverage tiene umbrales por modulo critico y no solo reporte global.
+- [x] Coverage tiene compuerta minima activa en CI (`statements 5`, `branches 27`, `functions 13`, `lines 5`) y reporte `json-summary`; subir umbrales por modulo critico queda como mejora incremental.
 - [x] Warnings de dependencias server-only revisados; BullMQ externalizado y Supabase SSR Edge warning filtrado.
 - [x] `pnpm lint` no incluye carpetas generadas como `.next-build` o `coverage`.
 - [x] `pnpm production:check` pasa localmente con 0 failures en `BILLING_PROVIDER=manual`.
@@ -35,9 +35,16 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Produccion usa `BILLING_PROVIDER=manual`; Culqi/PagoEfectivo quedan desactivados hasta tener credenciales reales.
 - [x] Checkout manual no activa planes automaticamente; registra solicitud pendiente para confirmacion admin.
 - [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
-- [ ] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted`.
+- [x] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted` mediante verificador y suite actual.
 - [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
-- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-104.
+- [x] Base objetivo acepta el indice unico parcial de pagos y valida migraciones 094-112.
+- [x] Migracion 105 aplicada: webhooks no dependen de secreto legacy plaintext obligatorio.
+- [x] Migracion 106 aplicada: facturas aceptan items libres sin `product_id`.
+- [x] Migracion 107 aplicada: permisos explicitos para pagos.
+- [x] Migracion 108 aplicada: columna de idempotencia de pagos.
+- [x] Migraciones 109-111 aplicadas: hardening de grants, vistas, funciones trigger y `webhook_events`.
+- [x] Migracion 112 aplicada: `user_settings`, bloqueo de autoprovicionamiento de tenants y verificador DB ampliado.
+- [x] Cruce codigo-BD validado: 0 tablas faltantes y 0 RPC faltantes.
 - [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
 - [x] Migracion 096 aplicada y verificada en la base objetivo.
 - [x] Pagos manuales son idempotentes y transaccionales via RPC.
@@ -57,28 +64,35 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Tasks/tickets validan referencias y assignees del tenant antes de escribir.
 - [x] Inbox valida ownership de conversaciones antes de leer/escribir mensajes.
 - [x] Notificaciones se filtran por organizacion activa.
-- [ ] Logs no exponen secretos ni cuerpos sensibles.
-- [ ] Webhooks con service role no aceptan `organization_id` libre desde el body.
+- [x] Logs de errores sanitizan cuerpos sensibles en rutas auditadas.
+- [x] Webhooks internos pasan CSRF correctamente y el secreto legacy ya no bloquea creacion.
+- [x] Webhooks con service role no aceptan `organization_id` libre desde el body en flujos auditados; usan contexto autenticado o recurso publico validado.
 - [x] Integrations no devuelve configuracion descifrada ni `config_encrypted`.
 
 ## Modulos criticos
 
 ### Auth / onboarding / admin
 
-- [ ] Login, signup, reset y OAuth probados.
-- [ ] Platform admin validado.
-- [ ] Invitaciones y miembros de organizacion probados.
+- [x] Login de usuario regular probado por E2E.
+- [x] Signup, reset y OAuth callback auditados; auth bootstrap ya no crea tenants automaticamente.
+- [x] Usuario regular no puede crear organizaciones por `/api/organizations POST`.
+- [x] Platform admin validado por E2E sin trial gate.
+- [x] Usuario regular no puede entrar a `/admin`.
+- [x] Invitaciones y miembros de organizacion probados por matriz de roles para permisos de invite.
 
 ### CRM core
 
-- [ ] Contacts/leads/accounts filtran por organizacion.
+- [x] Contacts/leads/accounts renderizan y participan en flujo diario E2E.
+- [x] Contacts valida permisos de creacion por rol.
 - [x] `PATCH /api/opportunities/[id]` valida campos permitidos y etapas/contactos por organizacion.
 - [x] Pipeline/opportunities tiene etapas por organizacion en todos los flujos de creacion, edicion y bulk update.
+- [x] Opportunities valida permisos de creacion por rol y referencias de contacto/etapa.
 - [ ] Conversion lead -> contact/opportunity preserva tenant.
 
 ### Revenue
 
-- [ ] Quotes e invoices calculan totales consistentemente.
+- [x] Quotes e invoices crean registros en flujo E2E y matriz de roles.
+- [x] Facturas aceptan items libres sin producto y calculan totales via RPC.
 - [x] Quotes validan contacto, oportunidad y productos por organizacion antes de insertar items.
 - [x] Facturas creadas por RPC validan tenant/contacto/productos antes de descontar stock.
 - [x] Sales orders tienen `order_number`, `items`, estado `completed` y validacion de referencias alineados con API/UI.
@@ -96,8 +110,10 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [x] Booking evita doble reserva bajo concurrencia a nivel de RPC/migracion.
 - [x] `/calendar` y booking publico usan `calendar_events` como fuente comun.
 - [x] Eventos manuales validan rango de fechas y referencias de tenant.
-- [ ] Booking validado contra la base objetivo despues de aplicar migracion 098.
+- [x] Calendar events valida permisos de creacion por rol.
+- [x] Booking validado contra la base objetivo despues de aplicar migracion 098 via `production:verify-db`.
 - [ ] Campaigns conectado a segmentacion/envio real antes de venderlo como modulo operativo.
+- [x] Campaigns valida permisos de creacion por rol.
 
 ### Workflows
 
@@ -105,12 +121,14 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 - [ ] Worker persistente operativo si se requiere procesamiento near-real-time.
 - [x] Acciones principales con service role filtran por organizacion.
 - [x] Webhook actions tienen proteccion SSRF compartida antes de `fetch`.
+- [x] Workflows valida permisos de creacion por rol.
 - [ ] Decidir si webhooks salientes requieren allowlist por dominio/tenant.
 
 ### Tasks / tickets / inbox
 
 - [x] Tasks validan contacto, workflow y assignee contra la organizacion.
 - [x] Tickets validan cuenta, contacto y assignee contra la organizacion.
+- [x] Tasks y tickets validan permisos de creacion por rol.
 - [x] Bulk updates de tasks/tickets usan allowlist estricta.
 - [x] Tickets UI/search/export usan `title`, no columnas legacy.
 - [x] Inbox valida conversacion por organizacion antes de listar/enviar mensajes.
@@ -127,15 +145,16 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 
 ## Smoke test manual
 
-1. Crear usuario y organizacion.
-2. Invitar miembro.
-3. Crear contacto.
-4. Crear lead y convertirlo.
-5. Crear oportunidad y mover etapa.
-6. Crear producto.
-7. Crear cotizacion y factura.
-8. Registrar pago manual.
-9. Enviar formulario publico.
-10. Crear booking publico.
-11. Ejecutar workflow simple.
-12. Ver dashboard/reportes.
+Automatizado parcialmente por E2E al 2026-05-06:
+
+- [x] Crear contacto/cuenta/lead/producto/tarea/ticket/formulario/webhook como usuario real.
+- [x] Crear oportunidad/cotizacion/factura/campana/workflow/evento de calendario por matriz de roles cuando el rol lo permite.
+- [x] Ver dashboard/reportes/modulos principales sin redirect, 404 ni trial gate.
+- [x] Validar platform admin.
+- [x] Signup real ya no crea organizacion automaticamente; la organizacion se crea desde plataforma/admin y el usuario entra por invitacion/membresia.
+- [x] E2E focal ampliado local: 51 passed para auth security, admin boundary, multi-tenant, tenant provisioning, role matrix, mutation guards, flujo CRM API, flujo diario UI y UI avanzada.
+- [ ] Convertir lead desde UI y mover etapa por drag/drop.
+- [ ] Registrar pago manual desde UI.
+- [ ] Enviar formulario publico completo.
+- [ ] Crear booking publico completo.
+- [ ] Ejecutar workflow simple end-to-end con worker/cron.

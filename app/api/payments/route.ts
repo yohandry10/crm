@@ -12,6 +12,7 @@ import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
 import { getAllowedPaymentGateways, normalizePaymentGateway } from "@/lib/billing-providers"
+import { requireRolePermission } from "@/lib/role-permissions"
 
 function maskIdempotencyKey(value: string) {
     if (!value) return undefined
@@ -60,7 +61,8 @@ export async function POST(request: NextRequest) {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.sensitive)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "payments", "can_create")
         const log = createRequestLogger(request, organizationId)
         requestBody = await request.json()
 

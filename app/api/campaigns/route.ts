@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { requireRolePermission } from "@/lib/role-permissions"
 import { z } from "zod"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
@@ -104,7 +105,8 @@ export async function POST(request: NextRequest) {
         const rate = await rateLimit(request, RATE_LIMITS.write)
         if (rate) return rate
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "campaigns", "can_create")
         const body = await request.json()
 
         const validation = campaignSchema.safeParse(body)

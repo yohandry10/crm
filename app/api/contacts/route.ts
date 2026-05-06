@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { requirePlanLimit } from "@/lib/plan-limits"
 import { validatePagination } from "@/lib/auth-helpers"
 import { createRequestLogger } from "@/lib/logger"
+import { requireRolePermission } from "@/lib/role-permissions"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 100 }
@@ -98,7 +99,9 @@ export async function POST(request: NextRequest) {
         const rateLimitResponse = await rateLimit(request, WRITE_LIMIT)
         if (rateLimitResponse) return rateLimitResponse
 
-        const { supabase, user, organizationId } = await getAuthenticatedContext()
+        const { supabase, user, organizationId, role } = await getAuthenticatedContext()
+        await requireRolePermission(supabase, role, "contacts", "can_create")
+
         const log = createRequestLogger(request, organizationId)
         const body = await request.json()
 

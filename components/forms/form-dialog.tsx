@@ -84,7 +84,7 @@ export function FormDialog({ open, onOpenChange, form, onSuccess }: FormDialogPr
       auto_create_contact: true,
       default_lead_status: "warm",
       default_lead_source: "web_form",
-      notify_on_submit: true,
+        notify_on_submit: false,
       notify_emails: "",
       theme: { primaryColor: "#3b82f6", backgroundColor: "#ffffff" },
     }
@@ -184,4 +184,3 @@ export function FormDialog({ open, onOpenChange, form, onSuccess }: FormDialogPr
     </Dialog>
   )
 }
-

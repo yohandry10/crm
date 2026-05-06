@@ -1,58 +1,69 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createAuthenticatedClient } from "@/lib/supabase-auth"
 import { sendEmail, invitationEmailTemplate, isEmailConfigured } from "@/lib/email"
 import { createRequestLogger } from "@/lib/logger"
-import { maskEmail } from "@/lib/auth-helpers"
+import { maskEmail, requirePlatformAdmin } from "@/lib/auth-helpers"
+import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { z } from "zod"
 
-async function requirePlatformAdmin() {
-  const { supabase } = await createAuthenticatedClient()
-  
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) {
-    throw new Error("Unauthorized")
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_platform_admin, full_name")
-    .eq("id", user.id)
-    .single()
-
-  if (!profile?.is_platform_admin) {
-    throw new Error("Forbidden: Platform admin required")
-  }
-
-  return { supabase, user, adminName: profile.full_name }
-}
+const sendInvitationSchema = z.object({
+  organizationId: z.string().uuid("Organization ID invalido"),
+  email: z.string().trim().toLowerCase().email("Email invalido"),
+  token: z.string().trim().min(16, "Token invalido").max(200, "Token invalido"),
+})
 
 export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   try {
-    const { supabase, adminName } = await requirePlatformAdmin()
-    const body = await request.json()
+    const { supabase, user } = await requirePlatformAdmin()
+    const parsed = sendInvitationSchema.safeParse(await request.json())
 
-    const { organizationId, email, token } = body
-
-    if (!organizationId || !email || !token) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Datos incompletos" },
+        { success: false, error: "Datos invalidos", details: parsed.error.flatten() },
         { status: 400 }
       )
     }
 
-    // Get organization name
-    const { data: org } = await supabase
+    const { organizationId, email, token } = parsed.data
+
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single()
+
+    const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("name")
+      .select("id, name")
       .eq("id", organizationId)
       .single()
 
-    // Get invitation role
-    const { data: invitation } = await supabase
+    if (orgError || !org) {
+      return NextResponse.json(
+        { success: false, error: "Organizacion no encontrada" },
+        { status: 404 }
+      )
+    }
+
+    const { data: invitation, error: invitationError } = await supabase
       .from("organization_invitations")
-      .select("role")
+      .select("role, organization_id, email, accepted_at, expires_at")
       .eq("token", token)
       .single()
+
+    if (
+      invitationError ||
+      !invitation ||
+      invitation.organization_id !== organizationId ||
+      invitation.email?.toLowerCase() !== email ||
+      invitation.accepted_at ||
+      (invitation.expires_at && new Date(invitation.expires_at) <= new Date())
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Invitacion invalida o expirada" },
+        { status: 400 }
+      )
+    }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
     const inviteLink = `${baseUrl}/signup?token=${token}`
@@ -64,8 +75,8 @@ export async function POST(request: NextRequest) {
         to: email,
         subject: `Invitación a ${org?.name || "CRM"}`,
         html: invitationEmailTemplate({
-          organizationName: org?.name || "CRM",
-          inviterName: adminName || undefined,
+          organizationName: org.name,
+          inviterName: adminProfile?.full_name || undefined,
           role: invitation?.role || "usuario",
           inviteLink,
         }),
@@ -85,9 +96,10 @@ export async function POST(request: NextRequest) {
       data: { inviteLink, emailSent },
     })
   } catch (error: any) {
-    const status = error.message === "Unauthorized" ? 401 : 
-                   error.message.includes("Forbidden") ? 403 : 500
     log.error("Error sending/generating organization invitation", error)
-    return NextResponse.json({ success: false, error: error.message }, { status })
+    return NextResponse.json(
+      { success: false, error: sanitizeErrorForClient(error) },
+      { status: getHttpStatusForError(error) }
+    )
   }
 }

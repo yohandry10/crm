@@ -90,7 +90,7 @@ export async function ensureUserBootstrap(
   input: EnsureUserBootstrapInput
 ): Promise<EnsureUserBootstrapResult> {
   const supabaseAdmin = createSupabaseAdminClient()
-  const createOrganizationIfMissing = input.createOrganizationIfMissing !== false
+  const createOrganizationIfMissing = input.createOrganizationIfMissing === true
   const now = new Date().toISOString()
   const safeEmail =
     input.email?.trim().toLowerCase() || `missing-${input.userId.slice(0, 8)}@invalid.local`

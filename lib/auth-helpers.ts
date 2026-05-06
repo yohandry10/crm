@@ -1,5 +1,6 @@
 import { createAuthenticatedClient } from "@/lib/supabase-auth"
 import { createSupabaseRouteHandler } from "@/lib/supabase-server"
+import { ForbiddenError, UnauthorizedError } from "@/lib/error-handler"
 
 /**
  * Verifica que el usuario actual sea un platform admin
@@ -15,7 +16,7 @@ export async function requirePlatformAdmin() {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
     if (error || !authUser) {
-      throw new Error("Unauthorized")
+      throw new UnauthorizedError()
     }
 
     user = authUser
@@ -25,7 +26,7 @@ export async function requirePlatformAdmin() {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
     if (error || !authUser) {
-      throw new Error("Unauthorized")
+      throw new UnauthorizedError()
     }
 
     user = authUser
@@ -67,7 +68,7 @@ export async function requirePlatformAdmin() {
     return { supabase, user }
   }
 
-  throw new Error("Forbidden: Platform admin access required")
+  throw new ForbiddenError("Forbidden: Platform admin access required")
 }
 
 /**
