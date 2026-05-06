@@ -101,6 +101,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
     "@next/eslint-plugin-next": "15.5.15",
     "@playwright/test": "^1.50.1",
     "@tailwindcss/postcss": "^4.1.9",
