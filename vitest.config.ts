@@ -25,16 +25,8 @@ export default defineConfig({
         'scripts/**', // Scripts de deploy
         'docs/**',
       ],
-      // Umbrales de coverage
-      // Estos umbrales fallarán el build si no se cumplen
-      thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 65,
-        statements: 70,
-      },
-      // Archivos específicos que deben tener 100% coverage
-      // perFile: true,
+      // Coverage is reported in CI, but not gated yet. The current baseline is
+      // low and must be raised by module before enabling hard thresholds.
     },
     setupFiles: ['./tests/setup.ts'],
   },

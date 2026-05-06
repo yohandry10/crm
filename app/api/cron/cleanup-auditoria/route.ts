@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server"
-import { createSupabaseRouteClient } from "@/lib/supabase-auth"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { logError } from "@/lib/error-logging"
+import { validateCronSecret } from "@/lib/cron-auth"
 import crypto from "crypto"
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-    }
+    const authResponse = validateCronSecret(request)
+    if (authResponse) return authResponse
 
-    const supabase = await createSupabaseRouteClient()
+    const supabase = createSupabaseServiceClient()
     const { data, error } = await supabase.rpc("cleanup_auditoria", { p_days: 90 })
     if (error) throw error
 

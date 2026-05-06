@@ -92,6 +92,28 @@ export async function PATCH(
             throw fetchError
         }
 
+        if (status === 'completed' && currentPayment.status !== 'completed' && currentPayment.invoice?.id) {
+            const { data: completedPayments } = await supabase
+                .from("payments")
+                .select("amount")
+                .eq("invoice_id", currentPayment.invoice.id)
+                .eq("organization_id", organizationId)
+                .eq("status", "completed")
+
+            const totalPaid = (completedPayments || []).reduce((sum, p) => sum + Number(p.amount), 0)
+            const remainingBalance = Number(currentPayment.invoice.total) - totalPaid
+
+            if (Number(currentPayment.amount) > remainingBalance) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: `El monto del pago (${currentPayment.amount}) excede el saldo pendiente de la factura (${remainingBalance})`,
+                    },
+                    { status: 400 }
+                )
+            }
+        }
+
         // Update payment
         const updateData: any = {}
         if (status) {
@@ -119,6 +141,7 @@ export async function PATCH(
                 .from("payments")
                 .select("amount")
                 .eq("invoice_id", currentPayment.invoice.id)
+                .eq("organization_id", organizationId)
                 .eq("status", "completed")
 
             const totalPaid = (allPayments || []).reduce((sum, p) => sum + Number(p.amount), 0)
@@ -129,10 +152,12 @@ export async function PATCH(
                     .from("invoices")
                     .update({ status: 'paid', paid_at: new Date().toISOString() })
                     .eq("id", currentPayment.invoice.id)
+                    .eq("organization_id", organizationId)
                 await supabase
                     .from("quotes")
                     .update({ status: 'paid', updated_at: new Date().toISOString() })
                     .eq("invoice_id", currentPayment.invoice.id)
+                    .eq("organization_id", organizationId)
             }
         }
 

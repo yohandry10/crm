@@ -11,9 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
-import { Settings, User, Bell, Database, Key, Phone, Building, Loader2, Users, CreditCard, ArrowRight, HelpCircle, RotateCcw, Eye, EyeOff, Lock, Wallet, QrCode, Landmark, Link2, Receipt, Palette } from "lucide-react"
+import { Settings, User, Bell, Database, Phone, Building, Loader2, Users, CreditCard, ArrowRight, HelpCircle, RotateCcw, Eye, EyeOff, Lock, Wallet, QrCode, Landmark, Link2, Receipt, Palette } from "lucide-react"
 import { toast } from "sonner"
 import { resetAllTutorials, resetWelcomeTour } from "@/components/tutorials"
 import { useTheme } from "@/hooks/use-theme"
@@ -934,4 +933,3 @@ export default function SettingsPage() {
     </DashboardLayout>
   )
 }
-

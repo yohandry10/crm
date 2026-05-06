@@ -138,7 +138,7 @@ describe('Contacts API', () => {
 
   describe('Bulk Operations', () => {
     it('should validate all IDs belong to organization', () => {
-      const contactIds = ['c1', 'c2', 'c3']
+      const _contactIds = ['c1', 'c2', 'c3']
       const contacts = [
         { id: 'c1', organization_id: 'org-123' },
         { id: 'c2', organization_id: 'org-123' },

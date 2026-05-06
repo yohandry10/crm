@@ -13,7 +13,7 @@
   ```bash
   pg_restore --clean --no-owner --dbname="$RESTORE_DB_URL" backup_YYYYMMDD.dump
   ```
-- Verifica que las migraciones se hayan aplicado (drizzle/supabase migration status).
+- Verifica que las migraciones de `supabase/migrations/` se hayan aplicado con Supabase CLI o con el historial de migraciones del proyecto remoto.
 - Ejecuta smoke tests (login, contactos, facturación/pagos, workflows).
 
 ## Cron de limpieza de logs/cache

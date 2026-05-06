@@ -5,16 +5,34 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { taskSchema } from "@/lib/schemas"
 import { validatePagination } from "@/lib/auth-helpers"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { validateTaskReferences } from "@/lib/work-item-references"
+import { z } from "zod"
 import crypto from "crypto"
+
+const taskFilterSchema = z.object({
+    status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+    priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+    contact_id: z.string().uuid().optional(),
+})
 
 export async function GET(request: NextRequest) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.read)
+        if (rate) return rate
+
         const { supabase, organizationId } = await getAuthenticatedContext()
 
         const searchParams = request.nextUrl.searchParams
-        const status = searchParams.get("status")
-        const priority = searchParams.get("priority")
-        const contact_id = searchParams.get("contact_id")
+        const filters = taskFilterSchema.safeParse({
+            status: searchParams.get("status") || undefined,
+            priority: searchParams.get("priority") || undefined,
+            contact_id: searchParams.get("contact_id") || undefined,
+        })
+
+        if (!filters.success) {
+            throw new ValidationError("Filtros inválidos", filters.error.format())
+        }
 
         const { page, limit, offset } = validatePagination(searchParams)
 
@@ -24,9 +42,9 @@ export async function GET(request: NextRequest) {
             .eq("organization_id", organizationId)
             .order("due_date", { ascending: true, nullsFirst: false })
 
-        if (status) query = query.eq("status", status)
-        if (priority) query = query.eq("priority", priority)
-        if (contact_id) query = query.eq("contact_id", contact_id)
+        if (filters.data.status) query = query.eq("status", filters.data.status)
+        if (filters.data.priority) query = query.eq("priority", filters.data.priority)
+        if (filters.data.contact_id) query = query.eq("contact_id", filters.data.contact_id)
 
         const { data, error, count } = await query.range(offset, offset + limit - 1)
         if (error) throw error
@@ -51,6 +69,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.write)
+        if (rate) return rate
+
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
@@ -58,6 +79,8 @@ export async function POST(request: NextRequest) {
         if (!validation.success) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
+
+        await validateTaskReferences(supabase, organizationId, validation.data)
 
         const { data, error } = await supabase
             .from("tasks")

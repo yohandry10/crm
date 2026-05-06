@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseRouteClient } from "@/lib/supabase-auth"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { isRedisHealthy } from "@/lib/redis"
 
 /**
@@ -18,8 +19,11 @@ export async function GET() {
     try {
         // Check database - solo verificar conexión, no exponer errores
         const dbStart = Date.now()
-        const supabase = await createSupabaseRouteClient()
-        const { error: dbError } = await supabase.from("profiles").select("id").limit(1)
+        const serviceSupabase = createSupabaseServiceClient()
+        const { error: dbError } = await serviceSupabase
+            .from("profiles")
+            .select("id", { count: "exact", head: true })
+            .limit(1)
         const dbTime = Date.now() - dbStart
 
         health.services.database = {
@@ -30,6 +34,7 @@ export async function GET() {
 
         // Check auth service
         const authStart = Date.now()
+        const supabase = await createSupabaseRouteClient()
         const { error: authError } = await supabase.auth.getSession()
         const authTime = Date.now() - authStart
 

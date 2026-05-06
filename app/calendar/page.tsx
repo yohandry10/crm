@@ -28,7 +28,7 @@ export default function CalendarPage() {
             const start = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1).toISOString()
             const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).toISOString()
 
-            const res = await fetch(`/api/events?start=${start}&end=${end}`)
+            const res = await fetch(`/api/calendar/events?start=${start}&end=${end}`)
             if (!res.ok) throw new Error('Failed to fetch events')
             const data = await res.json()
             setEvents(data.data || [])

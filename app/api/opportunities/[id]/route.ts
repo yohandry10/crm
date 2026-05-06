@@ -4,6 +4,17 @@ import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import crypto from 'crypto'
+import { z } from 'zod'
+
+const opportunityUpdateSchema = z.object({
+    name: z.string().min(1, "Nombre requerido").max(200).optional(),
+    contact_id: z.string().uuid("ID de contacto inválido").nullable().optional(),
+    stage_id: z.string().uuid("ID de etapa inválido").nullable().optional(),
+    expected_revenue: z.number().min(0, "El valor debe ser positivo").optional(),
+    expected_close_date: z.string().nullable().optional(),
+    description: z.string().max(1000, "Máximo 1000 caracteres").nullable().optional(),
+    probability: z.number().min(0, "Mínimo 0%").max(100, "Máximo 100%").optional(),
+}).strict()
 
 export async function GET(
     request: NextRequest,
@@ -58,6 +69,22 @@ export async function PATCH(
         const { supabase, user, organizationId } = await getAuthenticatedContext()
         const body = await request.json()
 
+        const validation = opportunityUpdateSchema.safeParse(body)
+        if (!validation.success) {
+            return NextResponse.json(
+                { success: false, error: "Datos inválidos", details: validation.error.errors },
+                { status: 400 }
+            )
+        }
+
+        const updateData: Record<string, any> = { ...validation.data }
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json(
+                { success: false, error: "No hay campos válidos para actualizar" },
+                { status: 400 }
+            )
+        }
+
         // Get old data for event emission
         const { data: oldData } = await supabase
             .from('opportunities')
@@ -70,19 +97,48 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: "Opportunity not found" }, { status: 404 })
         }
 
-        // ✅ FIX ERROR-LOGIC-006: Auto-sync probability on stage change
-        let updateData = { ...body }
-        if (body.stage_id && body.stage_id !== oldData.stage_id) {
-            const { data: newStage } = await supabase
+        if (updateData.contact_id) {
+            const { data: contact, error: contactError } = await supabase
+                .from('contacts')
+                .select('id')
+                .eq('id', updateData.contact_id)
+                .eq('organization_id', organizationId)
+                .maybeSingle()
+
+            if (contactError) throw contactError
+            if (!contact) {
+                return NextResponse.json(
+                    { success: false, error: "El contacto seleccionado no existe o no pertenece a tu organización" },
+                    { status: 400 }
+                )
+            }
+        }
+
+        const stageChanged =
+            Object.prototype.hasOwnProperty.call(updateData, 'stage_id') &&
+            updateData.stage_id !== oldData.stage_id
+
+        if (stageChanged && updateData.stage_id) {
+            const { data: newStage, error: stageError } = await supabase
                 .from('pipeline_stages')
-                .select('win_probability')
-                .eq('id', body.stage_id)
-                .single()
+                .select('id, win_probability')
+                .eq('id', updateData.stage_id)
+                .eq('organization_id', organizationId)
+                .maybeSingle()
+
+            if (stageError) throw stageError
+            if (!newStage) {
+                return NextResponse.json(
+                    { success: false, error: "La etapa seleccionada no existe o no pertenece a tu organización" },
+                    { status: 400 }
+                )
+            }
 
             if (newStage?.win_probability !== null && newStage?.win_probability !== undefined) {
                 updateData.probability = newStage.win_probability
             }
         }
+        updateData.updated_at = new Date().toISOString()
 
         const { data, error } = await supabase
             .from('opportunities')
@@ -95,7 +151,7 @@ export async function PATCH(
         if (error) throw error
 
         // ✅ FIX ERROR-API-003: Emit opportunity.updated event on stage changes
-        if (body.stage_id && body.stage_id !== oldData.stage_id) {
+        if (stageChanged) {
             const { emitEvent } = await import('@/lib/events')
             await emitEvent({
                 event_type: 'opportunity.updated',
@@ -105,7 +161,7 @@ export async function PATCH(
                     opportunity: data,
                     organizationId,
                     oldStageId: oldData.stage_id,
-                    newStageId: body.stage_id,
+                    newStageId: updateData.stage_id,
                     userId: user.id
                 }
             })

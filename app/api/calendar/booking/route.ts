@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
@@ -38,24 +38,72 @@ const bookingRequestSchema = z.object({
   answers: z.record(z.string()).optional(),
 })
 
+type PublicBookingResult = {
+  event_id: string
+  contact_id: string | null
+  organization_id: string
+  owner_id: string
+  booking_name: string
+  start_time: string
+  end_time: string
+}
+
 function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceKey) {
-    throw new Error("Missing Supabase credentials for booking endpoint")
-  }
-
-  return createClient(url, serviceKey)
+  return createSupabaseServiceClient()
 }
 
 function getAllowedOrigin(request: NextRequest): string | null {
   const allowed = (process.env.PUBLIC_BOOKING_ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
   const origin = request.headers.get('origin')
   const hostOrigin = request.nextUrl.origin
-  if (allowed.length === 0) return origin || hostOrigin
+  if (allowed.length === 0) return process.env.NODE_ENV === 'production' ? null : origin || hostOrigin
   if (origin && allowed.includes(origin)) return origin
   if (!origin && allowed.includes(hostOrigin)) return hostOrigin
+  return null
+}
+
+function timeToMinutes(value: string): number {
+  const [hours, minutes] = value.split(":").map(Number)
+  return hours * 60 + minutes
+}
+
+function minutesSinceStartOfDay(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+function validateRequestedSlot(config: any, slotStart: Date, slotEnd: Date): string | null {
+  if (Number.isNaN(slotStart.getTime()) || Number.isNaN(slotEnd.getTime())) {
+    return "Horario inválido"
+  }
+
+  const now = new Date()
+  if (slotStart <= now) {
+    return "No se puede reservar un horario pasado"
+  }
+
+  const maxAdvance = Number(config.max_advance_days || 30)
+  const maxAllowedDate = new Date(now.getTime() + maxAdvance * 24 * 60 * 60 * 1000)
+  if (slotStart > maxAllowedDate) {
+    return "El horario excede la anticipación máxima permitida"
+  }
+
+  if (!Array.isArray(config.available_days) || !config.available_days.includes(slotStart.getDay())) {
+    return "El día seleccionado no está disponible"
+  }
+
+  const slotMinutes = minutesSinceStartOfDay(slotStart)
+  const slotEndMinutes = minutesSinceStartOfDay(slotEnd)
+  const allowedStart = timeToMinutes(config.available_hours?.start || "00:00")
+  const allowedEnd = timeToMinutes(config.available_hours?.end || "00:00")
+
+  if (slotStart.toDateString() !== slotEnd.toDateString()) {
+    return "El horario seleccionado no puede cruzar de día"
+  }
+
+  if (slotMinutes < allowedStart || slotEndMinutes > allowedEnd) {
+    return "El horario seleccionado está fuera de la ventana disponible"
+  }
+
   return null
 }
 
@@ -208,73 +256,45 @@ export async function POST(request: NextRequest) {
 
       const slotStart = new Date(validation.data.slot_start)
       const slotEnd = new Date(slotStart.getTime() + config.duration * 60000)
+      const slotError = validateRequestedSlot(config, slotStart, slotEnd)
+      if (slotError) {
+        return NextResponse.json(
+          { success: false, error: slotError },
+          { status: 400 }
+        )
+      }
 
-      // Check if slot is still available
-      const { data: conflicts } = await supabaseAdmin
-        .from("calendar_events")
-        .select("id")
-        .eq("organization_id", config.organization_id)
-        .eq("owner_id", config.owner_id)
-        .lt("start_time", slotEnd.toISOString())
-        .gt("end_time", slotStart.toISOString())
-        .neq("status", "cancelled")
+      const { data: booking, error: bookingError } = await supabaseAdmin
+        .rpc("book_public_calendar_slot", {
+          p_config_id: validation.data.config_id,
+          p_slot_start: slotStart.toISOString(),
+          p_name: validation.data.name,
+          p_email: validation.data.email,
+          p_phone: validation.data.phone || null,
+          p_notes: validation.data.notes || null,
+          p_answers: validation.data.answers || {},
+        })
+        .single()
 
-      if (conflicts && conflicts.length > 0) {
+      if (bookingError?.message?.includes("Este horario ya no está disponible")) {
         return NextResponse.json(
           { success: false, error: "Este horario ya no está disponible" },
           { status: 409 }
         )
       }
 
-      // Create or find contact
-      let contactId: string | null = null
-      const { data: existingContact } = await supabaseAdmin
-        .from("contacts")
-        .select("id")
-        .eq("organization_id", config.organization_id)
-        .eq("email", validation.data.email)
-        .single()
-
-      if (existingContact) {
-        contactId = existingContact.id
-      } else {
-        const { data: newContact } = await supabaseAdmin
-          .from("contacts")
-          .insert({
-            organization_id: config.organization_id,
-            name: validation.data.name,
-            email: validation.data.email,
-            phone: validation.data.phone,
-            lead_source: "booking",
-            lead_status: "warm",
-          })
-          .select()
-          .single()
-        contactId = newContact?.id
+      if (bookingError) {
+        return NextResponse.json(
+          { success: false, error: bookingError.message || "No se pudo crear la reserva" },
+          { status: 400 }
+        )
       }
 
-      // Create calendar event
-      const { data: event, error: eventError } = await supabaseAdmin
-        .from("calendar_events")
-        .insert({
-          organization_id: config.organization_id,
-          owner_id: config.owner_id,
-          contact_id: contactId,
-          title: `${config.name} - ${validation.data.name}`,
-          description: validation.data.notes,
-          start_time: slotStart.toISOString(),
-          end_time: slotEnd.toISOString(),
-          event_type: "meeting",
-          attendees: [{ email: validation.data.email, name: validation.data.name }],
-          booking_data: {
-            config_id: config.id,
-            answers: validation.data.answers,
-          },
-        })
-        .select()
-        .single()
+      if (!booking) {
+        throw new Error("No se pudo crear la reserva")
+      }
 
-      if (eventError) throw eventError
+      const booked = booking as PublicBookingResult
 
       // Send confirmation email (best-effort).
       if (isEmailConfigured()) {
@@ -283,12 +303,12 @@ export async function POST(request: NextRequest) {
             supabaseAdmin
               .from("organizations")
               .select("name")
-              .eq("id", config.organization_id)
+              .eq("id", booked.organization_id)
               .single(),
             supabaseAdmin
               .from("profiles")
               .select("email, full_name")
-              .eq("id", config.owner_id)
+              .eq("id", booked.owner_id)
               .single(),
           ])
 
@@ -326,7 +346,7 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 0;"><strong>Fin:</strong> ${escapeHtml(endLabel)}</p>
                 </div>
                 <p style="margin: 14px 0 0 0; font-size: 12px; color: #64748b;">
-                  Event ID: ${escapeHtml(event.id)}
+                  Event ID: ${escapeHtml(booked.event_id)}
                 </p>
               </div>
             `,
@@ -348,7 +368,7 @@ export async function POST(request: NextRequest) {
                     <p style="margin: 0;"><strong>Fin:</strong> ${escapeHtml(endLabel)}</p>
                   </div>
                   <p style="margin: 14px 0 0 0; font-size: 12px; color: #64748b;">
-                    Event ID: ${escapeHtml(event.id)}
+                    Event ID: ${escapeHtml(booked.event_id)}
                   </p>
                 </div>
               `,
@@ -362,7 +382,7 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({
         success: true,
         data: {
-          event_id: event.id,
+          event_id: booked.event_id,
           start: slotStart,
           end: slotEnd,
         }
@@ -463,7 +483,8 @@ function generateSlots(
 }
 
 export async function OPTIONS(request: NextRequest) {
-  const allowedOrigin = getAllowedOrigin(request) || '*'
+  const allowedOrigin = getAllowedOrigin(request)
+  if (!allowedOrigin) return new NextResponse(null, { status: 403 })
   const response = new NextResponse(null, { status: 204 })
   response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')

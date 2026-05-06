@@ -8,6 +8,7 @@ import {
   Calendar,
   User,
   Plus,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -249,6 +250,7 @@ const OpportunityCard = memo(function OpportunityCard({
   opportunity,
   onDragStart,
   onEdit,
+  onDelete,
 }: OpportunityCardProps) {
   const probability = opportunity.probability || 0
 
@@ -264,14 +266,29 @@ const OpportunityCard = memo(function OpportunityCard({
         <span className="font-semibold text-[13px] overflow-hidden text-ellipsis whitespace-nowrap flex-1 text-gray-900 dark:text-gray-100">
           {opportunity.name}
         </span>
-        <span className={cn(
-          "text-[11px] px-1.5 py-0.5 rounded ml-2 font-medium",
-          probability >= 75 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
-          probability >= 50 ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400" :
-          "bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400"
-        )}>
-          {probability}%
-        </span>
+        <div className="ml-2 flex shrink-0 items-center gap-1">
+          <span className={cn(
+            "text-[11px] px-1.5 py-0.5 rounded font-medium",
+            probability >= 75 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
+            probability >= 50 ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400" :
+            "bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400"
+          )}>
+            {probability}%
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete(opportunity.id)
+            }}
+          >
+            <span className="sr-only">Eliminar oportunidad</span>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Row 2: Price + Contact */}

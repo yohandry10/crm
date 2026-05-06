@@ -13,6 +13,7 @@ import { WORKFLOW_ACTIONS, WorkflowActionType } from './workflow-constants'
 import { replaceTemplateVariablesInObject } from './workflow-templates'
 import { webhookCircuitBreaker } from './circuit-breaker'
 import { logger } from './logger'
+import { validateOutboundWebhookUrl } from './outbound-url-security'
 
 // =====================================================
 // TYPES
@@ -49,49 +50,42 @@ export interface ExecutionResult {
     totalDuration_ms: number
 }
 
-// =====================================================
-// SECURITY: URL VALIDATION FOR WEBHOOKS
-// =====================================================
+async function ensureContactBelongsToOrganization(
+    supabase: any,
+    contactId: string | undefined,
+    organizationId: string
+): Promise<{ valid: boolean; error?: string }> {
+    if (!contactId) return { valid: true }
 
-const BLOCKED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    '169.254.169.254',  // AWS metadata
-    'metadata.google.internal',  // GCP metadata
-    '::1'  // IPv6 localhost
-]
+    const { data, error } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('id', contactId)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
 
-const BLOCKED_PROTOCOLS = ['file:', 'ftp:', 'gopher:', 'data:', 'javascript:']
+    if (error) return { valid: false, error: error.message }
+    if (!data) return { valid: false, error: 'Contact does not belong to this organization' }
+    return { valid: true }
+}
 
-function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string } {
-    try {
-        const url = new URL(urlString)
+async function getActiveOrganizationMemberIds(
+    supabase: any,
+    userIds: string[],
+    organizationId: string
+): Promise<string[]> {
+    const uniqueIds = Array.from(new Set(userIds.filter(Boolean)))
+    if (uniqueIds.length === 0) return []
 
-        if (BLOCKED_PROTOCOLS.includes(url.protocol)) {
-            return { valid: false, error: `Protocolo no permitido: ${url.protocol}` }
-        }
+    const { data, error } = await supabase
+        .from('organization_members')
+        .select('user_id')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .in('user_id', uniqueIds)
 
-        if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
-            return { valid: false, error: 'Solo se permiten URLs HTTPS en producción' }
-        }
-
-        const hostname = url.hostname.toLowerCase()
-        if (BLOCKED_HOSTS.includes(hostname)) {
-            return { valid: false, error: `Host no permitido: ${hostname}` }
-        }
-
-        // Check private IP ranges
-        if (hostname.startsWith('192.168.') ||
-            hostname.startsWith('10.') ||
-            hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
-            return { valid: false, error: 'No se permiten IPs privadas' }
-        }
-
-        return { valid: true }
-    } catch {
-        return { valid: false, error: 'URL inválida' }
-    }
+    if (error) throw error
+    return (data || []).map((member: any) => member.user_id)
 }
 
 // =====================================================
@@ -196,12 +190,22 @@ async function executeUpdateLeadScore(
     const normalizedScore = Math.max(0, Math.min(100, Number(score) || 0))
 
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('contacts')
             .update({ lead_score: normalizedScore, updated_at: new Date().toISOString() })
             .eq('id', targetContactId)
+            .eq('organization_id', context.organizationId)
+            .select('id')
+            .maybeSingle()
 
         if (error) throw error
+        if (!data) {
+            return {
+                success: false,
+                error: 'Contact does not belong to this organization',
+                duration_ms: Date.now() - startTime
+            }
+        }
 
         return {
             success: true,
@@ -239,12 +243,22 @@ async function executeUpdateLeadStatus(
     }
 
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('contacts')
             .update({ lead_status: status, updated_at: new Date().toISOString() })
             .eq('id', targetContactId)
+            .eq('organization_id', context.organizationId)
+            .select('id')
+            .maybeSingle()
 
         if (error) throw error
+        if (!data) {
+            return {
+                success: false,
+                error: 'Contact does not belong to this organization',
+                duration_ms: Date.now() - startTime
+            }
+        }
 
         return {
             success: true,
@@ -282,9 +296,31 @@ async function executeCreateTask(
     }
 
     try {
+        const contactValidation = await ensureContactBelongsToOrganization(supabase, targetContactId, context.organizationId)
+        if (!contactValidation.valid) {
+            return {
+                success: false,
+                error: contactValidation.error,
+                duration_ms: Date.now() - startTime
+            }
+        }
+
+        let assignedTo = assigned_to || context.userId || null
+        if (assignedTo) {
+            const [validAssignee] = await getActiveOrganizationMemberIds(supabase, [assignedTo], context.organizationId)
+            if (!validAssignee) {
+                return {
+                    success: false,
+                    error: 'Assigned user does not belong to this organization',
+                    duration_ms: Date.now() - startTime
+                }
+            }
+            assignedTo = validAssignee
+        }
+
         const { data, error } = await supabase.from('tasks').insert({
             organization_id: context.organizationId,
-            assigned_to: assigned_to || context.userId || null,
+            assigned_to: assignedTo,
             contact_id: targetContactId,
             title,
             description,
@@ -329,7 +365,7 @@ async function executeWebhook(
     }
 
     // Validate URL for SSRF prevention
-    const validation = isValidWebhookUrl(url)
+    const validation = await validateOutboundWebhookUrl(url)
     if (!validation.valid) {
         return {
             success: false,
@@ -403,17 +439,21 @@ async function executeSendNotification(
 
     try {
         // Si no hay user_ids específicos, notificar al usuario del contexto
-        const targetUserIds = user_ids?.length > 0 ? user_ids : (context.userId ? [context.userId] : [])
+        const requestedUserIds = Array.isArray(user_ids) && user_ids.length > 0
+            ? user_ids
+            : (context.userId ? [context.userId] : [])
+        const targetUserIds = await getActiveOrganizationMemberIds(supabase, requestedUserIds, context.organizationId)
 
         if (targetUserIds.length === 0) {
             return {
                 success: false,
-                error: 'No target users for notification',
+                error: 'No target users for notification in this organization',
                 duration_ms: Date.now() - startTime
             }
         }
 
         const notifications = targetUserIds.map((userId: string) => ({
+            organization_id: context.organizationId,
             user_id: userId,
             type,
             title: 'Notificación de Workflow',

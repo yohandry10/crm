@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { Menu, Bell, Search, User, LogOut, Settings, UserCircle, Command, Clock } from "lucide-react"
+import { Menu, Bell, Search, User, LogOut, Settings, UserCircle, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -81,20 +81,6 @@ export function Header({ onMenuClick }: HeaderProps) {
     } finally {
       setLoggingOut(false)
     }
-  }
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return 'ahora'
-    if (diffMins < 60) return `hace ${diffMins} min`
-    if (diffHours < 24) return `hace ${diffHours}h`
-    return `hace ${diffDays}d`
   }
 
   return (

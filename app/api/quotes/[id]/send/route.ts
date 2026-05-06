@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const { id: quoteId } = await params
         const body = await request.json()
 
-        const { method, to, message, payment_link } = body
+        const { method, to, payment_link } = body
 
         if (!quoteId) {
             throw new ValidationError("ID de cotización requerido")

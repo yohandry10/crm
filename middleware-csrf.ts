@@ -4,9 +4,6 @@ import type { NextRequest } from "next/server"
 // Rutas excluidas de CSRF (webhooks externos, auth y rutas internas autenticadas por sesión)
 // Las rutas autenticadas por cookie de sesión de Supabase no necesitan CSRF adicional
 const CSRF_EXCLUDED_PATHS = [
-  "/api/webhooks/n8n",
-  "/api/webhooks/stripe",
-  "/api/payments/stripe/webhook",
   "/api/auth/login",
   "/api/auth/change-password",
   "/api/auth/bootstrap",

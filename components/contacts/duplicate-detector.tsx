@@ -33,7 +33,6 @@ export function DuplicateDetector({
   onDismiss,
 }: DuplicateDetectorProps) {
   const [duplicates, setDuplicates] = useState<Duplicate[]>([])
-  const [loading, setLoading] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
   // Debounce values to avoid too many API calls
@@ -47,7 +46,6 @@ export function DuplicateDetector({
       return
     }
 
-    setLoading(true)
     try {
       const params = new URLSearchParams()
       if (debouncedEmail) params.set("email", debouncedEmail)
@@ -64,8 +62,6 @@ export function DuplicateDetector({
       }
     } catch (error) {
       console.error("Error checking duplicates:", error)
-    } finally {
-      setLoading(false)
     }
   }, [debouncedEmail, debouncedPhone, debouncedName, excludeId])
 

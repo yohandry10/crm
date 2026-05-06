@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { logger } from './logger'
+import { validateOutboundWebhookUrl } from './outbound-url-security'
 
 /**
  * =====================================================
@@ -358,6 +359,11 @@ async function executeWorkflowAction(supabase: any, action: any, contact_id: str
             return { created: true, task_id: task.id }
 
         case 'webhook':
+            const validation = await validateOutboundWebhookUrl(action.params.url)
+            if (!validation.valid) {
+                throw new Error(`URL de webhook inválida: ${validation.error}`)
+            }
+
             const response = await fetch(action.params.url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

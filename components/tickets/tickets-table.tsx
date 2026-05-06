@@ -18,8 +18,7 @@ import {
 
 interface TicketItem {
     id: string
-    ticket_number: string
-    subject: string
+    title: string
     description: string | null
     contact_id: string | null
     contact?: { name: string }
@@ -157,8 +156,8 @@ export function TicketsTable() {
                         ) : (
                             tickets.map((ticket) => (
                                 <TableRow key={ticket.id}>
-                                    <TableCell className="font-medium">{ticket.ticket_number}</TableCell>
-                                    <TableCell>{ticket.subject}</TableCell>
+                                    <TableCell className="font-medium">{ticket.id.slice(0, 8)}</TableCell>
+                                    <TableCell>{ticket.title}</TableCell>
                                     <TableCell>{ticket.contact?.name || "-"}</TableCell>
                                     <TableCell><Badge className={`${getPriorityColor(ticket.priority)} text-white border-0`}>{ticket.priority}</Badge></TableCell>
                                     <TableCell><Badge className={`${getStatusColor(ticket.status)} text-white border-0`}>{ticket.status}</Badge></TableCell>

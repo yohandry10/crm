@@ -171,13 +171,14 @@ export const tasksExportColumns: ExportColumn[] = [
 ]
 
 export const ticketsExportColumns: ExportColumn[] = [
-  { key: "ticket_number", header: "Número" },
-  { key: "subject", header: "Asunto" },
+  { key: "id", header: "ID" },
+  { key: "title", header: "Título" },
+  { key: "description", header: "Descripción" },
+  { key: "account.name", header: "Cuenta" },
   { key: "contact.name", header: "Cliente" },
   { key: "priority", header: "Prioridad" },
   { key: "status", header: "Estado" },
-  { key: "category", header: "Categoría" },
   { key: "assigned_to_profile.full_name", header: "Asignado a" },
+  { key: "sla_due_at", header: "SLA", transform: formatDateForExport },
   { key: "created_at", header: "Fecha Creación", transform: formatDateForExport },
-  { key: "resolved_at", header: "Fecha Resolución", transform: formatDateForExport },
 ]

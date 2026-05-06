@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
-import { createClient } from "@supabase/supabase-js"
-import { createCheckoutSession, isStripeConfigured, PLAN_AMOUNTS } from "@/lib/stripe"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
+import { getBillingProvider, getBillingProviderLabel, isManualBillingProvider, PLAN_AMOUNTS } from "@/lib/billing-providers"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { z } from "zod"
+
+const checkoutSchema = z.object({
+  plan: z.enum(["starter", "professional", "enterprise"]),
+  billingPeriod: z.enum(["monthly", "yearly"]),
+})
 
 export async function POST(request: NextRequest) {
   try {
     const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
     if (rateLimitResponse) return rateLimitResponse
 
-    const { user, organizationId, organization, role } = await getAuthenticatedContext()
-    const body = await request.json()
-
-    const { plan, billingPeriod } = body
-
-    if (!plan || !billingPeriod) {
+    const { user, organizationId, role } = await getAuthenticatedContext()
+    const parsed = checkoutSchema.safeParse(await request.json())
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Plan y período de facturación requeridos" },
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
         { status: 400 }
       )
     }
+
+    const { plan, billingPeriod } = parsed.data
 
     // Only owner can manage subscriptions
     if (role !== "owner") {
@@ -29,10 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Get plan details
     const { data: planData } = await supabaseAdmin
@@ -49,33 +51,61 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
-
-    // Si Stripe está configurado, crear sesión de checkout
-    if (isStripeConfigured()) {
-      try {
-        const session = await createCheckoutSession({
-          organizationId,
-          organizationName: organization.name,
-          customerEmail: user.email!,
-          plan: plan as "starter" | "professional" | "enterprise",
-          billingPeriod: billingPeriod as "monthly" | "yearly",
-          successUrl: `${baseUrl}/settings/billing?success=true`,
-          cancelUrl: `${baseUrl}/settings/billing?cancelled=true`,
-        })
-
-        return NextResponse.json({
-          success: true,
-          checkoutUrl: session.url,
-        })
-      } catch (stripeError: any) {
-        console.error("Stripe checkout error:", stripeError)
-        // Si falla Stripe, continuar con activación manual
-      }
-    }
-
-    // Modo demo/testing: activación directa sin pago
-    const amount = PLAN_AMOUNTS[plan]?.[billingPeriod as "monthly" | "yearly"] || 
+    const amount = PLAN_AMOUNTS[plan]?.[billingPeriod] ||
                    (billingPeriod === "yearly" ? planData.price_yearly * 100 : planData.price_monthly * 100)
+    const billingProvider = getBillingProvider()
+
+    if (!isManualBillingProvider(billingProvider)) {
+      const paymentReference = `${billingProvider.toUpperCase()}-${Date.now()}`
+
+      const { error: historyError } = await supabaseAdmin.from("subscription_history").insert({
+        organization_id: organizationId,
+        plan,
+        status: "past_due",
+        amount: amount / 100,
+        currency: planData.currency || "PEN",
+        billing_period: billingPeriod,
+        payment_method: getBillingProviderLabel(billingProvider),
+        payment_reference: paymentReference,
+        notes: `Pendiente de confirmacion por ${getBillingProviderLabel(billingProvider)}`,
+        created_by: user.id,
+      })
+
+      if (historyError) throw historyError
+
+      const { error: auditError } = await supabaseAdmin.from("admin_audit_logs").insert({
+        admin_user_id: user.id,
+        action: "subscription_payment_requested",
+        target_type: "organization",
+        target_id: organizationId,
+        details: {
+          plan,
+          billing_period: billingPeriod,
+          payment_provider: billingProvider,
+          payment_reference: paymentReference,
+          amount: amount / 100,
+          return_url: `${baseUrl}/settings/billing`,
+        },
+      })
+
+      if (auditError) throw auditError
+
+      return NextResponse.json(
+        {
+          success: true,
+          pendingPayment: true,
+          message: `Solicitud registrada. El pago queda pendiente de confirmacion por ${getBillingProviderLabel(billingProvider)}.`,
+          data: {
+            plan,
+            billingPeriod,
+            amount: amount / 100,
+            provider: billingProvider,
+            paymentReference,
+          },
+        },
+        { status: 202 }
+      )
+    }
 
     const { error } = await supabaseAdmin.rpc("activate_subscription", {
       p_organization_id: organizationId,
@@ -89,12 +119,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Suscripción activada (modo demo)",
+      message: "Suscripción activada por gestión manual",
       data: {
         plan,
         billingPeriod,
         amount: amount / 100,
-        demo: true,
+        manual: true,
       },
     })
   } catch (error: any) {

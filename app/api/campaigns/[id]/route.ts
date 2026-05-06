@@ -14,8 +14,28 @@ const campaignUpdateSchema = z.object({
     subject: z.string().optional().nullable(),
     content: z.string().optional().nullable(),
     scheduled_at: z.string().datetime().optional().nullable(),
-    budget: z.number().min(0).optional(),
+    budget: z.coerce.number().min(0).optional(),
 })
+
+function validateCampaignReadyForStatus(campaign: any) {
+    if (campaign.status !== 'active' && campaign.status !== 'scheduled') return
+
+    if (!campaign.content || campaign.content.trim().length === 0) {
+        throw new ValidationError("El contenido de la campaña es requerido antes de activar")
+    }
+
+    if (campaign.type === 'email' && (!campaign.subject || campaign.subject.trim().length === 0)) {
+        throw new ValidationError("El asunto es requerido para campañas de email")
+    }
+
+    if (campaign.status === 'scheduled' && !campaign.scheduled_at) {
+        throw new ValidationError("La fecha de programación es requerida")
+    }
+
+    if (Number(campaign.contact_count || 0) <= 0) {
+        throw new ValidationError("La campaña necesita una audiencia antes de activarse o programarse")
+    }
+}
 
 export async function GET(
     request: NextRequest,
@@ -70,24 +90,7 @@ export async function PUT(
             return NextResponse.json({ success: false, error: "Campaña no encontrada" }, { status: 404 })
         }
 
-        // Validar contenido antes de activar o programar
-        const newStatus = validation.data.status
-        if (newStatus === 'active' || newStatus === 'scheduled') {
-            const content = validation.data.content || existing.content
-            const subject = validation.data.subject || existing.subject
-            
-            if (!content || content.trim().length === 0) {
-                throw new ValidationError("El contenido de la campaña es requerido antes de activar")
-            }
-            
-            if ((existing.type === 'email' || validation.data.type === 'email') && (!subject || subject.trim().length === 0)) {
-                throw new ValidationError("El asunto es requerido para campañas de email")
-            }
-
-            if (newStatus === 'scheduled' && !validation.data.scheduled_at && !existing.scheduled_at) {
-                throw new ValidationError("La fecha de programación es requerida")
-            }
-        }
+        validateCampaignReadyForStatus({ ...existing, ...validation.data })
 
         const { data, error } = await supabase
             .from('campaigns')

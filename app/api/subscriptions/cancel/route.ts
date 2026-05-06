@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
-import { cancelSubscription, isStripeConfigured } from "@/lib/stripe"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 
 export async function POST() {
   try {
@@ -22,43 +21,29 @@ export async function POST() {
       )
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = createSupabaseServiceClient()
 
-    // Si tiene Stripe subscription, cancelar en Stripe
-    if (isStripeConfigured() && organization.stripe_subscription_id) {
-      await cancelSubscription(organization.stripe_subscription_id, true) // cancel at period end
-      
-      // Actualizar en BD
-      await supabaseAdmin
-        .from("organizations")
-        .update({
-          cancel_at_period_end: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", organizationId)
-    } else {
-      // Modo demo: cancelar inmediatamente
-      await supabaseAdmin
-        .from("organizations")
-        .update({
-          subscription_status: "cancelled",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", organizationId)
-
-      // Registrar en historial
-      await supabaseAdmin.from("subscription_history").insert({
-        organization_id: organizationId,
-        plan: organization.subscription_plan,
-        status: "cancelled",
-        started_at: new Date().toISOString(),
-        notes: "Cancelado por el usuario",
-        created_by: user.id,
+    const { error: updateError } = await supabaseAdmin
+      .from("organizations")
+      .update({
+        subscription_status: "cancelled",
+        cancel_at_period_end: false,
+        updated_at: new Date().toISOString(),
       })
-    }
+      .eq("id", organizationId)
+
+    if (updateError) throw updateError
+
+    const { error: historyError } = await supabaseAdmin.from("subscription_history").insert({
+      organization_id: organizationId,
+      plan: organization.subscription_plan,
+      status: "cancelled",
+      started_at: new Date().toISOString(),
+      notes: "Cancelado por el usuario",
+      created_by: user.id,
+    })
+
+    if (historyError) throw historyError
 
     // Log de auditoría
     await supabaseAdmin.from("admin_audit_logs").insert({
@@ -74,9 +59,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: organization.stripe_subscription_id 
-        ? "Suscripción cancelada. Tendrás acceso hasta el final del período."
-        : "Suscripción cancelada.",
+      message: "Suscripción cancelada.",
     })
   } catch (error: any) {
     console.error("Cancel error:", error)

@@ -46,7 +46,6 @@ function handleCORS(request: NextRequest, origin: string | null): NextResponse |
 
     // Rutas que permiten CORS más permisivo (APIs públicas embebibles)
     const publicCORSRoutes = [
-        '/api/webhooks', // Webhooks externos (Stripe, N8N, etc.)
         '/f/', // Formularios embebibles
         '/api/public', // APIs públicas
         '/api/pay', // Links de pago embebibles
@@ -108,7 +107,6 @@ const publicRoutes = [
     '/pricing',
     '/f', // Formularios públicos embebibles
     '/api/health',
-    '/api/webhooks',
     '/api/public',
     '/api/auth', // Login, cambio de contraseña
     '/auth/callback',
@@ -143,6 +141,7 @@ const protectedApiRoutes = [
     '/api/subscriptions',
     '/api/forms', // Gestión de formularios (protegido)
     '/api/reports',
+    '/api/webhooks',
 ]
 
 // Rutas que requieren Super Admin
@@ -165,10 +164,7 @@ export async function middleware(request: NextRequest) {
     // Validar Content-Type en métodos POST/PUT/PATCH para rutas API
     if (['POST', 'PUT', 'PATCH'].includes(method) && pathname.startsWith('/api/')) {
         // Excepciones: webhooks y multipart uploads
-        const skipContentTypeValidation = [
-            '/api/webhooks/', // Webhooks pueden usar diferentes Content-Types
-            '/api/payments/stripe/webhook', // Stripe usa application/json pero lo maneja especialmente
-        ]
+        const skipContentTypeValidation: string[] = []
 
         const shouldValidate = !skipContentTypeValidation.some(route => pathname.startsWith(route))
 
@@ -234,13 +230,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next()
     }
 
-    // ✅ Permitir webhooks públicos específicos (incluyendo N8N)
-    if (pathname.startsWith('/api/payments/stripe/webhook') ||
-        pathname.startsWith('/api/webhooks/stripe') ||
-        pathname.startsWith('/api/webhooks/n8n')) {
-        return NextResponse.next()
-    }
-
     // CSRF token fuerte (se complementa con Origin)
     const csrfCheck = csrfMiddleware(request)
     if (csrfCheck) return csrfCheck
@@ -290,7 +279,7 @@ export async function middleware(request: NextRequest) {
     })
 
     // Verificar sesión usando getUser (más seguro que getSession)
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
     // Rutas públicas - permitir acceso
     if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
@@ -364,7 +353,6 @@ export async function middleware(request: NextRequest) {
     // 2. AGREGAR CORS HEADERS A RESPUESTAS (Resuelve SEC-001)
     // ====================================================================
     const publicCORSRoutes = [
-        '/api/webhooks',
         '/f/',
         '/api/public',
         '/api/pay',
@@ -394,9 +382,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // CSRF defensa básica: para métodos sensibles, validar origen
-    // ✅ Excluir webhooks de la validación de origen
+    // Excluir webhooks públicos específicos de la validación de origen
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
-        !pathname.startsWith('/api/webhooks/') &&
         !pathname.startsWith('/api/invitations')) {
         const host = request.nextUrl.origin
         if (origin && origin !== host) {

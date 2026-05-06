@@ -56,8 +56,7 @@ export async function requirePlatformAdmin() {
     .map((value) => value.trim())
     .filter(Boolean)
 
-  const fallbackSuperadminId = "f700987a-2bef-4928-b78f-48446a50d1e1"
-  const isAllowlistedId = user.id && (allowlistUserIds.includes(user.id) || user.id === fallbackSuperadminId)
+  const isAllowlistedId = user.id && allowlistUserIds.includes(user.id)
 
   if (isAllowlisted || isAllowlistedId) {
     try {

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Building2, Users, Eye, Edit, Loader2 } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Building2, Eye, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -196,18 +196,6 @@ export default function OrganizationsPage() {
                               <Link href={`/admin/organizations/${org.id}`}>
                                 <Eye className="w-4 h-4 mr-2" />
                                 Ver Detalles
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/organizations/${org.id}/edit`}>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Editar
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/organizations/${org.id}/members`}>
-                                <Users className="w-4 h-4 mr-2" />
-                                Miembros
                               </Link>
                             </DropdownMenuItem>
                           </DropdownMenuContent>

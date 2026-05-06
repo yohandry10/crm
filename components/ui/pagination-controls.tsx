@@ -22,6 +22,12 @@ export function PaginationControls({
     onLimitChange,
     totalItems
 }: PaginationControlsProps) {
+    const hasPages = totalPages > 0 && (totalItems === undefined || totalItems > 0)
+    const safeTotalPages = Math.max(1, totalPages || 0)
+    const safeCurrentPage = Math.min(Math.max(1, currentPage || 1), safeTotalPages)
+    const canGoBack = hasPages && safeCurrentPage > 1
+    const canGoForward = hasPages && safeCurrentPage < safeTotalPages
+
     return (
         <div className="flex items-center justify-between px-2 py-4">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -55,7 +61,7 @@ export function PaginationControls({
                 )}
 
                 <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Página {currentPage} de {totalPages}
+                    {hasPages ? `Página ${safeCurrentPage} de ${safeTotalPages}` : "Sin páginas"}
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -63,7 +69,7 @@ export function PaginationControls({
                         variant="outline"
                         className="hidden h-8 w-8 p-0 lg:flex"
                         onClick={() => onPageChange(1)}
-                        disabled={currentPage === 1}
+                        disabled={!canGoBack}
                     >
                         <span className="sr-only">Ir a primera página</span>
                         <ChevronsLeft className="h-4 w-4" />
@@ -71,8 +77,8 @@ export function PaginationControls({
                     <Button
                         variant="outline"
                         className="h-8 w-8 p-0"
-                        onClick={() => onPageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
+                        onClick={() => onPageChange(safeCurrentPage - 1)}
+                        disabled={!canGoBack}
                     >
                         <span className="sr-only">Anterior</span>
                         <ChevronLeft className="h-4 w-4" />
@@ -80,8 +86,8 @@ export function PaginationControls({
                     <Button
                         variant="outline"
                         className="h-8 w-8 p-0"
-                        onClick={() => onPageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
+                        onClick={() => onPageChange(safeCurrentPage + 1)}
+                        disabled={!canGoForward}
                     >
                         <span className="sr-only">Siguiente</span>
                         <ChevronRight className="h-4 w-4" />
@@ -89,8 +95,8 @@ export function PaginationControls({
                     <Button
                         variant="outline"
                         className="hidden h-8 w-8 p-0 lg:flex"
-                        onClick={() => onPageChange(totalPages)}
-                        disabled={currentPage === totalPages}
+                        onClick={() => onPageChange(safeTotalPages)}
+                        disabled={!canGoForward}
                     >
                         <span className="sr-only">Ir a última página</span>
                         <ChevronsRight className="h-4 w-4" />

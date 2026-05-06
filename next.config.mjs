@@ -43,6 +43,7 @@ const nextConfig = {
   // ✅ Optimizar server components (Next 15+ usa serverExternalPackages)
   serverExternalPackages: [
     '@supabase/supabase-js',
+    'bullmq',
     'ioredis',
   ],
 
@@ -54,6 +55,7 @@ const nextConfig = {
         config.ignoreWarnings = [
           ...(config.ignoreWarnings ?? []),
           /require function is used in a way in which dependencies cannot be statically extracted/i,
+          /A Node\.js API is used .* not supported in the Edge Runtime/i,
         ]
 
         if (!isServer) {
@@ -153,7 +155,7 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://va.vercel-scripts.com https://vitals.vercel-insights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://accounts.google.com https://va.vercel-scripts.com https://vitals.vercel-insights.com; frame-src 'self' https://accounts.google.com; frame-ancestors 'self'; worker-src 'self' blob:"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://va.vercel-scripts.com https://vitals.vercel-insights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://api.culqi.com https://accounts.google.com https://va.vercel-scripts.com https://vitals.vercel-insights.com; frame-src 'self' https://accounts.google.com; frame-ancestors 'self'; worker-src 'self' blob:"
           }
         ]
       }

@@ -13,7 +13,6 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { evaluateWorkflowConditions } from "@/lib/workflow-conditions"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
-import { addWorkflowJob } from "@/lib/queues/workflow-queue"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import crypto from "crypto"
 
@@ -69,6 +68,7 @@ export async function POST(request: NextRequest) {
         }
 
         // ✅ NUEVO: Encolar en vez de ejecutar síncronamente
+        const { addWorkflowJob } = await import("@/lib/queues/workflow-queue")
         const job = await addWorkflowJob({
             workflowId: workflow_id,
             organizationId,
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
                 status: 'queued',
                 estimatedTime: `${(workflow.actions?.length || 0) * 2}s`,
                 // URL para rastrear estado
-                statusUrl: `/api/jobs/${job.id}/status`
+                statusUrl: `/api/jobs/${job.id}`
             }
         })
 

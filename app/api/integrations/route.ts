@@ -7,7 +7,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 import crypto from "crypto"
 import { testConnection } from "@/lib/integrations"
-import { encryptJSON, decryptJSON } from "@/lib/encryption"
+import { encryptJSON } from "@/lib/encryption"
 import { createRequestLogger } from "@/lib/logger"
 
 const integrationSchema = z.object({
@@ -17,8 +17,18 @@ const integrationSchema = z.object({
     is_active: z.boolean().default(true)
 })
 
+function toSafeIntegrationResponse(integration: any) {
+    const safeIntegration = { ...integration }
+    const hasConfig = Boolean(safeIntegration.config_encrypted || safeIntegration.config)
+    delete safeIntegration.config_encrypted
+    delete safeIntegration.config
+    return {
+        ...safeIntegration,
+        config: null,
+        has_config: hasConfig,
+    }
+}
 export async function GET(request: NextRequest) {
-    const log = createRequestLogger(request)
     try {
         const rateLimitResponse = await rateLimit(request, RATE_LIMITS.read)
         if (rateLimitResponse) return rateLimitResponse
@@ -33,32 +43,7 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
-        // Decrypt config for each integration
-        const decryptedData = data.map(integration => {
-            try {
-                // If config_encrypted exists, use it; otherwise fall back to config
-                if (integration.config_encrypted) {
-                    const decryptedConfig = decryptJSON(integration.config_encrypted)
-                    return {
-                        ...integration,
-                        config: decryptedConfig,
-                        config_encrypted: undefined // Don't expose encrypted data to client
-                    }
-                }
-                return {
-                    ...integration,
-                    config_encrypted: undefined
-                }
-            } catch (decryptError) {
-                log.warn('Failed to decrypt integration config', { integrationId: integration.id })
-                // Return without config if decryption fails
-                return {
-                    ...integration,
-                    config: null,
-                    config_encrypted: undefined
-                }
-            }
-        })
+        const decryptedData = data.map(toSafeIntegrationResponse)
 
         return NextResponse.json({ success: true, data: decryptedData })
     } catch (error: any) {
@@ -137,12 +122,7 @@ export async function POST(request: NextRequest) {
             newData: auditData
         })
 
-        // Return decrypted config to client
-        const responseData = {
-            ...data,
-            config: body.config,
-            config_encrypted: undefined
-        }
+        const responseData = toSafeIntegrationResponse(data)
 
         return NextResponse.json({ success: true, data: responseData, connection: connectionResult })
     } catch (error: any) {

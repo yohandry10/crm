@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createRequestLogger } from '@/lib/logger'
 import { sendEmail, isEmailConfigured } from '@/lib/email'
+import { createSupabaseServiceClient } from '@/lib/supabase-service'
+import { sanitizeErrorForClient } from '@/lib/error-handler'
 
 function escapeHtml(value: unknown): string {
   const str = String(value ?? '')
@@ -25,17 +26,7 @@ function formatValue(value: unknown): string {
 }
 
 function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceKey) {
-    throw new Error('Missing Supabase credentials for public forms submit')
-  }
-
-  return createClient(
-    url,
-    serviceKey
-  )
+  return createSupabaseServiceClient()
 }
 
 function getAllowedOrigin(request: NextRequest): string | null {
@@ -43,10 +34,65 @@ function getAllowedOrigin(request: NextRequest): string | null {
   const origin = request.headers.get('origin')
   const hostOrigin = request.nextUrl.origin
 
-  if (allowed.length === 0) return origin || hostOrigin
+  if (allowed.length === 0) return process.env.NODE_ENV === 'production' ? null : origin || hostOrigin
   if (origin && allowed.includes(origin)) return origin
   if (!origin && allowed.includes(hostOrigin)) return hostOrigin
   return null
+}
+
+function validateSubmittedFields(fields: any[], data: Record<string, any>) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { valid: false, error: 'Datos inválidos' }
+  }
+
+  const fieldMap = new Map((fields || []).map((field: any) => [String(field.id), field]))
+  const submittedKeys = Object.keys(data).filter((key) => key !== '_hp_field')
+
+  if (submittedKeys.length > 100) {
+    return { valid: false, error: 'Demasiados campos enviados' }
+  }
+
+  for (const field of fields || []) {
+    const fieldId = String(field.id)
+    const value = data[fieldId]
+    const isEmpty = value === undefined || value === null || value === ''
+
+    if (field.required && isEmpty) {
+      return { valid: false, error: `El campo "${field.label}" es requerido`, field: fieldId }
+    }
+
+    if (isEmpty) continue
+
+    if (typeof value === 'string' && value.length > 5000) {
+      return { valid: false, error: `El campo "${field.label}" excede el tamaño permitido`, field: fieldId }
+    }
+
+    if (field.type === 'email' && (typeof value !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) {
+      return { valid: false, error: `El campo "${field.label}" debe ser un email válido`, field: fieldId }
+    }
+
+    if (field.type === 'number' && Number.isNaN(Number(value))) {
+      return { valid: false, error: `El campo "${field.label}" debe ser numérico`, field: fieldId }
+    }
+
+    if (field.type === 'select') {
+      const options = Array.isArray(field.options) ? field.options.map(String) : []
+      if (!options.includes(String(value))) {
+        return { valid: false, error: `El campo "${field.label}" tiene una opción inválida`, field: fieldId }
+      }
+    }
+
+    if (field.type === 'checkbox' && typeof value !== 'boolean') {
+      return { valid: false, error: `El campo "${field.label}" debe ser verdadero o falso`, field: fieldId }
+    }
+  }
+
+  const unknownKey = submittedKeys.find((key) => !fieldMap.has(key))
+  if (unknownKey) {
+    return { valid: false, error: `Campo no permitido: ${unknownKey}`, field: unknownKey }
+  }
+
+  return { valid: true }
 }
 
 // POST - Enviar formulario (público)
@@ -61,7 +107,7 @@ export async function POST(
 
     const allowedOrigin = getAllowedOrigin(request)
     if (!allowedOrigin) {
-      return corsResponse({ error: 'Origin not allowed' }, 403, '*')
+      return NextResponse.json({ error: 'Origin not allowed' }, { status: 403 })
     }
 
     const { id } = await params
@@ -93,18 +139,13 @@ export async function POST(
     const { data: form, error: formError } = await formQuery.single()
 
     if (formError || !form) {
-      return corsResponse({ error: 'Formulario no encontrado o inactivo' }, 404)
+      return corsResponse({ error: 'Formulario no encontrado o inactivo' }, 404, allowedOrigin)
     }
 
-    // Validar campos requeridos
     const fields = form.fields as any[]
-    for (const field of fields) {
-      if (field.required && !data[field.id]) {
-      return corsResponse({ 
-        error: `El campo "${field.label}" es requerido`,
-        field: field.id 
-      }, 400, allowedOrigin)
-    }
+    const fieldsValidation = validateSubmittedFields(fields, data)
+    if (!fieldsValidation.valid) {
+      return corsResponse(fieldsValidation, 400, allowedOrigin)
     }
 
     // Honeypot check (anti-spam)
@@ -303,14 +344,18 @@ export async function POST(
 
   } catch (error: any) {
     log.error('[Public Forms Submit] Error', error)
-    const origin = getAllowedOrigin(request) || '*'
-    return corsResponse({ error: error.message }, 500, origin)
+    const origin = getAllowedOrigin(request)
+    if (!origin) {
+      return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: 500 })
+    }
+    return corsResponse({ error: sanitizeErrorForClient(error) }, 500, origin)
   }
 }
 
 // OPTIONS - CORS preflight
 export async function OPTIONS(request: NextRequest) {
-  const allowedOrigin = getAllowedOrigin(request) || '*'
+  const allowedOrigin = getAllowedOrigin(request)
+  if (!allowedOrigin) return new NextResponse(null, { status: 403 })
   const response = new NextResponse(null, { status: 204 })
   response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -319,7 +364,7 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 // Helper para respuestas con CORS
-function corsResponse(data: any, status = 200, origin: string = '*') {
+function corsResponse(data: any, status: number, origin: string) {
   const response = NextResponse.json(data, { status })
   response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')

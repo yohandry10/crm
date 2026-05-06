@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Loader2, CheckCircle, AlertCircle, Phone, QrCode, Landmark,
-    Upload, FileText, Building, Calendar, CreditCard
+    Upload, FileText, CreditCard
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -38,13 +38,7 @@ export default function PublicPaymentPage() {
     const [proofUrl, setProofUrl] = useState("")
     const [notes, setNotes] = useState("")
 
-    useEffect(() => {
-        if (token) {
-            fetchData()
-        }
-    }, [token])
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const res = await fetch(`/api/pay/${token}`)
             const result = await res.json()
@@ -59,7 +53,13 @@ export default function PublicPaymentPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [token])
+
+    useEffect(() => {
+        if (token) {
+            fetchData()
+        }
+    }, [token, fetchData])
 
     const handleSubmit = async () => {
         if (!proofUrl) {

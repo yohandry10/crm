@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Check, ArrowRight, Loader2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
 
 interface Plan {
     id: string

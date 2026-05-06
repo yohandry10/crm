@@ -3,10 +3,21 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { reportConfigSchema } from "@/lib/report-contracts"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 50 }
 const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 20 }
+
+function serializeSavedReport(report: any) {
+  return {
+    id: report.id,
+    name: report.name,
+    ...(report.config || {}),
+    created_at: report.created_at,
+    updated_at: report.updated_at,
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: (data || []).map(serializeSavedReport) })
 
   } catch (error: any) {
     await logError({
@@ -45,7 +56,15 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user, organizationId } = await getAuthenticatedContext()
-    const config = await request.json()
+    const parsed = reportConfigSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Configuración de reporte inválida", details: parsed.error.format() },
+        { status: 400 }
+      )
+    }
+
+    const config = parsed.data
 
     const { data, error } = await supabase
       .from("saved_reports")
@@ -67,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: serializeSavedReport(data) })
 
   } catch (error: any) {
     await logError({

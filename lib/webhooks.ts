@@ -1,6 +1,7 @@
 import crypto from "crypto"
 import { logger } from "./logger"
 import { decryptSecret } from "./encryption"
+import { validateOutboundWebhookUrl } from "./outbound-url-security"
 
 export const WEBHOOK_EVENTS = [
   "contact.created",
@@ -75,6 +76,22 @@ export async function sendWebhook(
         .digest("hex")
 
       try {
+        const urlValidation = await validateOutboundWebhookUrl(webhook.url)
+        if (!urlValidation.valid) {
+          logger.warn("Webhook URL rejected", { webhookId: webhook.id, reason: urlValidation.error })
+          await supabase
+            .from("webhook_deliveries")
+            .insert({
+              webhook_id: webhook.id,
+              event,
+              payload,
+              error: `URL de webhook inválida: ${urlValidation.error}`,
+              delivered_at: new Date().toISOString(),
+              success: false,
+            })
+          continue
+        }
+
         const response = await fetch(webhook.url, {
           method: "POST",
           headers: {

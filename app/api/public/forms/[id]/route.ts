@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { createSupabaseServiceClient } from '@/lib/supabase-service'
+import { sanitizeErrorForClient } from '@/lib/error-handler'
 
 function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceKey) {
-    throw new Error('Missing Supabase credentials for public forms')
-  }
-
-  return createClient(
-    url,
-    serviceKey
-  )
+  return createSupabaseServiceClient()
 }
 
 function getAllowedOrigin(request: NextRequest): string | null {
@@ -21,7 +12,7 @@ function getAllowedOrigin(request: NextRequest): string | null {
   const origin = request.headers.get('origin')
   const hostOrigin = request.nextUrl.origin
 
-  if (allowed.length === 0) return origin || hostOrigin
+  if (allowed.length === 0) return process.env.NODE_ENV === 'production' ? null : origin || hostOrigin
   if (origin && allowed.includes(origin)) return origin
   if (!origin && allowed.includes(hostOrigin)) return hostOrigin
   return null
@@ -80,13 +71,15 @@ export async function GET(
     return response
   } catch (error: any) {
     console.error('[Public Forms API] Error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: 500 })
   }
 }
 
 // OPTIONS - CORS preflight
 export async function OPTIONS(request: NextRequest) {
-  const allowedOrigin = getAllowedOrigin(request) || '*'
+  const allowedOrigin = getAllowedOrigin(request)
+  if (!allowedOrigin) return new NextResponse(null, { status: 403 })
+
   const response = new NextResponse(null, { status: 204 })
   response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')

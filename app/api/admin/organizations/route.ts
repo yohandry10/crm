@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { requirePlatformAdmin, maskRUC, validatePagination } from "@/lib/auth-helpers"
 import { logAdminAction, logSensitiveDataAccess } from "@/lib/audit-logger"
 import { createRequestLogger } from "@/lib/logger"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
+import { z } from "zod"
 
-function getAdminClient() {
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error("Missing Supabase service credentials")
-  }
-
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-}
+const createOrganizationSchema = z.object({
+  name: z.string().trim().min(1, "Nombre requerido").max(120),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug inválido").max(80),
+  ruc: z.string().trim().regex(/^\d{11}$/, "RUC inválido").optional().nullable().or(z.literal("")),
+  ownerEmail: z.string().trim().toLowerCase().email("Email del owner inválido"),
+  trialDays: z.number().int().min(1).max(30).default(2),
+})
 
 // GET - List all organizations
 export async function GET(request: NextRequest) {
@@ -34,7 +32,7 @@ export async function GET(request: NextRequest) {
     const subscriptionStatus = searchParams.get('subscription_status') || ''
     const subscriptionPlan = searchParams.get('subscription_plan') || ''
 
-    const supabaseAdmin = getAdminClient()
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Construir query
     let query = supabaseAdmin
@@ -79,7 +77,7 @@ export async function GET(request: NextRequest) {
       subscription_ends_at: org.subscription_ends_at,
       onboarding_completed: org.onboarding_completed,
       created_at: org.created_at,
-      // stripe_customer_id removido - ya no usamos Stripe
+      // Campos heredados de pasarelas externas no se exponen.
     }))
 
     // Auditar acceso a datos sensibles
@@ -128,25 +126,17 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user } = await requirePlatformAdmin()
-    const body = await request.json()
-
-    const { name, slug, ruc, ownerEmail, trialDays = 2 } = body
-
-    if (!name || !ownerEmail) {
+    const parsed = createOrganizationSchema.safeParse(await request.json())
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Nombre y email del owner son requeridos" },
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
         { status: 400 }
       )
     }
 
-    if (!slug) {
-      return NextResponse.json(
-        { success: false, error: "Slug es requerido" },
-        { status: 400 }
-      )
-    }
+    const { name, slug, ruc, ownerEmail, trialDays } = parsed.data
 
-    const supabaseAdmin = getAdminClient()
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Check if slug already exists
     const { data: existing } = await supabaseAdmin

@@ -4,6 +4,8 @@ import { salesOrderSchema } from "@/lib/schemas"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { getPaginationParams } from "@/lib/pagination"
+import { validateSalesOrderReferences } from "@/lib/sales-order-references"
 import crypto from "crypto"
 
 export async function GET(request: NextRequest) {
@@ -17,9 +19,7 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get("status")
         const account_id = searchParams.get("account_id")
         const opportunity_id = searchParams.get("opportunity_id")
-        const page = parseInt(searchParams.get("page") || "1")
-        const limit = parseInt(searchParams.get("limit") || "10")
-        const offset = (page - 1) * limit
+        const { page, limit, offset } = getPaginationParams(searchParams)
 
         let query = supabase
             .from("sales_orders")
@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
         if (!validation.success) {
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.format() }, { status: 400 })
         }
+
+        await validateSalesOrderReferences(supabase, organizationId, validation.data)
 
         const { data, error } = await supabase
             .from("sales_orders")

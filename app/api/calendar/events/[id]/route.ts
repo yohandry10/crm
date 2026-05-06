@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from "@/lib/calendar-events"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -11,17 +12,23 @@ const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 30 }
 
 const updateEventSchema = z.object({
   title: z.string().min(1).optional(),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   start: z.string().datetime().optional(),
   end: z.string().datetime().optional(),
-  location: z.string().optional(),
-  contact_id: z.string().uuid().nullable().optional(),
-  opportunity_id: z.string().uuid().nullable().optional(),
+  location: z.string().optional().nullable(),
+  contact_id: z.preprocess(
+    (value) => (!value || value === "none" ? null : value),
+    z.string().uuid().nullable().optional()
+  ),
+  opportunity_id: z.preprocess(
+    (value) => (!value || value === "none" ? null : value),
+    z.string().uuid().nullable().optional()
+  ),
   attendees: z.array(z.object({
     email: z.string().email(),
     name: z.string().optional()
   })).optional(),
-  reminder_minutes: z.number().optional(),
+  reminder_minutes: z.coerce.number().int().min(0).max(10080).optional(),
   event_type: z.enum(["meeting", "call", "task", "other"]).optional(),
   status: z.enum(["scheduled", "completed", "cancelled"]).optional(),
 })
@@ -54,7 +61,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
 
   } catch (error: any) {
     return NextResponse.json(
@@ -86,19 +93,25 @@ export async function PUT(
     }
 
     // Get existing event
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("calendar_events")
       .select("*")
       .eq("id", id)
       .eq("organization_id", organizationId)
-      .single()
+      .maybeSingle()
 
+    if (existingError) throw existingError
     if (!existing) {
       return NextResponse.json(
         { success: false, error: "Evento no encontrado" },
         { status: 404 }
       )
     }
+
+    const nextStart = validation.data.start ?? existing.start_time
+    const nextEnd = validation.data.end ?? existing.end_time
+    assertCalendarDateRange(nextStart, nextEnd)
+    await validateCalendarEventReferences(supabase, organizationId, validation.data)
 
     const updateData: any = {}
     if (validation.data.title) updateData.title = validation.data.title
@@ -135,7 +148,7 @@ export async function PUT(
       newData: data,
     })
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
 
   } catch (error: any) {
     await logError({
@@ -162,13 +175,14 @@ export async function DELETE(
     const { id } = await params
     const { supabase, user, organizationId } = await getAuthenticatedContext()
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("calendar_events")
       .select("*")
       .eq("id", id)
       .eq("organization_id", organizationId)
-      .single()
+      .maybeSingle()
 
+    if (existingError) throw existingError
     if (!existing) {
       return NextResponse.json(
         { success: false, error: "Evento no encontrado" },

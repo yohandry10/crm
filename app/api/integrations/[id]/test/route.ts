@@ -4,6 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { decryptJSON } from "@/lib/encryption"
+import { validateOutboundWebhookUrl } from "@/lib/outbound-url-security"
 import crypto from "crypto"
 
 type RouteContext = {
@@ -176,6 +177,15 @@ async function testWebhookConnection(config: any): Promise<{ success: boolean, m
             return {
                 success: false,
                 message: "Missing required configuration: url",
+                details: {}
+            }
+        }
+
+        const urlValidation = await validateOutboundWebhookUrl(url)
+        if (!urlValidation.valid) {
+            return {
+                success: false,
+                message: `URL de webhook inválida: ${urlValidation.error}`,
                 details: {}
             }
         }

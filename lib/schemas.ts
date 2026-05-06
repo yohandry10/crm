@@ -66,7 +66,7 @@ export const createPaymentSchema = z.object({
     amount: z.number().positive("Amount must be positive"),
     currency: z.string().default('PEN'),
     payment_method: z.enum(['card', 'transfer', 'cash', 'yape', 'plin']).optional(), // Merged enums
-    gateway: z.enum(['stripe', 'mercadopago', 'manual']).default('manual'),
+    gateway: z.enum(['culqi', 'pagoefectivo', 'bank_transfer', 'cash', 'yape', 'plin', 'manual']).default('manual'),
     metadata: z.record(z.any()).optional().default({}),
     transaction_id: z.string().optional(), // From validations.ts
     notes: z.string().optional() // From validations.ts
@@ -253,6 +253,14 @@ export const ticketSchema = z.object({
     metadata: z.record(z.any()).optional().default({})
 })
 
+export const salesOrderItemSchema = z.object({
+    product_id: z.string().uuid("Invalid product ID").optional().nullable(),
+    description: z.string().min(1, "Description is required").optional().nullable(),
+    quantity: z.coerce.number().positive("Quantity must be positive"),
+    unit_price: z.coerce.number().nonnegative("Unit price must be non-negative"),
+    total: z.coerce.number().nonnegative("Total must be non-negative").optional()
+})
+
 export const salesOrderSchema = z.object({
     account_id: z.string().uuid().optional().nullable(),
     contact_id: z.string().uuid().optional().nullable(),
@@ -263,6 +271,7 @@ export const salesOrderSchema = z.object({
     tax: z.number().nonnegative().default(0),
     total: z.number().nonnegative().default(0),
     notes: z.string().optional().nullable(),
+    items: z.array(salesOrderItemSchema).optional().default([]),
     metadata: z.record(z.any()).optional().default({})
 })
 

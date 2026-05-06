@@ -1,39 +1,89 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { getOrganizationTimezone } from "@/lib/date-utils"
+import { z } from "zod"
 import crypto from "crypto"
+
+const querySchema = z.object({
+    period: z.enum(["week", "month"]).default("month"),
+    months_back: z.coerce.number().int().min(1).max(24).default(6),
+    metric: z.string().trim().regex(/^[a-z0-9_:-]+$/i).max(64).optional(),
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+function monthKey(date: Date) {
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`
+}
+
+function weekKey(date: Date) {
+    const firstDay = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+    const days = Math.floor((date.getTime() - firstDay.getTime()) / 86400000)
+    return `${date.getUTCFullYear()}-W${String(Math.ceil((days + firstDay.getUTCDay() + 1) / 7)).padStart(2, "0")}`
+}
+
+function getBucket(dateValue: string, period: "week" | "month") {
+    const date = new Date(dateValue)
+    return period === "week" ? weekKey(date) : monthKey(date)
+}
+
+function createBuckets(period: "week" | "month", monthsBack: number, start: Date) {
+    const now = new Date()
+    const buckets = new Map<string, { period: string; contacts: number; sales: number; invoices: number; date: string }>()
+
+    if (period === "week") {
+        const cursor = new Date(start)
+        while (cursor <= now) {
+            const key = weekKey(cursor)
+            buckets.set(key, { period: key, contacts: 0, sales: 0, invoices: 0, date: cursor.toISOString().slice(0, 10) })
+            cursor.setUTCDate(cursor.getUTCDate() + 7)
+        }
+        return buckets
+    }
+
+    for (let i = monthsBack - 1; i >= 0; i--) {
+        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+        const key = monthKey(date)
+        buckets.set(key, { period: key, contacts: 0, sales: 0, invoices: 0, date: date.toISOString().slice(0, 10) })
+    }
+
+    return buckets
+}
 
 export async function GET(request: NextRequest) {
     try {
-        // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
+        const validation = querySchema.safeParse({
+            period: request.nextUrl.searchParams.get("period") || undefined,
+            months_back: request.nextUrl.searchParams.get("months_back") || undefined,
+            metric: request.nextUrl.searchParams.get("metric") || undefined,
+            start_date: request.nextUrl.searchParams.get("start_date") || undefined,
+            end_date: request.nextUrl.searchParams.get("end_date") || undefined,
+        })
 
-        const searchParams = request.nextUrl.searchParams
-        const period = searchParams.get("period") || "month"  // week, month, quarter, year
-        const months_back = parseInt(searchParams.get("months_back") || "6")
-        const metric = searchParams.get("metric")  // specific metric name
+        if (!validation.success) {
+            throw new ValidationError("Filtros inválidos", validation.error.format())
+        }
 
-        // Si se solicita un metric específico con agregación custom
+        const { period, months_back, metric, start_date, end_date } = validation.data
+        const timezone = await getOrganizationTimezone(supabase, organizationId)
+
         if (metric) {
-            const start_date = searchParams.get("start_date")
-            const end_date = searchParams.get("end_date")
-
             if (!start_date || !end_date) {
-                return NextResponse.json({
-                    success: false,
-                    error: "start_date and end_date required for specific metrics"
-                }, { status: 400 })
+                throw new ValidationError("start_date and end_date required for specific metrics")
             }
 
             const { data, error } = await supabase
-                .rpc('aggregate_analytics_by_period', {
-                    p_organization_id: organizationId,
-                    p_metric_name: metric,
-                    p_start_date: start_date,
-                    p_end_date: end_date,
-                    p_period: period
-                })
+                .from("analytics_cache")
+                .select("metric_name, metric_value, period, date")
+                .eq("organization_id", organizationId)
+                .eq("metric_name", metric)
+                .eq("period", period)
+                .gte("date", start_date)
+                .lte("date", end_date)
+                .order("date", { ascending: true })
 
             if (error) throw error
 
@@ -42,48 +92,62 @@ export async function GET(request: NextRequest) {
                 data: {
                     metric,
                     period,
-                    aggregations: data || []
-                }
+                    aggregations: data || [],
+                },
             })
         }
 
-        // Obtener métricas agregadas generales - MULTI-TENANT
-        const { data, error } = await supabase
-            .rpc('get_aggregated_metrics', {
-                p_organization_id: organizationId,
-                p_period: period,
-                p_months_back: months_back
-            })
+        const start = new Date()
+        start.setUTCMonth(start.getUTCMonth() - months_back + 1, 1)
+        start.setUTCHours(0, 0, 0, 0)
 
-        if (error) throw error
+        const [contacts, invoices] = await Promise.all([
+            supabase
+                .from("contacts")
+                .select("id, created_at")
+                .eq("organization_id", organizationId)
+                .gte("created_at", start.toISOString()),
+            supabase
+                .from("invoices")
+                .select("id, total, status, issue_date, created_at")
+                .eq("organization_id", organizationId)
+                .gte("created_at", start.toISOString()),
+        ])
 
-        // Formatear para gráficos
-        const chartData = (data || []).map((row: any) => ({
-            period: row.period_label,
-            contacts: row.contacts_count,
-            sales: parseFloat(row.sales_total || 0),
-            invoices: row.invoices_count,
-            date: row.period_start
-        }))
+        if (contacts.error) throw contacts.error
+        if (invoices.error) throw invoices.error
 
-        // Calcular totales y promedios
+        const buckets = createBuckets(period, months_back, start)
+
+        for (const contact of contacts.data || []) {
+            const key = getBucket(contact.created_at, period)
+            const bucket = buckets.get(key)
+            if (bucket) bucket.contacts += 1
+        }
+
+        for (const invoice of invoices.data || []) {
+            const key = getBucket(invoice.issue_date || invoice.created_at, period)
+            const bucket = buckets.get(key)
+            if (!bucket) continue
+            bucket.invoices += 1
+            if (invoice.status === "paid" || invoice.status === "sent") {
+                bucket.sales += Number(invoice.total || 0)
+            }
+        }
+
+        const chartData = Array.from(buckets.values())
         const totals = {
-            total_contacts: chartData.reduce((sum: number, d: any) => sum + d.contacts, 0),
-            total_sales: chartData.reduce((sum: number, d: any) => sum + d.sales, 0),
-            total_invoices: chartData.reduce((sum: number, d: any) => sum + d.invoices, 0),
-            avg_contacts_per_period: chartData.length > 0
-                ? Math.round(chartData.reduce((sum: number, d: any) => sum + d.contacts, 0) / chartData.length)
-                : 0,
-            avg_sales_per_period: chartData.length > 0
-                ? Math.round(chartData.reduce((sum: number, d: any) => sum + d.sales, 0) / chartData.length)
-                : 0
+            total_contacts: chartData.reduce((sum, item) => sum + item.contacts, 0),
+            total_sales: chartData.reduce((sum, item) => sum + item.sales, 0),
+            total_invoices: chartData.reduce((sum, item) => sum + item.invoices, 0),
+            avg_contacts_per_period: chartData.length ? Math.round(chartData.reduce((sum, item) => sum + item.contacts, 0) / chartData.length) : 0,
+            avg_sales_per_period: chartData.length ? Math.round(chartData.reduce((sum, item) => sum + item.sales, 0) / chartData.length) : 0,
         }
 
-        // Calcular tendencias (comparar últimos 2 períodos)
         const trends = chartData.length >= 2 ? {
-            contacts_trend: calculateTrend(chartData[1].contacts, chartData[0].contacts),
-            sales_trend: calculateTrend(chartData[1].sales, chartData[0].sales),
-            invoices_trend: calculateTrend(chartData[1].invoices, chartData[0].invoices)
+            contacts_trend: calculateTrend(chartData[chartData.length - 2].contacts, chartData[chartData.length - 1].contacts),
+            sales_trend: calculateTrend(chartData[chartData.length - 2].sales, chartData[chartData.length - 1].sales),
+            invoices_trend: calculateTrend(chartData[chartData.length - 2].invoices, chartData[chartData.length - 1].invoices),
         } : null
 
         const response = NextResponse.json({
@@ -91,27 +155,21 @@ export async function GET(request: NextRequest) {
             data: {
                 period,
                 months_back,
+                timezone,
                 chart_data: chartData,
                 totals,
-                trends
-            }
+                trends,
+            },
         })
 
-        // ✅ SECURITY: Prevent cache leaks between organizations
-        // Cache for 10 minutes (aggregated data changes less frequently)
-        response.headers.set('Cache-Control', 'private, max-age=600, stale-while-revalidate=120')
-
-        // Vary header ensures different cache entries for different auth contexts
-        response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
-
-        // Unique cache key per organization to prevent cross-org data leaks
-        const cacheKey = crypto.createHash('sha256')
-            .update(`analytics-aggregated:${organizationId}:${period}:${months_back}:${new Date().toISOString().split('T')[0]}`)
-            .digest('hex')
-        response.headers.set('X-Cache-Key', cacheKey)
+        response.headers.set("Cache-Control", "private, max-age=600, stale-while-revalidate=120")
+        response.headers.set("Vary", "Authorization, Cookie, X-Organization-ID")
+        const cacheKey = crypto.createHash("sha256")
+            .update(`analytics-aggregated:${organizationId}:${period}:${months_back}:${new Date().toISOString().split("T")[0]}`)
+            .digest("hex")
+        response.headers.set("X-Cache-Key", cacheKey)
 
         return response
-
     } catch (error: any) {
         await logError({
             errorId: crypto.randomUUID(),
@@ -120,21 +178,21 @@ export async function GET(request: NextRequest) {
             error,
         })
         return NextResponse.json(
-            { success: false, error: sanitizeErrorForClient(error) }, 
+            { success: false, error: sanitizeErrorForClient(error) },
             { status: getHttpStatusForError(error) }
         )
     }
 }
 
-function calculateTrend(previous: number, current: number): { percentage: number; direction: 'up' | 'down' | 'stable' } {
+function calculateTrend(previous: number, current: number): { percentage: number; direction: "up" | "down" | "stable" } {
     if (previous === 0) {
-        return { percentage: current > 0 ? 100 : 0, direction: current > 0 ? 'up' : 'stable' }
+        return { percentage: current > 0 ? 100 : 0, direction: current > 0 ? "up" : "stable" }
     }
 
     const percentage = ((current - previous) / previous) * 100
 
     return {
         percentage: Math.abs(parseFloat(percentage.toFixed(1))),
-        direction: percentage > 0.5 ? 'up' : percentage < -0.5 ? 'down' : 'stable'
+        direction: percentage > 0.5 ? "up" : percentage < -0.5 ? "down" : "stable",
     }
 }

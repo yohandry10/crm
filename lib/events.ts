@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { logger } from './logger'
 import { kickBackgroundProcessing } from "./realtime-kick"
+import { validateOutboundWebhookUrl } from './outbound-url-security'
 
 export type EventType =
     | 'contact.created'
@@ -561,59 +562,6 @@ async function executeCreateTask(action: any, payload: any, supabase: any, organ
     })
 }
 
-/**
- * ✅ FIX: Validar URL de webhook para prevenir SSRF
- */
-const BLOCKED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    '169.254.169.254',  // AWS metadata
-    'metadata.google.internal',  // GCP metadata
-    '::1'  // IPv6 localhost
-]
-
-const BLOCKED_PROTOCOLS = ['file:', 'ftp:', 'gopher:', 'data:', 'javascript:']
-
-function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string } {
-    try {
-        const url = new URL(urlString)
-
-        // Verificar protocolo
-        if (BLOCKED_PROTOCOLS.includes(url.protocol)) {
-            return { valid: false, error: `Protocolo no permitido: ${url.protocol}` }
-        }
-
-        // Solo permitir HTTPS en producción
-        if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
-            return { valid: false, error: 'Solo se permiten URLs HTTPS en producción' }
-        }
-
-        // Verificar hosts bloqueados
-        const hostname = url.hostname.toLowerCase()
-        if (BLOCKED_HOSTS.includes(hostname)) {
-            return { valid: false, error: `Host no permitido: ${hostname}` }
-        }
-
-        // Verificar rangos de IP privadas
-        if (hostname.startsWith('192.168.') ||
-            hostname.startsWith('10.') ||
-            hostname.startsWith('172.16.') ||
-            hostname.startsWith('172.17.') ||
-            hostname.startsWith('172.18.') ||
-            hostname.startsWith('172.19.') ||
-            hostname.startsWith('172.2') ||
-            hostname.startsWith('172.30.') ||
-            hostname.startsWith('172.31.')) {
-            return { valid: false, error: 'No se permiten IPs privadas' }
-        }
-
-        return { valid: true }
-    } catch {
-        return { valid: false, error: 'URL inválida' }
-    }
-}
-
 async function executeWebhook(action: any, payload: any): Promise<void> {
     const { url, method = 'POST' } = action.params || {}
 
@@ -623,7 +571,7 @@ async function executeWebhook(action: any, payload: any): Promise<void> {
     }
 
     // ✅ FIX: Validar URL antes de hacer request
-    const validation = isValidWebhookUrl(url)
+    const validation = await validateOutboundWebhookUrl(url)
     if (!validation.valid) {
         logger.warn('Webhook URL rejected', { actionType: 'webhook', reason: validation.error })
         throw new Error(`URL de webhook inválida: ${validation.error}`)
@@ -791,6 +739,7 @@ async function handleInvoiceSent(payload: any, supabase: any): Promise<void> {
     // Crear notificación para el usuario
     if (payload.contact_id && userId) {
         await supabase.from('notifications').insert({
+            organization_id: organizationId,
             user_id: userId,
             type: 'info',
             title: 'Factura enviada',
@@ -904,6 +853,7 @@ async function handleOpportunityUpdated(payload: any, supabase: any): Promise<vo
     // Si cambió de etapa, crear notificación
     if (userId && payload.oldStageId && payload.newStageId && payload.oldStageId !== payload.newStageId) {
         await supabase.from('notifications').insert({
+            organization_id: organizationId,
             user_id: userId,
             type: 'info',
             title: 'Oportunidad actualizada',
@@ -972,6 +922,7 @@ async function handleTaskCreated(payload: any, supabase: any): Promise<void> {
     // Crear notificación si la tarea está asignada a alguien
     if (payload.assigned_to && payload.assigned_to !== userId) {
         await supabase.from('notifications').insert({
+            organization_id: organizationId,
             user_id: payload.assigned_to,
             type: 'info',
             title: 'Nueva tarea asignada',
@@ -1082,14 +1033,16 @@ async function handleTicketCreated(payload: any, supabase: any): Promise<void> {
             .from('organization_members')
             .select('user_id')
             .eq('organization_id', organizationId)
-            .in('role', ['support', 'admin', 'owner'])
+            .eq('is_active', true)
+            .in('role', ['owner', 'admin', 'manager'])
 
         for (const member of supportMembers || []) {
             await supabase.from('notifications').insert({
+                organization_id: organizationId,
                 user_id: member.user_id,
                 type: 'warning',
                 title: `Ticket ${payload.priority === 'urgent' ? 'URGENTE' : 'prioritario'}`,
-                message: `Nuevo ticket: "${payload.subject}"`,
+                message: `Nuevo ticket: "${payload.title || payload.subject || 'Sin título'}"`,
                 related_type: 'ticket',
                 related_id: payload.id
             })
@@ -1243,6 +1196,7 @@ async function handleQuoteCreated(payload: any, supabase: any): Promise<void> {
     // Crear notificación
     if (userId) {
         await supabase.from('notifications').insert({
+            organization_id: organizationId,
             user_id: userId,
             type: 'info',
             title: 'Cotización creada',

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
-import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
+import { sanitizeErrorForClient, getHttpStatusForError, NotFoundError, ValidationError } from '@/lib/error-handler'
 import { taskSchema } from '@/lib/schemas'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { validateTaskReferences } from '@/lib/work-item-references'
 import crypto from 'crypto'
+
+const updateTaskSchema = taskSchema.partial()
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.read)
+        if (rate) return rate
+
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id } = await params
@@ -19,9 +26,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             `)
             .eq('id', id)
             .eq('organization_id', organizationId)
-            .single()
+            .maybeSingle()
 
         if (error) throw error
+        if (!data) throw new NotFoundError('Tarea', id)
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
@@ -40,20 +48,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.write)
+        if (rate) return rate
+
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id } = await params
         const body = await request.json()
 
         // ✅ Validación con Zod (partial para updates)
-        const validation = taskSchema.partial().safeParse(body)
+        const validation = updateTaskSchema.safeParse(body)
         if (!validation.success) {
-            return NextResponse.json({
-                success: false,
-                error: "Datos inválidos",
-                details: validation.error.errors
-            }, { status: 400 })
+            throw new ValidationError("Datos inválidos", validation.error.format())
         }
+
+        if (Object.keys(validation.data).length === 0) {
+            throw new ValidationError("Se requiere al menos un campo para actualizar")
+        }
+
+        await validateTaskReferences(supabase, organizationId, validation.data)
 
         const { data, error } = await supabase
             .from('tasks')
@@ -61,9 +74,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             .eq('id', id)
             .eq('organization_id', organizationId)
             .select()
-            .single()
+            .maybeSingle()
 
         if (error) throw error
+        if (!data) throw new NotFoundError('Tarea', id)
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
@@ -83,6 +97,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const rate = await rateLimit(request, RATE_LIMITS.write)
+        if (rate) return rate
+
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id } = await params

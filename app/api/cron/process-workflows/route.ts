@@ -3,8 +3,11 @@ import crypto from "crypto"
 import { getRedisClient } from "@/lib/redis"
 import { createRequestLogger } from "@/lib/logger"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
-import { getWorkflowQueue } from "@/lib/queues/workflow-queue"
-import { createWorkflowWorker } from "@/lib/workers/workflow-worker"
+import { validateCronSecret } from "@/lib/cron-auth"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const maxDuration = 60
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -15,6 +18,9 @@ export async function GET(request: NextRequest) {
   const start = Date.now()
 
   try {
+    const authResponse = validateCronSecret(request)
+    if (authResponse) return authResponse
+
     // Safety: this endpoint processes jobs and needs Redis + service role.
     if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
       return NextResponse.json(
@@ -58,6 +64,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const { getWorkflowQueue } = await import("@/lib/queues/workflow-queue")
     const queue = getWorkflowQueue()
 
     const countsBefore = {
@@ -98,6 +105,7 @@ export async function GET(request: NextRequest) {
     let completed = 0
     let failed = 0
 
+    const { createWorkflowWorker } = await import("@/lib/workers/workflow-worker")
     const worker = createWorkflowWorker({
       concurrency,
       registerSignalHandlers: false,

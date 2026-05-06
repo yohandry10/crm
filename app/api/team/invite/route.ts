@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { sendEmail, invitationEmailTemplate, isEmailConfigured } from "@/lib/email"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { z } from "zod"
+
+const inviteSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+  role: z.enum(["admin", "manager", "member", "viewer"]),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,44 +25,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
-    const { email, role: inviteRole } = body
-
-    if (!email || !inviteRole) {
+    const parsed = inviteSchema.safeParse(await request.json())
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Email y rol son requeridos" },
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
         { status: 400 }
       )
     }
 
-    // Can't invite as owner
-    if (inviteRole === "owner") {
-      return NextResponse.json(
-        { success: false, error: "No puedes invitar como owner" },
-        { status: 400 }
-      )
-    }
+    const { email, role: inviteRole } = parsed.data
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = createSupabaseServiceClient()
+
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle()
 
     // Check if already a member
-    const { data: existingMember } = await supabaseAdmin
-      .from("organization_members")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("user_id", (
-        await supabaseAdmin.from("profiles").select("id").eq("email", email).single()
-      ).data?.id)
-      .single()
+    if (existingProfile?.id) {
+      const { data: existingMember } = await supabaseAdmin
+        .from("organization_members")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("user_id", existingProfile.id)
+        .maybeSingle()
 
-    if (existingMember) {
-      return NextResponse.json(
-        { success: false, error: "Este usuario ya es miembro de la organización" },
-        { status: 400 }
-      )
+      if (existingMember) {
+        return NextResponse.json(
+          { success: false, error: "Este usuario ya es miembro de la organización" },
+          { status: 400 }
+        )
+      }
     }
 
     // Check if already invited
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       .eq("organization_id", organizationId)
       .eq("email", email)
       .is("accepted_at", null)
-      .single()
+      .maybeSingle()
 
     if (existingInvite) {
       return NextResponse.json(

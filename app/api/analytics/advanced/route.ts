@@ -12,7 +12,7 @@ import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { isFeatureEnabled } from '@/lib/feature-flags'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createRequestLogger } from '@/lib/logger'
-import crypto from 'crypto'
+import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
 
 export async function GET(request: NextRequest) {
   const log = createRequestLogger(request)
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     // Autenticación
-    const { user, organizationId, supabase } = await getAuthenticatedContext()
+    const { user, organizationId } = await getAuthenticatedContext()
 
     if (!user) {
       return NextResponse.json(
@@ -53,59 +53,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Lógica de analytics avanzado
-    // TODO: Implementar queries de analytics
-
-    const analyticsData = {
-      revenue: {
-        total: 125000,
-        growth: 15.3,
-        forecast: 145000,
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Advanced analytics is not implemented',
+        message: 'Este modulo no devuelve datos ficticios. Debe conectarse a métricas reales antes de habilitarse.',
       },
-      customers: {
-        total: 458,
-        new: 34,
-        churnRate: 2.1,
-      },
-      topProducts: [
-        { name: 'Product A', revenue: 45000, units: 120 },
-        { name: 'Product B', revenue: 32000, units: 89 },
-        { name: 'Product C', revenue: 28000, units: 75 },
-      ],
-      cohortAnalysis: {
-        // Datos de cohort analysis...
-      },
-    }
-
-    const response = NextResponse.json({
-      success: true,
-      data: analyticsData,
-    })
-
-    // ✅ SECURITY: Prevent cache leaks between organizations
-    // Cache for 5 minutes (private data)
-    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
-
-    // Vary header ensures different cache entries for different auth contexts
-    response.headers.set('Vary', 'Authorization, Cookie, X-Organization-ID')
-
-    // Unique cache key per organization to prevent cross-org data leaks
-    const cacheKey = crypto.createHash('sha256')
-      .update(`analytics-advanced:${organizationId}:${new Date().toISOString().split('T')[0]}`)
-      .digest('hex')
-    response.headers.set('X-Cache-Key', cacheKey)
-
-    return response
+      { status: 501 }
+    )
   } catch (error: any) {
     log.error('Error en analytics avanzado', error)
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al obtener analytics',
-        details: error.message,
+        error: sanitizeErrorForClient(error),
       },
-      { status: 500 }
+      { status: getHttpStatusForError(error) }
     )
   }
 }

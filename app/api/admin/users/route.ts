@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { requirePlatformAdmin, maskEmail, validatePagination } from "@/lib/auth-helpers"
 import { logAdminAction, logSensitiveDataAccess } from "@/lib/audit-logger"
 import { createRequestLogger } from "@/lib/logger"
+import { z } from "zod"
 
-function getAdminClient() {
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error("Missing Supabase service credentials")
-  }
-
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-}
+const roleFilterSchema = z.enum(["owner", "admin", "manager", "member", "viewer"]).optional()
+const updateUserPermissionsSchema = z.object({
+  userId: z.string().uuid("User ID inválido"),
+  is_platform_admin: z.boolean(),
+})
 
 export async function GET(request: NextRequest) {
   const log = createRequestLogger(request)
@@ -30,10 +26,17 @@ export async function GET(request: NextRequest) {
 
     // Filtros opcionales
     const search = searchParams.get('search') || ''
-    const roleFilter = searchParams.get('role') || ''
+    const roleFilterResult = roleFilterSchema.safeParse(searchParams.get('role') || undefined)
+    if (!roleFilterResult.success) {
+      return NextResponse.json(
+        { success: false, error: "Filtro de rol inválido" },
+        { status: 400 }
+      )
+    }
+    const roleFilter = roleFilterResult.data || ''
     const isActiveFilter = searchParams.get('is_active')
 
-    const supabaseAdmin = getAdminClient()
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Construir query
     let query = supabaseAdmin
@@ -132,17 +135,16 @@ export async function PATCH(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user } = await requirePlatformAdmin()
-    const body = await request.json()
-    const { userId, is_platform_admin } = body
-
-    if (!userId || typeof is_platform_admin !== 'boolean') {
+    const parsed = updateUserPermissionsSchema.safeParse(await request.json())
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "userId y is_platform_admin son requeridos" },
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
         { status: 400 }
       )
     }
 
-    const supabaseAdmin = getAdminClient()
+    const { userId, is_platform_admin } = parsed.data
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Obtener datos anteriores para auditoría
     const { data: oldProfile } = await supabaseAdmin

@@ -2,7 +2,12 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError } from '@/lib/error-handler'
+import { z } from 'zod'
 import crypto from 'crypto'
+
+const pipelineQuerySchema = z.object({
+    period: z.enum(["week", "month", "quarter", "year"]).default("month"),
+})
 
 /**
  * GET /api/analytics/pipeline
@@ -12,8 +17,16 @@ export async function GET(request: NextRequest) {
     try {
         // MULTI-TENANT: Get organization context
         const { supabase, organizationId } = await getAuthenticatedContext()
-        const searchParams = request.nextUrl.searchParams
-        const period = searchParams.get("period") || "month"
+        const validation = pipelineQuerySchema.safeParse({
+            period: request.nextUrl.searchParams.get("period") || undefined,
+        })
+        if (!validation.success) {
+            return NextResponse.json(
+                { success: false, error: "Filtros inválidos", details: validation.error.format() },
+                { status: 400 }
+            )
+        }
+        const { period } = validation.data
 
         // Calculate date range
         const now = new Date()

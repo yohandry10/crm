@@ -41,7 +41,6 @@ export function NewChatDialog({ onCreated, onRefreshConversations }: Props) {
 
   const { handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = form
   const selectedContactId = watch("contact_id")
-  const newChatSubject = watch("subject")
 
   const selectedContactName = useMemo(() => {
     return contacts.find((c) => c.id === selectedContactId)?.name

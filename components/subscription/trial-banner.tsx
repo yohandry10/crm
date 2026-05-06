@@ -1,16 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
+import { useState } from "react"
 import { AlertTriangle, Clock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SubscriptionModal } from "./subscription-modal"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useAuth } from "@/components/providers/auth-provider"
-
-interface TrialBannerProps {
-  organizationId: string
-}
 
 export function TrialBanner() {
   const { organizationId } = useAuth()

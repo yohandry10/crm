@@ -27,7 +27,7 @@ interface BillingInfo {
     trial_ends_at: string | null
     subscription_ends_at: string | null
     cancel_at_period_end: boolean
-    stripe_customer_id: string | null
+    payment_customer_id: string | null
   }
   invoices: {
     id: string
@@ -62,7 +62,7 @@ export default function BillingPage() {
   useEffect(() => {
     loadBilling()
 
-    // Check for success/cancelled from Stripe redirect
+    // Check for checkout status redirects
     if (searchParams?.get("success") === "true") {
       toast.success("¡Suscripción activada exitosamente!")
     } else if (searchParams?.get("cancelled") === "true") {
@@ -265,7 +265,7 @@ export default function BillingPage() {
                       <Button variant="outline" onClick={() => setShowUpgradeModal(true)} className="w-full hover:bg-gray-50 border-gray-200">
                         Cambiar Plan
                       </Button>
-                      {organization.stripe_customer_id && (
+                      {organization.payment_customer_id && (
                         <Button
                           variant="outline"
                           onClick={openCustomerPortal}

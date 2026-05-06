@@ -17,12 +17,6 @@ export async function GET(
         const { supabase, organizationId } = await getAuthenticatedContext()
         const { id: execution_id } = await context.params
 
-        // Get detailed logs for this execution
-        const { data: logs, error: logsError } = await supabase
-            .rpc('get_workflow_execution_logs', { p_execution_id: execution_id })
-
-        if (logsError) throw logsError
-
         // Get execution summary - MULTI-TENANT: verify via workflow's organization
         const { data: execution, error: execError } = await supabase
             .from('workflow_executions')
@@ -42,6 +36,12 @@ export async function GET(
                 error: "Unauthorized"
             }, { status: 403 })
         }
+
+        // Get detailed logs only after ownership is confirmed. The RPC also enforces membership.
+        const { data: logs, error: logsError } = await supabase
+            .rpc('get_workflow_execution_logs', { p_execution_id: execution_id })
+
+        if (logsError) throw logsError
 
         return NextResponse.json({
             success: true,

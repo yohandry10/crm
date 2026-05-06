@@ -7,7 +7,6 @@ import { SidebarOptimized } from "@/components/dashboard/sidebar-optimized"
 import { Header } from "@/components/dashboard/header"
 import { useCRMPrefetch } from "@/hooks/use-route-prefetch"
 import { useKeyboardShortcuts } from "@/components/keyboard"
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Toaster } from "@/components/ui/sonner"
 
 // Lazy load componentes pesados que no son críticos para la primera carga
@@ -41,7 +40,6 @@ interface DashboardLayoutProps {
 
 export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -61,47 +59,6 @@ export function DashboardLayoutOptimized({ children }: DashboardLayoutProps) {
     const handleShowShortcuts = () => setShortcutsOpen(true)
     window.addEventListener("show-shortcuts", handleShowShortcuts)
     return () => window.removeEventListener("show-shortcuts", handleShowShortcuts)
-  }, [])
-
-  useEffect(() => {
-    let isMounted = true
-
-    const getOrganization = async () => {
-      const supabase = getSupabaseBrowserClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || !isMounted) return
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("current_organization_id")
-        .eq("id", user.id)
-        .maybeSingle()
-
-      if (!isMounted) return
-
-      if (profile?.current_organization_id) {
-        setOrganizationId(profile.current_organization_id)
-      } else {
-        // Get first organization
-        const { data: membership } = await supabase
-          .from("organization_members")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle()
-
-        if (membership && isMounted) {
-          setOrganizationId(membership.organization_id)
-        }
-      }
-    }
-
-    getOrganization()
-
-    return () => {
-      isMounted = false
-    }
   }, [])
 
   return (

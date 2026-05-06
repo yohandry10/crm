@@ -53,14 +53,6 @@ export async function POST(
       .eq("id", organizationId)
       .single()
 
-    const orgSettings = {
-      company_name: org?.name,
-      company_ruc: org?.ruc,
-      company_address: org?.address,
-      company_phone: org?.phone,
-      company_email: org?.email,
-    }
-
     // Format dates
     const formatDate = (date: string) => {
       return new Date(date).toLocaleDateString("es-PE", {

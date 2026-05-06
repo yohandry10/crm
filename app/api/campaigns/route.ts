@@ -9,15 +9,35 @@ import { getPaginationParams } from "@/lib/pagination"
 
 const campaignSchema = z.object({
     name: z.string().min(1, "Nombre requerido"),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     type: z.enum(['email', 'whatsapp', 'sms', 'mixed']),
     status: z.enum(['draft', 'scheduled', 'active', 'paused', 'completed', 'cancelled']).default('draft'),
     target_segment: z.record(z.any()).optional(),
-    subject: z.string().optional(),
-    content: z.string().optional(),
+    subject: z.string().optional().nullable(),
+    content: z.string().optional().nullable(),
     scheduled_at: z.string().datetime().optional().nullable(),
-    budget: z.number().min(0).default(0),
+    budget: z.coerce.number().min(0).default(0),
 })
+
+function validateCampaignReadyForStatus(campaign: z.infer<typeof campaignSchema>, contactCount: number) {
+    if (campaign.status !== 'active' && campaign.status !== 'scheduled') return
+
+    if (!campaign.content || campaign.content.trim().length === 0) {
+        throw new ValidationError("El contenido de la campaña es requerido antes de activar")
+    }
+
+    if (campaign.type === 'email' && (!campaign.subject || campaign.subject.trim().length === 0)) {
+        throw new ValidationError("El asunto es requerido para campañas de email")
+    }
+
+    if (campaign.status === 'scheduled' && !campaign.scheduled_at) {
+        throw new ValidationError("La fecha de programación es requerida")
+    }
+
+    if (contactCount <= 0) {
+        throw new ValidationError("La campaña necesita una audiencia antes de activarse o programarse")
+    }
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -72,6 +92,8 @@ export async function POST(request: NextRequest) {
             const { count } = await supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId)
             contactCount = count || 0
         }
+
+        validateCampaignReadyForStatus(validation.data, contactCount)
 
         const { data, error } = await supabase
             .from('campaigns')

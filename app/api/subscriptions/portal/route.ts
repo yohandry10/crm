@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
-import { createCustomerPortalSession, isStripeConfigured } from "@/lib/stripe"
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { organization, role } = await getAuthenticatedContext()
+    const { role } = await getAuthenticatedContext()
 
     // Only owner can access billing portal
     if (role !== "owner") {
@@ -14,31 +13,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!isStripeConfigured()) {
-      return NextResponse.json(
-        { success: false, error: "Stripe no está configurado" },
-        { status: 400 }
-      )
-    }
-
-    if (!organization.stripe_customer_id) {
-      return NextResponse.json(
-        { success: false, error: "No hay información de facturación" },
-        { status: 400 }
-      )
-    }
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/+$/, "") || request.nextUrl.origin
-    
-    const session = await createCustomerPortalSession(
-      organization.stripe_customer_id,
-      `${baseUrl}/settings/billing`
+    return NextResponse.json(
+      {
+        success: false,
+        error: "El portal externo de facturación no está habilitado. Gestiona pagos por Culqi/PagoEfectivo o registro manual.",
+      },
+      { status: 501 }
     )
-
-    return NextResponse.json({
-      success: true,
-      url: session.url,
-    })
   } catch (error: any) {
     console.error("Portal error:", error)
     return NextResponse.json(

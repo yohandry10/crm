@@ -4,8 +4,8 @@
  * GET /api/admin/circuit-breakers
  * Retorna estadísticas de todos los circuit breakers activos
  *
- * POST /api/admin/circuit-breakers/reset
- * Reinicia un circuit breaker específico
+ * POST /api/admin/circuit-breakers
+ * Reinicia un circuit breaker específico con body { name }
  */
 
 import { NextRequest, NextResponse } from 'next/server'

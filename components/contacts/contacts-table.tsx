@@ -80,7 +80,7 @@ export function ContactsTable() {
             }
         } catch (error: any) {
             if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
+
                 console.error("Error loading contacts:", error)
             }
             toast({
@@ -137,7 +137,7 @@ export function ContactsTable() {
             }
         } catch (error: any) {
             if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
+
                 console.error("Error deleting contact:", error)
             }
             toast({
@@ -174,7 +174,7 @@ export function ContactsTable() {
                 data = JSON.parse(responseText)
             } catch (e) {
                 if (process.env.NODE_ENV !== "production") {
-                    // eslint-disable-next-line no-console
+
                     console.error("Error parsing response:", e)
                 }
                 throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 200)}`)
@@ -196,7 +196,7 @@ export function ContactsTable() {
             }
         } catch (error: any) {
             if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
+
                 console.error("Error saving contact:", error)
             }
             toast({

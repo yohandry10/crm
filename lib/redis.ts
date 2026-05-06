@@ -110,6 +110,3 @@ export async function isRedisHealthy(): Promise<boolean> {
     return false
   }
 }
-
-// Exportar instancia para uso directo
-export const redisClient = getRedisClient()

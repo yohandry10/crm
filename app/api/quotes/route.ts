@@ -18,10 +18,10 @@ const quoteItemSchema = z.object({
 
 const quoteSchema = z.object({
     contact_id: z.string().uuid("ID de contacto inválido"),
-    opportunity_id: z.string().optional().nullable().transform(val => {
-        if (!val || val === '' || val === 'none') return null
-        return val
-    }),
+    opportunity_id: z.preprocess(
+        (val) => (!val || val === '' || val === 'none' ? null : val),
+        z.string().uuid("ID de oportunidad inválido").optional().nullable()
+    ),
     valid_until: z.string().optional().nullable().transform(val => {
         if (!val || val === '') return null
         // Accept both date-only (YYYY-MM-DD) and full ISO datetime formats
@@ -31,6 +31,60 @@ const quoteSchema = z.object({
     terms: z.string().max(2000).optional().nullable(),
     items: z.array(quoteItemSchema).min(1, "Se requiere al menos un item")
 })
+
+async function validateQuoteReferences(
+    supabase: any,
+    organizationId: string,
+    contactId: string,
+    opportunityId: string | null,
+    items: Array<{ product_id?: string | null }>
+) {
+    const contactQuery = supabase
+        .from('contacts')
+        .select('id')
+        .eq('id', contactId)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+
+    const opportunityQuery = opportunityId
+        ? supabase
+            .from('opportunities')
+            .select('id')
+            .eq('id', opportunityId)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null })
+
+    const productIds = [...new Set(items.map((item) => item.product_id).filter(Boolean))] as string[]
+    const productsQuery = productIds.length > 0
+        ? supabase
+            .from('products')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .in('id', productIds)
+        : Promise.resolve({ data: [], error: null })
+
+    const [
+        { data: contact, error: contactError },
+        { data: opportunity, error: opportunityError },
+        { data: products, error: productsError },
+    ] = await Promise.all([contactQuery, opportunityQuery, productsQuery])
+
+    if (contactError) throw contactError
+    if (!contact) {
+        throw new ValidationError("El contacto seleccionado no existe o no pertenece a tu organización")
+    }
+
+    if (opportunityError) throw opportunityError
+    if (opportunityId && !opportunity) {
+        throw new ValidationError("La oportunidad seleccionada no existe o no pertenece a tu organización")
+    }
+
+    if (productsError) throw productsError
+    if (productIds.length > 0 && (products || []).length !== productIds.length) {
+        throw new ValidationError("Uno o más productos no existen o no pertenecen a tu organización")
+    }
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -81,6 +135,8 @@ export async function POST(request: NextRequest) {
         }
 
         const { contact_id, opportunity_id, valid_until, notes, terms, items } = validation.data
+        await validateQuoteReferences(supabase, organizationId, contact_id, opportunity_id ?? null, items)
+
         const total_amount = items.reduce((sum: number, item: any) => sum + (Number(item.quantity) * Number(item.unit_price)), 0)
 
         const { data: quote, error: quoteError } = await supabase

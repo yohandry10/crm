@@ -1,111 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { createRequestLogger } from '@/lib/logger'
+import { getHttpStatusForError, sanitizeErrorForClient, ValidationError } from '@/lib/error-handler'
+import { createSlugFromName, validateWebFormAssignee, webFormApiSchema } from '@/lib/web-form-contracts'
 
 // GET - Listar formularios de la organización
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseRouteHandler()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // Obtener organization_id del usuario
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('current_organization_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.current_organization_id) {
-      return NextResponse.json({ error: 'Sin organización' }, { status: 400 })
-    }
+    const { supabase, organizationId } = await getAuthenticatedContext()
 
     const { data: forms, error } = await supabase
       .from('web_forms')
       .select('*')
-      .eq('organization_id', profile.current_organization_id)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
     return NextResponse.json(forms)
   } catch (error: any) {
-    const log = createRequestLogger(_request)
+    const log = createRequestLogger(request)
     log.error('[Forms API] Error', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
   }
 }
 
 // POST - Crear nuevo formulario
 export async function POST(request: NextRequest) {
   try {
-    const log = createRequestLogger(request)
-    const supabase = await createSupabaseRouteHandler()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('current_organization_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.current_organization_id) {
-      return NextResponse.json({ error: 'Sin organización' }, { status: 400 })
-    }
+    const { supabase, user, organizationId } = await getAuthenticatedContext()
 
     const body = await request.json()
-    const { name, description, fields, settings, theme, redirect_url, success_message,
-            auto_create_contact, default_lead_status, default_lead_source, default_tags,
-            assigned_to, notify_emails, notify_on_submit } = body
+    const validation = webFormApiSchema.safeParse(body)
+    if (!validation.success) {
+      throw new ValidationError('Datos inválidos', validation.error.format())
+    }
+
+    const formInput = validation.data
+    await validateWebFormAssignee(supabase, organizationId, formInput.assigned_to)
 
     // Generar slug único
-    const baseSlug = name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .substring(0, 50)
+    const baseSlug = createSlugFromName(formInput.name)
 
     // Verificar si el slug ya existe
     const { data: existing } = await supabase
       .from('web_forms')
       .select('slug')
-      .eq('organization_id', profile.current_organization_id)
+      .eq('organization_id', organizationId)
       .like('slug', `${baseSlug}%`)
 
     let slug = baseSlug
-    if (existing && existing.length > 0) {
-      slug = `${baseSlug}-${existing.length + 1}`
+    const existingSlugs = new Set((existing || []).map((row: { slug: string }) => row.slug))
+    let suffix = 2
+    while (existingSlugs.has(slug)) {
+      slug = `${baseSlug}-${suffix}`
+      suffix += 1
     }
 
     const { data: form, error } = await supabase
       .from('web_forms')
       .insert({
-        organization_id: profile.current_organization_id,
+        organization_id: organizationId,
         created_by: user.id,
-        name,
+        name: formInput.name,
         slug,
-        description,
-        fields: fields || [],
-        settings: settings || {},
-        theme: theme || { primaryColor: '#3b82f6', backgroundColor: '#ffffff' },
-        redirect_url,
-        success_message: success_message || '¡Gracias! Hemos recibido tu información.',
-        auto_create_contact: auto_create_contact ?? true,
-        default_lead_status: default_lead_status || 'warm',
-        default_lead_source: default_lead_source || 'web_form',
-        default_tags: default_tags || [],
-        assigned_to,
-        notify_emails: notify_emails || [],
-        notify_on_submit: notify_on_submit ?? true
+        description: formInput.description,
+        fields: formInput.fields,
+        settings: formInput.settings,
+        theme: formInput.theme,
+        redirect_url: formInput.redirect_url,
+        success_message: formInput.success_message,
+        auto_create_contact: formInput.auto_create_contact,
+        default_lead_status: formInput.default_lead_status,
+        default_lead_source: formInput.default_lead_source,
+        default_tags: formInput.default_tags,
+        assigned_to: formInput.assigned_to,
+        notify_emails: formInput.notify_emails,
+        notify_on_submit: formInput.notify_on_submit
       })
       .select()
       .single()
@@ -116,6 +87,6 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const log = createRequestLogger(request)
     log.error('[Forms API] Error', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
   }
 }

@@ -2,18 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { logError } from '@/lib/error-logging'
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from '@/lib/error-handler'
+import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from '@/lib/calendar-events'
 import { z } from 'zod'
 import crypto from 'crypto'
 
 const eventSchema = z.object({
     title: z.string().min(1, "Título requerido").max(200),
-    start_time: z.string().datetime("Fecha de inicio inválida"),
-    end_time: z.string().datetime("Fecha de fin inválida"),
-    contact_id: z.string().uuid().optional().nullable(),
-    opportunity_id: z.string().uuid().optional().nullable(),
+    start: z.string().datetime("Fecha de inicio inválida").optional(),
+    end: z.string().datetime("Fecha de fin inválida").optional(),
+    start_time: z.string().datetime("Fecha de inicio inválida").optional(),
+    end_time: z.string().datetime("Fecha de fin inválida").optional(),
+    contact_id: z.preprocess(
+        (value) => (!value || value === "none" ? null : value),
+        z.string().uuid().optional().nullable()
+    ),
+    opportunity_id: z.preprocess(
+        (value) => (!value || value === "none" ? null : value),
+        z.string().uuid().optional().nullable()
+    ),
     description: z.string().max(1000).optional().nullable(),
     location: z.string().max(200).optional().nullable(),
-    all_day: z.boolean().default(false)
+    all_day: z.boolean().default(false),
+    reminder_minutes: z.coerce.number().int().min(0).max(10080).optional(),
+    event_type: z.enum(["meeting", "call", "task", "other"]).default("meeting"),
 })
 
 export async function GET(request: NextRequest) {
@@ -26,8 +37,8 @@ export async function GET(request: NextRequest) {
         const contact_id = searchParams.get('contact_id')
 
         let query = supabase
-            .from('events')
-            .select(`*, contact:contacts(id, name), opportunity:opportunities(id, name)`)
+            .from('calendar_events')
+            .select(`*, contact:contacts(id, name), opportunity:opportunities(id, name), owner:profiles(id, full_name, email)`)
             .eq('organization_id', organizationId)
             .order('start_time', { ascending: true })
 
@@ -38,7 +49,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await query
         if (error) throw error
 
-        return NextResponse.json({ success: true, data })
+        return NextResponse.json({ success: true, data: (data || []).map(serializeCalendarEvent) })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/events", method: "GET", error })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
@@ -55,20 +66,38 @@ export async function POST(request: NextRequest) {
             throw new ValidationError("Datos inválidos", validation.error.format())
         }
 
-        const { title, start_time, end_time, contact_id, opportunity_id, description, location, all_day } = validation.data
+        const { title, contact_id, opportunity_id, description, location, reminder_minutes, event_type } = validation.data
+        const start = validation.data.start ?? validation.data.start_time
+        const end = validation.data.end ?? validation.data.end_time
+
+        if (!start || !end) {
+            throw new ValidationError("Fecha de inicio y fin requeridas")
+        }
+
+        assertCalendarDateRange(start, end)
+        await validateCalendarEventReferences(supabase, organizationId, validation.data)
 
         const { data, error } = await supabase
-            .from('events')
+            .from('calendar_events')
             .insert({
-                organization_id: organizationId, created_by: user.id,
-                title, start_time, end_time, contact_id, opportunity_id, description, location, all_day: all_day || false
+                organization_id: organizationId,
+                owner_id: user.id,
+                title,
+                start_time: start,
+                end_time: end,
+                contact_id,
+                opportunity_id,
+                description,
+                location,
+                reminder_minutes: reminder_minutes || 15,
+                event_type,
             })
             .select()
             .single()
 
         if (error) throw error
 
-        return NextResponse.json({ success: true, data })
+        return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
     } catch (error: any) {
         await logError({ errorId: crypto.randomUUID(), endpoint: "/api/events", method: "POST", error, requestBody: await request.clone().json().catch(() => undefined) })
         return NextResponse.json({ success: false, error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })

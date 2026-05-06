@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { requirePlatformAdmin, maskEmail, maskRUC } from "@/lib/auth-helpers"
 import { logAdminAction, logSensitiveDataAccess } from "@/lib/audit-logger"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { createRequestLogger } from "@/lib/logger"
+import { z } from "zod"
 
-function getAdminClient() {
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error("Missing Supabase service credentials")
-  }
-
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-}
+const organizationIdSchema = z.string().uuid("Organization ID inválido")
+const organizationPatchSchema = z.object({
+  action: z.enum(["deactivate", "activate"]),
+  subscription_status: z.enum(["trial", "active", "past_due", "cancelled", "expired"]).optional(),
+})
+const organizationUpdateSchema = z.object({
+  name: z.string().trim().min(1, "Nombre requerido").max(120),
+  ruc: z.string().trim().regex(/^\d{11}$/, "RUC inválido").optional().nullable().or(z.literal("")),
+  max_users: z.number().int().min(1).max(1000),
+  max_contacts: z.number().int().min(-1).max(1000000),
+})
 
 export async function GET(
   request: NextRequest,
@@ -26,8 +28,13 @@ export async function GET(
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user } = await requirePlatformAdmin()
-    const { id } = await params
-    const supabaseAdmin = getAdminClient()
+    const { id: rawId } = await params
+    const idResult = organizationIdSchema.safeParse(rawId)
+    if (!idResult.success) {
+      return NextResponse.json({ success: false, error: "Organization ID inválido" }, { status: 400 })
+    }
+    const id = idResult.data
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Get organization
     const { data: organization, error: orgError } = await supabaseAdmin
@@ -59,7 +66,7 @@ export async function GET(
     const safeOrganization = {
       ...organization,
       ruc: maskRUC(organization.ruc),
-      // Remover stripe_customer_id si existe
+      // Remover identificador heredado de pasarela externa si existe.
       stripe_customer_id: undefined,
     }
 
@@ -107,15 +114,22 @@ export async function PATCH(
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user } = await requirePlatformAdmin()
-    const { id } = await params
-    const body = await request.json()
-    const action = body?.action as "deactivate" | "activate"
-
-    if (!action) {
-      return NextResponse.json({ success: false, error: "Missing action" }, { status: 400 })
+    const { id: rawId } = await params
+    const idResult = organizationIdSchema.safeParse(rawId)
+    if (!idResult.success) {
+      return NextResponse.json({ success: false, error: "Organization ID inválido" }, { status: 400 })
+    }
+    const id = idResult.data
+    const parsed = organizationPatchSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
+        { status: 400 }
+      )
     }
 
-    const supabaseAdmin = getAdminClient()
+    const { action, subscription_status } = parsed.data
+    const supabaseAdmin = createSupabaseServiceClient()
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
@@ -126,8 +140,8 @@ export async function PATCH(
       updates.subscription_status = "cancelled"
     } else if (action === "activate") {
       updates.is_active = true
-      if (body?.subscription_status) {
-        updates.subscription_status = body.subscription_status
+      if (subscription_status) {
+        updates.subscription_status = subscription_status
       } else {
         updates.subscription_status = "trial"
       }
@@ -172,9 +186,22 @@ export async function PUT(
     if (rateLimitResponse) return rateLimitResponse
 
     const { supabase, user } = await requirePlatformAdmin()
-    const { id } = await params
-    const body = await request.json()
-    const supabaseAdmin = getAdminClient()
+    const { id: rawId } = await params
+    const idResult = organizationIdSchema.safeParse(rawId)
+    if (!idResult.success) {
+      return NextResponse.json({ success: false, error: "Organization ID inválido" }, { status: 400 })
+    }
+    const id = idResult.data
+    const parsed = organizationUpdateSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Datos inválidos", details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const body = parsed.data
+    const supabaseAdmin = createSupabaseServiceClient()
 
     // Obtener datos anteriores para auditoría
     const { data: oldData } = await supabaseAdmin
@@ -187,7 +214,7 @@ export async function PUT(
       .from("organizations")
       .update({
         name: body.name,
-        ruc: body.ruc,
+        ruc: body.ruc || null,
         max_users: body.max_users,
         max_contacts: body.max_contacts,
         updated_at: new Date().toISOString(),

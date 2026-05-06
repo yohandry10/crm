@@ -11,6 +11,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
 import { getPaginationParams } from "@/lib/pagination"
+import { getAllowedPaymentGateways, normalizePaymentGateway } from "@/lib/billing-providers"
 
 function maskIdempotencyKey(value: string) {
     if (!value) return undefined
@@ -72,8 +73,9 @@ export async function POST(request: NextRequest) {
             throw new ValidationError("El monto debe ser un número positivo")
         }
 
-        const allowedGateways = ['stripe', 'bank_transfer', 'cash', 'yape', 'plin', 'mercadopago', 'manual']
-        if (!allowedGateways.includes(gateway.toLowerCase())) {
+        const normalizedGateway = normalizePaymentGateway(gateway)
+        const allowedGateways = getAllowedPaymentGateways()
+        if (!normalizedGateway || !allowedGateways.includes(normalizedGateway)) {
             throw new ValidationError(`Gateway inválido. Permitidos: ${allowedGateways.join(', ')}`)
         }
 
@@ -82,178 +84,67 @@ export async function POST(request: NextRequest) {
             throw new ValidationError(`Estado inválido. Permitidos: ${allowedStatuses.join(', ')}`)
         }
 
-        // ✅ FIX P1: Validate payment amount does not exceed invoice balance
-        const { data: invoice, error: invoiceError } = await supabase
-            .from('invoices')
-            .select('total')
-            .eq('id', invoice_id)
-            .eq('organization_id', organizationId)
-            .single()
-
-        if (invoiceError || !invoice) {
-            throw new ValidationError("Factura no encontrada")
-        }
-
-        const { data: existingPayments } = await supabase
-            .from('payments')
-            .select('amount')
-            .eq('invoice_id', invoice_id)
-            .eq('status', 'completed')
-
-        const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
-        const remainingBalance = Number(invoice.total) - totalPaid
-
-        if (amount > remainingBalance) {
-            throw new ValidationError(
-                `El monto del pago (${amount}) excede el saldo pendiente de la factura (${remainingBalance})`,
-                {
-                    invoice_total: invoice.total,
-                    total_paid: totalPaid,
-                    remaining_balance: remainingBalance,
-                    payment_amount: amount
-                }
-            )
-        }
-
-        // ====================================================================
-        // IDEMPOTENCIA: Prevenir pagos duplicados (Resuelve PAY-001)
-        // ====================================================================
-
-        // 1. Obtener o generar idempotency key
-        // El cliente puede enviar su propia key en el header, o generamos una
         const idempotencyKey = request.headers.get('idempotency-key') ||
                               request.headers.get('x-idempotency-key') ||
                               `auto-${invoice_id}-${amount}-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`
 
+        if (idempotencyKey.length < 16 || idempotencyKey.length > 255) {
+            throw new ValidationError("Idempotency key inválida: debe tener entre 16 y 255 caracteres")
+        }
+
         log.info("Processing payment", { idempotency_key: maskIdempotencyKey(idempotencyKey) })
 
-        // 2. Verificar si ya existe un pago con esta idempotency key
-        const { data: existingPayment, error: existingError } = await supabase
-            .from('payments')
-            .select('*')
-            .eq('idempotency_key', idempotencyKey)
-            .eq('organization_id', organizationId)
-            .maybeSingle()
+        const { data: rpcResult, error: rpcError } = await supabase.rpc('record_payment_atomic', {
+            p_user_id: user.id,
+            p_organization_id: organizationId,
+            p_invoice_id: invoice_id,
+            p_amount: amount,
+            p_payment_method: payment_method || null,
+            p_gateway: normalizedGateway,
+            p_transaction_id: transaction_id || null,
+            p_proof_url: proof_url || null,
+            p_notes: notes || null,
+            p_status: status || null,
+            p_idempotency_key: idempotencyKey,
+        })
 
-        if (existingPayment) {
-            // Pago ya procesado anteriormente, retornar el mismo resultado
-            log.warn("Idempotent request detected. Returning cached payment", {
-                paymentId: existingPayment.id,
-                idempotency_key: maskIdempotencyKey(idempotencyKey),
-            })
-
-            // Obtener info de la factura para la respuesta
-            const { data: invoice } = await supabase
-                .from('invoices')
-                .select('total, status')
-                .eq('id', invoice_id)
-                .single()
-
-            return NextResponse.json({
-                success: true,
-                data: {
-                    payment_id: existingPayment.id,
-                    is_fully_paid: invoice?.status === 'paid',
-                    total_paid: existingPayment.amount
-                },
-                message: 'Pago ya procesado anteriormente',
-                cached: true,
-                idempotency_key: idempotencyKey
-            })
+        if (rpcError) throw rpcError
+        if (!rpcResult?.success) {
+            throw new ValidationError(rpcResult?.error || "No se pudo registrar el pago", rpcResult)
         }
 
-        // 3. MULTI-TENANT: Insert with organization_id + idempotency_key
-        const { data: payment, error: paymentError } = await supabase
-            .from('payments')
-            .insert({
-                organization_id: organizationId,
-                created_by: user.id,
-                invoice_id,
-                amount,
-                payment_method: payment_method || null,
-                gateway,
-                transaction_id,
-                status: status || (proof_url ? 'pending' : 'completed'),
-                paid_at: (status === 'completed' || (!status && !proof_url)) ? new Date().toISOString() : null,
-                proof_url: proof_url || null,
-                notes: notes || null,
-                idempotency_key: idempotencyKey
-            })
-            .select()
-            .single()
+        const paymentStatus = rpcResult.status || status || (proof_url ? 'pending' : 'completed')
+        const isFullyPaid = Boolean(rpcResult.is_fully_paid)
+        const totalPaidAmount = Number(rpcResult.total_paid || 0)
+        log.info("Payment recorded", {
+            paymentId: rpcResult.payment_id,
+            cached: Boolean(rpcResult.cached),
+            idempotency_key: maskIdempotencyKey(idempotencyKey),
+        })
 
-        if (paymentError) {
-            // 4. Manejar race conditions en idempotency_key
-            if (paymentError.code === '23505' && paymentError.message?.includes('idempotency_key')) {
-                log.warn("Race condition detected on idempotency_key, fetching existing payment", {
-                    idempotency_key: maskIdempotencyKey(idempotencyKey),
-                })
-
-                // Intentar obtener el pago que ganó la race condition
-                const { data: racedPayment } = await supabase
-                    .from('payments')
-                    .select('*')
-                    .eq('idempotency_key', idempotencyKey)
-                    .eq('organization_id', organizationId)
-                    .single()
-
-                if (racedPayment) {
-                    const { data: invoice } = await supabase
-                        .from('invoices')
-                        .select('total, status')
-                        .eq('id', invoice_id)
-                        .single()
-
-                    return NextResponse.json({
-                        success: true,
-                        data: {
-                            payment_id: racedPayment.id,
-                            is_fully_paid: invoice?.status === 'paid',
-                            total_paid: racedPayment.amount
-                        },
-                        message: 'Pago procesado (race condition handled)',
-                        cached: true,
-                        idempotency_key: idempotencyKey
-                    })
+        if (paymentStatus === 'completed') {
+            const { emitEvent } = await import('@/lib/events')
+            await emitEvent({
+                event_type: 'payment.completed', source: 'internal',
+                payload: {
+                    payment_id: rpcResult.payment_id,
+                    organization_id: organizationId,
+                    user_id: user.id,
+                    invoice_id,
+                    amount,
+                    gateway: normalizedGateway,
+                    idempotency_key: idempotencyKey
                 }
-            }
-            throw paymentError
+            }, supabase as any)
         }
-
-        log.info("New payment created", { paymentId: payment.id, idempotency_key: maskIdempotencyKey(idempotencyKey) })
-
-        // 5. Update invoice status if fully paid (reuse previously fetched invoice and totalPaid)
-        const totalPaidAmount = totalPaid + amount
-        const isFullyPaid = totalPaidAmount >= Number(invoice.total)
-
-        if (isFullyPaid && (payment.status === 'completed')) {
-            await supabase.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', invoice_id)
-            await supabase
-                .from('quotes')
-                .update({ status: 'paid', updated_at: new Date().toISOString() })
-                .eq('invoice_id', invoice_id)
-                .eq('organization_id', organizationId)
-        }
-
-        // 6. Emit event
-        const { emitEvent } = await import('@/lib/events')
-        await emitEvent({
-            event_type: 'payment.completed', source: 'internal',
-            payload: {
-                payment_id: payment.id,
-                organization_id: organizationId,
-                user_id: user.id,
-                invoice_id,
-                amount,
-                gateway,
-                idempotency_key: idempotencyKey
-            }
-        }, supabase as any)
 
         return NextResponse.json({
             success: true,
-            data: { payment_id: payment.id, is_fully_paid: isFullyPaid, total_paid: totalPaidAmount },
-            message: isFullyPaid ? 'Pago completado - Factura pagada' : 'Pago registrado',
+            data: { payment_id: rpcResult.payment_id, is_fully_paid: isFullyPaid, total_paid: totalPaidAmount },
+            message: rpcResult.cached
+                ? 'Pago ya procesado anteriormente'
+                : isFullyPaid ? 'Pago completado - Factura pagada' : 'Pago registrado',
+            cached: Boolean(rpcResult.cached),
             idempotency_key: idempotencyKey
         })
     } catch (error: any) {

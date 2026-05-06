@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Users, BarChart3, Zap, Shield, Search, MessageSquare, ArrowRight } from "lucide-react"
+import { Users, BarChart3, Zap, ArrowRight } from "lucide-react"
 
 export function Features() {
     return (

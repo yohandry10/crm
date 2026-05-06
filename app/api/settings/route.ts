@@ -4,7 +4,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
 import { z } from "zod"
 import crypto from "crypto"
-import { encryptSecret, decryptSecret, decryptIfNeeded } from "@/lib/encryption"
+import { encryptSecret, decryptSecret } from "@/lib/encryption"
 import { createRequestLogger } from "@/lib/logger"
 
 const settingsSchema = z.object({

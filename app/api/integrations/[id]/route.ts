@@ -12,16 +12,31 @@ import { testConnection } from "@/lib/integrations"
 
 const updateIntegrationSchema = z.object({
     name: z.string().min(1).optional(),
-    provider: z.enum(['stripe', 'mercadopago', 'whatsapp', 'email', 'calendar']).optional(),
+    provider: z.string().min(1).max(50).optional(),
+    description: z.string().max(200).nullable().optional(),
+    category: z.string().max(50).nullable().optional(),
+    status: z.enum(['connected', 'disconnected', 'error']).optional(),
     config: z.record(z.any()).optional(),
     is_active: z.boolean().optional()
 })
+
+function toSafeIntegrationResponse(integration: any) {
+    const safeIntegration = { ...integration }
+    const hasConfig = Boolean(safeIntegration.config_encrypted || safeIntegration.config)
+    delete safeIntegration.config_encrypted
+    delete safeIntegration.config
+    return {
+        ...safeIntegration,
+        config: null,
+        has_config: hasConfig,
+    }
+}
 
 function tryDecryptIntegrationConfig(integration: any, log: ReturnType<typeof createRequestLogger>) {
     if (integration?.config_encrypted) {
         try {
             return decryptJSON(integration.config_encrypted)
-        } catch (error) {
+        } catch {
             log.warn('Failed to decrypt integration config', { integrationId: integration?.id })
             return null
         }
@@ -57,9 +72,7 @@ export async function GET(
         // Test connection status on fetch
         const connectionResult = await testConnection(data.provider, decryptedConfig || {})
         const enrichedData = {
-            ...data,
-            config: decryptedConfig,
-            config_encrypted: undefined,
+            ...toSafeIntegrationResponse(data),
             connection_status: connectionResult.success ? "connected" : "error",
             last_check: new Date().toISOString()
         }
@@ -116,6 +129,9 @@ export async function PUT(
         const updateData: Record<string, any> = {}
         if (validation.data.name !== undefined) updateData.name = validation.data.name
         if (validation.data.provider !== undefined) updateData.provider = validation.data.provider
+        if (validation.data.description !== undefined) updateData.description = validation.data.description
+        if (validation.data.category !== undefined) updateData.category = validation.data.category
+        if (validation.data.status !== undefined) updateData.status = validation.data.status
         if (validation.data.is_active !== undefined) updateData.is_active = validation.data.is_active
 
         // Always store config encrypted to avoid plaintext credentials
@@ -177,11 +193,7 @@ export async function PUT(
 
         return NextResponse.json({
             success: true,
-            data: {
-                ...data,
-                config: decryptedNewConfig,
-                config_encrypted: undefined,
-            },
+            data: toSafeIntegrationResponse(data),
             connection: connectionResult
         })
     } catch (error: any) {

@@ -209,7 +209,7 @@ export default function PublicFormPage() {
       window.addEventListener('resize', sendHeight)
       return () => window.removeEventListener('resize', sendHeight)
     }
-  }, [isEmbed, form?.id])
+  }, [isEmbed, form])
 
   const primaryColor = form?.theme?.primaryColor || '#3b82f6'
 

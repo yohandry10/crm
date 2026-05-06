@@ -11,7 +11,7 @@
  *
  * Casos de uso:
  * - Llamadas a webhooks externos
- * - APIs de terceros (OpenAI, Twilio, etc.)
+ * - APIs de terceros (Gemini, Culqi, Twilio, etc.)
  * - Servicios que pueden estar caídos
  *
  * Beneficios:
@@ -174,8 +174,8 @@ export function getCircuitBreaker<T, Args extends any[]>(
  * Uso:
  * ```typescript
  * const result = await withCircuitBreaker(
- *   'webhook-stripe',
- *   () => fetch('https://webhook.stripe.com', {...}),
+ *   'payment-provider',
+ *   () => fetch('https://api.culqi.com', {...}),
  *   { timeout: 5000 }
  * )
  * ```
@@ -285,7 +285,7 @@ export const webhookCircuitBreaker = <T>(
 }
 
 /**
- * Circuit Breaker para APIs de terceros (OpenAI, Twilio, etc.)
+ * Circuit Breaker para APIs de terceros (Gemini, Culqi, Twilio, etc.)
  */
 export const externalAPICircuitBreaker = <T>(
   serviceName: string,

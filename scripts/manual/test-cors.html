@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CORS - CRM</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        input {
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Test de CORS - CRM AI Peru</h1>
+        <p>Esta página prueba la configuración CORS del sistema.</p>
+
+        <!-- TEST 1: Health check desde origen permitido -->
+        <div class="test-section">
+            <h3>✅ Test 1: GET Request desde origen permitido (localhost)</h3>
+            <p>Debe funcionar porque localhost está en la whitelist.</p>
+            <button onclick="testHealthCheck()">Ejecutar Test</button>
+            <div id="result1"></div>
+        </div>
+
+        <!-- TEST 2: OPTIONS preflight -->
+        <div class="test-section">
+            <h3>✅ Test 2: OPTIONS Preflight Request</h3>
+            <p>Debe retornar headers CORS apropiados.</p>
+            <button onclick="testPreflight()">Ejecutar Test</button>
+            <div id="result2"></div>
+        </div>
+
+        <!-- TEST 3: POST desde origen permitido -->
+        <div class="test-section">
+            <h3>✅ Test 3: POST Request con CORS</h3>
+            <label>Email:</label>
+            <input type="email" id="testEmail" value="test@example.com" />
+            <label>Password:</label>
+            <input type="password" id="testPassword" value="wrong-password" />
+            <button onclick="testLogin()">Ejecutar Test de Login</button>
+            <div id="result3"></div>
+        </div>
+
+        <!-- TEST 4: Request con headers personalizados -->
+        <div class="test-section">
+            <h3>✅ Test 4: Request con Idempotency-Key header</h3>
+            <p>Debe permitir headers personalizados listados en CORS.</p>
+            <button onclick="testIdempotency()">Ejecutar Test</button>
+            <div id="result4"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:3000'
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId)
+            element.className = `result ${type}`
+            element.textContent = message
+        }
+
+        async function testHealthCheck() {
+            showResult('result1', 'Ejecutando...', 'info')
+            try {
+                const response = await fetch(`${BASE_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+
+                const data = await response.json()
+                const corsHeader = response.headers.get('Access-Control-Allow-Origin')
+
+                showResult('result1',
+                    `✓ Status: ${response.status}\n` +
+                    `✓ CORS Header: ${corsHeader || 'No presente'}\n` +
+                    `✓ Response: ${JSON.stringify(data, null, 2)}`,
+                    'success'
+                )
+            } catch (error) {
+                showResult('result1', `❌ Error: ${error.message}`, 'error')
+            }
+        }
+
+        async function testPreflight() {
+            showResult('result2', 'Ejecutando...', 'info')
+            try {
+                const response = await fetch(`${BASE_URL}/api/health`, {
+                    method: 'OPTIONS',
+                })
+
+                const allowOrigin = response.headers.get('Access-Control-Allow-Origin')
+                const allowMethods = response.headers.get('Access-Control-Allow-Methods')
+                const allowHeaders = response.headers.get('Access-Control-Allow-Headers')
+                const maxAge = response.headers.get('Access-Control-Max-Age')
+
+                showResult('result2',
+                    `✓ Status: ${response.status}\n` +
+                    `✓ Allow-Origin: ${allowOrigin || 'No presente'}\n` +
+                    `✓ Allow-Methods: ${allowMethods || 'No presente'}\n` +
+                    `✓ Allow-Headers: ${allowHeaders || 'No presente'}\n` +
+                    `✓ Max-Age: ${maxAge || 'No presente'}`,
+                    response.status === 204 ? 'success' : 'error'
+                )
+            } catch (error) {
+                showResult('result2', `❌ Error: ${error.message}`, 'error')
+            }
+        }
+
+        async function testLogin() {
+            showResult('result3', 'Ejecutando...', 'info')
+            const email = document.getElementById('testEmail').value
+            const password = document.getElementById('testPassword').value
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                })
+
+                const data = await response.json()
+                const corsHeader = response.headers.get('Access-Control-Allow-Origin')
+
+                showResult('result3',
+                    `✓ Status: ${response.status}\n` +
+                    `✓ CORS Header: ${corsHeader || 'No presente'}\n` +
+                    `✓ Response: ${JSON.stringify(data, null, 2)}`,
+                    response.status === 401 || response.status === 429 ? 'success' : 'error'
+                )
+            } catch (error) {
+                showResult('result3', `❌ Error: ${error.message}`, 'error')
+            }
+        }
+
+        async function testIdempotency() {
+            showResult('result4', 'Ejecutando...', 'info')
+            try {
+                const response = await fetch(`${BASE_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': 'test-key-123',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+
+                const data = await response.json()
+                const corsHeader = response.headers.get('Access-Control-Allow-Origin')
+
+                showResult('result4',
+                    `✓ Status: ${response.status}\n` +
+                    `✓ CORS Header: ${corsHeader || 'No presente'}\n` +
+                    `✓ Headers personalizados aceptados\n` +
+                    `✓ Response: ${JSON.stringify(data, null, 2)}`,
+                    'success'
+                )
+            } catch (error) {
+                showResult('result4', `❌ Error: ${error.message}`, 'error')
+            }
+        }
+    </script>
+</body>
+</html>

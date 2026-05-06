@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseRouteHandler } from '@/lib/supabase-server'
+import { getAuthenticatedContext } from '@/lib/supabase-auth'
 import { createRequestLogger } from '@/lib/logger'
+import { getHttpStatusForError, sanitizeErrorForClient, ValidationError } from '@/lib/error-handler'
+import { validateWebFormAssignee, webFormApiUpdateSchema } from '@/lib/web-form-contracts'
 
 // GET - Obtener formulario por ID
 export async function GET(
@@ -8,20 +10,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const log = createRequestLogger(request)
     const { id } = await params
-    const supabase = await createSupabaseRouteHandler()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const { supabase, organizationId } = await getAuthenticatedContext()
 
     const { data: form, error } = await supabase
       .from('web_forms')
       .select('*, form_submissions(count)')
       .eq('id', id)
-      .single()
+      .eq('organization_id', organizationId)
+      .maybeSingle()
 
     if (error) throw error
     if (!form) {
@@ -32,7 +29,7 @@ export async function GET(
   } catch (error: any) {
     const log = createRequestLogger(request)
     log.error('[Forms API] Error', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
   }
 }
 
@@ -42,41 +39,29 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const log = createRequestLogger(request)
     const { id } = await params
-    const supabase = await createSupabaseRouteHandler()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const { supabase, organizationId } = await getAuthenticatedContext()
 
     const body = await request.json()
-    const { name, description, fields, settings, theme, redirect_url, success_message,
-            auto_create_contact, default_lead_status, default_lead_source, default_tags,
-            assigned_to, notify_emails, notify_on_submit, is_active } = body
+    const validation = webFormApiUpdateSchema.safeParse(body)
+    if (!validation.success) {
+      throw new ValidationError('Datos inválidos', validation.error.format())
+    }
+
+    if (Object.keys(validation.data).length === 0) {
+      throw new ValidationError('No hay cambios para actualizar')
+    }
+
+    await validateWebFormAssignee(supabase, organizationId, validation.data.assigned_to)
 
     const { data: form, error } = await supabase
       .from('web_forms')
       .update({
-        name,
-        description,
-        fields,
-        settings,
-        theme,
-        redirect_url,
-        success_message,
-        auto_create_contact,
-        default_lead_status,
-        default_lead_source,
-        default_tags,
-        assigned_to,
-        notify_emails,
-        notify_on_submit,
-        is_active,
+        ...validation.data,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('organization_id', organizationId)
       .select()
       .single()
 
@@ -86,7 +71,7 @@ export async function PUT(
   } catch (error: any) {
     const log = createRequestLogger(request)
     log.error('[Forms API] Error', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
   }
 }
 
@@ -96,19 +81,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const log = createRequestLogger(request)
     const { id } = await params
-    const supabase = await createSupabaseRouteHandler()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const { supabase, organizationId } = await getAuthenticatedContext()
 
     const { error } = await supabase
       .from('web_forms')
       .delete()
       .eq('id', id)
+      .eq('organization_id', organizationId)
 
     if (error) throw error
 
@@ -116,6 +96,6 @@ export async function DELETE(
   } catch (error: any) {
     const log = createRequestLogger(request)
     log.error('[Forms API] Error', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: sanitizeErrorForClient(error) }, { status: getHttpStatusForError(error) })
   }
 }

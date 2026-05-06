@@ -148,16 +148,16 @@ export async function GET(request: NextRequest) {
     // Search tickets
     const { data: tickets } = await supabase
       .from("tickets")
-      .select("id, subject, status, priority")
+      .select("id, title, status, priority")
       .eq("organization_id", organizationId)
-      .ilike("subject", searchPattern)
+      .ilike("title", searchPattern)
       .limit(5)
 
     tickets?.forEach(t => {
       results.push({
         id: t.id,
         type: "ticket",
-        title: t.subject,
+        title: t.title,
         subtitle: `${t.status} - ${t.priority}`,
         url: `/tickets?id=${t.id}`,
       })

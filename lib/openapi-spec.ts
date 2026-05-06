@@ -14,11 +14,11 @@ export const openApiSpec = {
   },
   servers: [
     {
-      url: 'https://api.crm.pe/v1',
+      url: 'https://api.crm.pe',
       description: 'Producción',
     },
     {
-      url: 'https://sandbox.crm.pe/v1',
+      url: 'https://sandbox.crm.pe',
       description: 'Sandbox',
     },
   ],
@@ -69,11 +69,11 @@ export const openApiSpec = {
           },
         },
         responses: {
-          '201': {
+          '200': {
             description: 'Contacto creado',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/Contact' },
+                schema: { $ref: '#/components/schemas/ContactResponse' },
               },
             },
           },
@@ -124,7 +124,14 @@ export const openApiSpec = {
           { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
         ],
         responses: {
-          '204': { description: 'Contacto eliminado' },
+          '200': {
+            description: 'Contacto eliminado',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
         },
       },
     },
@@ -133,8 +140,10 @@ export const openApiSpec = {
         tags: ['Opportunities'],
         summary: 'Listar oportunidades',
         parameters: [
-          { name: 'stage', in: 'query', schema: { type: 'string' } },
+          { name: 'stage_id', in: 'query', schema: { type: 'string' } },
           { name: 'owner_id', in: 'query', schema: { type: 'string', format: 'uuid' } },
+          { name: 'contact_id', in: 'query', schema: { type: 'string', format: 'uuid' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['open', 'won', 'lost'] } },
         ],
         responses: {
           '200': {
@@ -159,7 +168,7 @@ export const openApiSpec = {
           },
         },
         responses: {
-          '201': { description: 'Oportunidad creada' },
+          '200': { description: 'Oportunidad creada' },
         },
       },
     },
@@ -273,25 +282,32 @@ export const openApiSpec = {
           pagination: { $ref: '#/components/schemas/Pagination' },
         },
       },
+      ContactResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: { $ref: '#/components/schemas/Contact' },
+        },
+      },
       Opportunity: {
         type: 'object',
         properties: {
           id: { type: 'string', format: 'uuid' },
           name: { type: 'string' },
-          value: { type: 'number' },
+          expected_revenue: { type: 'number' },
           probability: { type: 'integer', minimum: 0, maximum: 100 },
-          stage: { type: 'string' },
+          stage_id: { type: 'string', format: 'uuid' },
           expected_close_date: { type: 'string', format: 'date' },
           contact_id: { type: 'string', format: 'uuid' },
         },
       },
       OpportunityCreate: {
         type: 'object',
-        required: ['name', 'value', 'stage'],
+        required: ['name', 'contact_id'],
         properties: {
           name: { type: 'string' },
-          value: { type: 'number' },
-          stage: { type: 'string' },
+          expected_revenue: { type: 'number' },
+          stage_id: { type: 'string' },
           probability: { type: 'integer' },
           contact_id: { type: 'string', format: 'uuid' },
           expected_close_date: { type: 'string', format: 'date' },
@@ -355,6 +371,12 @@ export const openApiSpec = {
           success: { type: 'boolean', example: false },
           error: { type: 'string' },
           code: { type: 'string' },
+        },
+      },
+      SuccessResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
         },
       },
     },

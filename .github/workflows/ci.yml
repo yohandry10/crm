@@ -34,7 +34,34 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
-        run: pnpm test
+        run: pnpm exec vitest run
+
+      - name: Coverage
+        run: pnpm test:coverage
+
+      - name: Production preflight
+        run: pnpm production:check
+        env:
+          NEXT_PUBLIC_APP_URL: https://ci.example.com
+          NEXT_PUBLIC_SUPABASE_URL: https://project.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          ENCRYPTION_KEY: ci-encryption-key-at-least-32-chars
+          CRON_SECRET: ci-cron-secret-at-least-32-chars-ok
+          ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_FORMS_ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_PAY_ALLOWED_ORIGINS: https://ci.example.com
+          PUBLIC_BOOKING_ALLOWED_ORIGINS: https://ci.example.com
+          REDIS_URL: rediss://default:password@redis.example.com:6379
+          RATE_LIMIT_FAIL_OPEN: "false"
+          RESEND_API_KEY: re_ci_key
+          EMAIL_FROM: CRM <no-reply@example.com>
+          PUBLIC_API_DOCS: "false"
+          BILLING_PROVIDER: manual
+          PAYMENT_GATEWAYS_ENABLED: culqi,pagoefectivo
+          AI_PROVIDER: local
+          WORKFLOW_PROCESSING_MODE: cron-drainer
+          VERCEL_PLAN: pro
 
       - name: Build
         run: pnpm build

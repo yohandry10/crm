@@ -32,6 +32,19 @@ function log(message: string, color: string = colors.reset) {
   console.log(`${color}${message}${colors.reset}`)
 }
 
+function redactConnectionString(value: string | undefined): string {
+  if (!value) return 'No configurado'
+
+  try {
+    const url = new URL(value)
+    if (url.password) url.password = '***'
+    if (url.username) url.username = '***'
+    return url.toString()
+  } catch {
+    return value.includes('@') ? value.replace(/\/\/[^@]+@/, '//***@') : value
+  }
+}
+
 // Banner de inicio
 console.log(`
 ${colors.cyan}╔═══════════════════════════════════════════════════════╗
@@ -79,7 +92,7 @@ if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
 log('\n📋 Configuración:', colors.cyan)
 log(`   Environment: ${process.env.NODE_ENV || 'development'}`)
 log(`   Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL}`)
-log(`   Redis: ${process.env.REDIS_URL || process.env.REDIS_HOST || 'No configurado'}`)
+log(`   Redis: ${redactConnectionString(process.env.REDIS_URL || process.env.REDIS_HOST)}`)
 log(`   Concurrency: ${process.env.WORKER_CONCURRENCY || '5'} jobs simultáneos\n`)
 
 // Iniciar todos los workers

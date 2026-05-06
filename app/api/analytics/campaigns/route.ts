@@ -46,18 +46,26 @@ export async function GET(_request: NextRequest) {
 
                 const conversions = convertedContacts?.length || 0
 
+                const { data: campaignContacts, error: campaignContactsError } = await supabase
+                    .from('contacts')
+                    .select('id')
+                    .eq('campaign_id', campaign.id)
+                    .eq('organization_id', organizationId)
+
+                if (campaignContactsError) throw campaignContactsError
+                const campaignContactIds = (campaignContacts || []).map(contact => contact.id)
+
                 // Calculate revenue from this campaign
-                const { data: revenue } = await supabase
-                    .from('payments')
-                    .select('amount')
-                    .eq('status', 'completed')
-                    .in('contact_id',
-                        await supabase
-                            .from('contacts')
-                            .select('id')
-                            .eq('campaign_id', campaign.id)
-                            .then(res => res.data?.map(c => c.id) || [])
-                    )
+                const { data: revenue, error: revenueError } = campaignContactIds.length > 0
+                    ? await supabase
+                        .from('payments')
+                        .select('amount')
+                        .eq('organization_id', organizationId)
+                        .eq('status', 'completed')
+                        .in('contact_id', campaignContactIds)
+                    : { data: [], error: null }
+
+                if (revenueError) throw revenueError
 
                 const totalRevenue = revenue?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
                 const budget = Number(campaign.budget || 0)

@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { z } from "zod"
+
+const notificationsQuerySchema = z.object({
+  unread: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+})
+
+const markNotificationsSchema = z.object({
+  notificationIds: z.array(z.string().uuid()).min(1).max(100).optional(),
+  markAllRead: z.boolean().optional().default(false),
+  source: z.enum(["notifications", "system_notifications"]).optional(),
+}).superRefine((payload, ctx) => {
+  if (!payload.markAllRead && (!payload.notificationIds || payload.notificationIds.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Se requieren IDs de notificación o markAllRead",
+      path: ["notificationIds"],
+    })
+  }
+})
 
 // GET - Get user notifications (from both tables)
 export async function GET(request: NextRequest) {
@@ -11,13 +32,23 @@ export async function GET(request: NextRequest) {
     const { supabase, user, organizationId } = await getAuthenticatedContext()
 
     const searchParams = request.nextUrl.searchParams
-    const unreadOnly = searchParams.get("unread") === "true"
-    const limit = parseInt(searchParams.get("limit") || "20")
+    const validation = notificationsQuerySchema.safeParse({
+      unread: searchParams.get("unread") || undefined,
+      limit: searchParams.get("limit") || undefined,
+    })
+
+    if (!validation.success) {
+      throw new ValidationError("Filtros inválidos", validation.error.format())
+    }
+
+    const unreadOnly = validation.data.unread === "true"
+    const limit = validation.data.limit
 
     // Query from notifications table (used by events)
     let notificationsQuery = supabase
       .from("notifications")
       .select("*")
+      .eq("organization_id", organizationId)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(limit)
@@ -32,7 +63,8 @@ export async function GET(request: NextRequest) {
     let systemQuery = supabase
       .from("system_notifications")
       .select("*")
-      .or(`user_id.eq.${user.id},organization_id.eq.${organizationId}`)
+      .eq("organization_id", organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
       .order("created_at", { ascending: false })
       .limit(limit)
 
@@ -46,13 +78,15 @@ export async function GET(request: NextRequest) {
     const unreadNotifPromise = supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
       .eq("user_id", user.id)
       .eq("is_read", false)
 
     const unreadSystemPromise = supabase
       .from("system_notifications")
       .select("*", { count: "exact", head: true })
-      .or(`user_id.eq.${user.id},organization_id.eq.${organizationId}`)
+      .eq("organization_id", organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
       .is("read_at", null)
 
     const [
@@ -92,8 +126,8 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { success: false, error: sanitizeErrorForClient(error) },
+      { status: getHttpStatusForError(error) }
     )
   }
 }
@@ -104,49 +138,63 @@ export async function PUT(request: NextRequest) {
     const rateLimitResponse = await rateLimit(request, RATE_LIMITS.write)
     if (rateLimitResponse) return rateLimitResponse
 
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user, organizationId } = await getAuthenticatedContext()
     const body = await request.json()
 
-    const { notificationIds, markAllRead, source } = body
+    const validation = markNotificationsSchema.safeParse(body)
+    if (!validation.success) {
+      throw new ValidationError("Datos inválidos", validation.error.format())
+    }
+
+    const { notificationIds, markAllRead, source } = validation.data
+    const readAt = new Date().toISOString()
 
     if (markAllRead) {
       // Mark all as read in both tables
-      await supabase
+      const notificationsUpdate = await supabase
         .from("notifications")
-        .update({ is_read: true, read_at: new Date().toISOString() })
+        .update({ is_read: true, read_at: readAt })
+        .eq("organization_id", organizationId)
         .eq("user_id", user.id)
         .eq("is_read", false)
+      if (notificationsUpdate.error) throw notificationsUpdate.error
 
-      await supabase
+      const systemUpdate = await supabase
         .from("system_notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("user_id", user.id)
+        .update({ read_at: readAt })
+        .eq("organization_id", organizationId)
+        .or(`user_id.eq.${user.id},user_id.is.null`)
         .is("read_at", null)
+      if (systemUpdate.error) throw systemUpdate.error
 
     } else if (notificationIds && notificationIds.length > 0) {
       // Mark specific notifications as read
       if (source === 'notifications' || !source) {
-        await supabase
+        const notificationsUpdate = await supabase
           .from("notifications")
-          .update({ is_read: true, read_at: new Date().toISOString() })
+          .update({ is_read: true, read_at: readAt })
           .in("id", notificationIds)
+          .eq("organization_id", organizationId)
           .eq("user_id", user.id)
+        if (notificationsUpdate.error) throw notificationsUpdate.error
       }
 
       if (source === 'system_notifications' || !source) {
-        await supabase
+        const systemUpdate = await supabase
           .from("system_notifications")
-          .update({ read_at: new Date().toISOString() })
+          .update({ read_at: readAt })
           .in("id", notificationIds)
-          .eq("user_id", user.id)
+          .eq("organization_id", organizationId)
+          .or(`user_id.eq.${user.id},user_id.is.null`)
+        if (systemUpdate.error) throw systemUpdate.error
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { success: false, error: sanitizeErrorForClient(error) },
+      { status: getHttpStatusForError(error) }
     )
   }
 }

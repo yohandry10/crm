@@ -121,17 +121,19 @@ export function EventDialog({
         setLoading(true)
         try {
             const payload = {
-                ...values,
+                title: values.title,
+                description: values.description,
+                location: values.location,
                 contact_id: values.contact_id === "none" ? null : values.contact_id,
                 opportunity_id: values.opportunity_id === "none" ? null : values.opportunity_id,
-                start_time: new Date(values.start_time).toISOString(),
-                end_time: new Date(values.end_time).toISOString(),
+                start: new Date(values.start_time).toISOString(),
+                end: new Date(values.end_time).toISOString(),
             }
 
             const response = await fetch(
-                event ? `/api/events/${event.id}` : '/api/events',
+                event ? `/api/calendar/events/${event.id}` : '/api/calendar/events',
                 {
-                    method: event ? 'PATCH' : 'POST',
+                    method: event ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 }

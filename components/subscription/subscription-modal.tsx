@@ -91,8 +91,10 @@ export function SubscriptionModal({ open, onOpenChange, organizationId, isExpire
         if (json.checkoutUrl) {
           // Redirect to payment gateway
           window.location.href = json.checkoutUrl
+        } else if (json.pendingPayment) {
+          toast.info(json.message || "Solicitud registrada. El pago queda pendiente de confirmación.")
+          onOpenChange(false)
         } else {
-          // Direct activation (for testing/manual)
           toast.success("¡Suscripción activada!")
           onOpenChange(false)
           window.location.reload()

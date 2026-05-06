@@ -4,11 +4,11 @@
  * GET /api/admin/feature-flags
  * Retorna todos los feature flags y su estado
  *
- * POST /api/admin/feature-flags/toggle
- * Activa/desactiva un feature flag
- *
- * POST /api/admin/feature-flags/kill-switch
- * Activa un kill switch de emergencia
+ * POST /api/admin/feature-flags
+ * Ejecuta acciones con body { action, flagKey }:
+ * - toggle
+ * - activate_kill_switch
+ * - deactivate_kill_switch
  */
 
 import { NextRequest, NextResponse } from 'next/server'

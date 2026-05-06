@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { assertConversationInOrganization } from "@/lib/work-item-references"
 import { z } from "zod"
 
 const simulateSchema = z.object({
-    conversation_id: z.string(),
-    content: z.string().min(1),
+    conversation_id: z.string().uuid(),
+    content: z.string().trim().min(1).max(5000),
 })
 
 export async function POST(request: NextRequest) {
@@ -14,10 +16,11 @@ export async function POST(request: NextRequest) {
 
         const validation = simulateSchema.safeParse(body)
         if (!validation.success) {
-            return NextResponse.json({ success: false, error: validation.error }, { status: 400 })
+            throw new ValidationError("Datos inválidos", validation.error.format())
         }
 
         const { conversation_id, content } = validation.data
+        await assertConversationInOrganization(supabase, organizationId, conversation_id)
 
         // 1. Analyze Sentiment / Intent (Mock AI)
         const lowerContent = content.toLowerCase()
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
                 .from('conversations')
                 .select('metadata')
                 .eq('id', conversation_id)
+                .eq('organization_id', organizationId)
                 .single()
 
             const currentTags = conv?.metadata?.tags || []
@@ -70,14 +74,15 @@ export async function POST(request: NextRequest) {
                     status: metadata.risk ? 'open' : 'open' // ensure open
                 })
                 .eq('id', conversation_id)
+                .eq('organization_id', organizationId)
         }
 
         return NextResponse.json({ success: true, data: message, analysis: metadata })
 
     } catch (error: any) {
         return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
+            { success: false, error: sanitizeErrorForClient(error) },
+            { status: getHttpStatusForError(error) }
         )
     }
 }

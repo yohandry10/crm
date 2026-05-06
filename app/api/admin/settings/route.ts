@@ -11,8 +11,8 @@ const settingsSchema = z.object({
   allowSelfSignup: z.boolean(),
   requireEmailVerification: z.boolean(),
   maintenanceMode: z.boolean(),
-  stripeEnabled: z.boolean(),
-  mercadoPagoEnabled: z.boolean(),
+  culqiEnabled: z.boolean(),
+  pagoEfectivoEnabled: z.boolean(),
 })
 
 function mapDbToUi(row: any) {
@@ -21,8 +21,8 @@ function mapDbToUi(row: any) {
     allowSelfSignup: !!row.allow_self_signup,
     requireEmailVerification: row.require_email_verification ?? true,
     maintenanceMode: !!row.maintenance_mode,
-    stripeEnabled: !!row.stripe_enabled,
-    mercadoPagoEnabled: !!row.mercadopago_enabled,
+    culqiEnabled: !!row.culqi_enabled,
+    pagoEfectivoEnabled: !!row.pagoefectivo_enabled,
   }
 }
 
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
       allow_self_signup: validation.data.allowSelfSignup,
       require_email_verification: validation.data.requireEmailVerification,
       maintenance_mode: validation.data.maintenanceMode,
-      stripe_enabled: validation.data.stripeEnabled,
-      mercadopago_enabled: validation.data.mercadoPagoEnabled,
+      culqi_enabled: validation.data.culqiEnabled,
+      pagoefectivo_enabled: validation.data.pagoEfectivoEnabled,
     }
 
     const { data, error } = await supabase
@@ -107,4 +107,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

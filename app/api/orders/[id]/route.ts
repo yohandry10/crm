@@ -3,10 +3,12 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { salesOrderSchema } from "@/lib/schemas"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { logError } from "@/lib/error-logging"
-import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { validateSalesOrderReferences } from "@/lib/sales-order-references"
 import crypto from "crypto"
 
 const WRITE_LIMIT = RATE_LIMITS.write
+const updateSalesOrderSchema = salesOrderSchema.partial()
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -18,18 +20,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const { id } = await params
         const body = await request.json()
 
-        const validation = salesOrderSchema.safeParse(body)
+        const validation = updateSalesOrderSchema.safeParse(body)
         if (!validation.success) {
             return NextResponse.json({ success: false, error: "Datos inválidos", details: validation.error.format() }, { status: 400 })
         }
 
+        if (Object.keys(validation.data).length === 0) {
+            throw new ValidationError("No hay cambios para actualizar")
+        }
+
+        await validateSalesOrderReferences(supabase, organizationId, validation.data)
+
         // Get current order to check status change
-        const { data: currentOrder } = await supabase
+        const { data: currentOrder, error: currentOrderError } = await supabase
             .from("sales_orders")
             .select("status, items")
             .eq("id", id)
             .eq("organization_id", organizationId)
-            .single()
+            .maybeSingle()
+
+        if (currentOrderError) throw currentOrderError
+        if (!currentOrder) {
+            throw new ValidationError("Pedido no encontrado")
+        }
 
         const { data, error } = await supabase
             .from("sales_orders")
@@ -43,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
         // Update inventory when order is completed (and wasn't completed before)
         if (validation.data.status === "completed" && currentOrder?.status !== "completed") {
-            const items = data.items || currentOrder?.items || []
+            const items = validation.data.items || data.items || currentOrder.items || []
             for (const item of items) {
                 if (item.product_id && item.quantity) {
                     const { error: stockError } = await supabase.rpc("decrement_stock", {
@@ -51,7 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                         p_quantity: item.quantity
                     })
                     if (stockError) {
-                        console.error(`Failed to decrement stock for product ${item.product_id}:`, stockError)
+                        throw new Error(`No se pudo descontar stock para el producto ${item.product_id}: ${stockError.message}`)
                     }
                 }
             }

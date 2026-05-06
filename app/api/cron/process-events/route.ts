@@ -3,6 +3,7 @@ import { processWebhookEvents } from "@/lib/events"
 import { createRequestLogger } from "@/lib/logger"
 import crypto from "crypto"
 import { getRedisClient } from "@/lib/redis"
+import { validateCronSecret } from "@/lib/cron-auth"
 
 /**
  * Cron job endpoint to process pending webhook events
@@ -11,13 +12,8 @@ import { getRedisClient } from "@/lib/redis"
 export async function GET(request: NextRequest) {
     const log = createRequestLogger(request)
     try {
-        // Verify cron secret to prevent unauthorized access
-        const authHeader = request.headers.get('authorization')
-        const cronSecret = process.env.CRON_SECRET
-
-        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const authResponse = validateCronSecret(request)
+        if (authResponse) return authResponse
 
         // Avoid concurrent processors (cron + realtime kicks).
         const redis = getRedisClient()

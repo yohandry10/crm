@@ -4,92 +4,11 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { createRequestLogger } from "@/lib/logger"
-import { z } from "zod"
+import { getReportDateFilter, reportConfigSchema, REPORT_ENTITY_DEFS } from "@/lib/report-contracts"
 import crypto from "crypto"
 
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 30 }
 const MAX_ROWS = 5000
-
-const ENTITY_DEFS = {
-  contacts: {
-    table: "contacts",
-    select: "id, created_at, lead_status, source, lead_score, assigned_to, created_by",
-    allowedMetrics: new Set(["count", "lead_score_avg", "conversion_rate"]),
-    allowedGroupBy: new Set(["lead_status", "lead_source", "owner_id", "created_month"]),
-    filterFieldMap: {
-      // Friendly aliases used by UI/docs:
-      lead_source: "source",
-      owner_id: "assigned_to",
-      // Raw DB fields:
-      lead_status: "lead_status",
-      source: "source",
-      assigned_to: "assigned_to",
-      created_by: "created_by",
-      email: "email",
-      name: "name",
-      phone: "phone",
-      country: "country",
-      city: "city",
-    } as Record<string, string>,
-  },
-  opportunities: {
-    table: "opportunities",
-    // Include stage name for grouping by "stage"
-    select: "id, created_at, expected_close_date, expected_revenue, probability, status, stage_id, created_by, assigned_to, contact_id, stage:pipeline_stages(name)",
-    allowedMetrics: new Set(["count", "value_sum", "value_avg", "win_rate", "weighted_value"]),
-    allowedGroupBy: new Set(["stage", "owner_id", "created_month", "close_month"]),
-    filterFieldMap: {
-      owner_id: "created_by",
-      status: "status",
-      stage_id: "stage_id",
-      contact_id: "contact_id",
-      created_by: "created_by",
-      assigned_to: "assigned_to",
-      name: "name",
-    } as Record<string, string>,
-  },
-  invoices: {
-    table: "invoices",
-    select: "id, created_at, status, total, contact_id, invoice_number, issue_date, due_date, created_by",
-    allowedMetrics: new Set(["count", "total_sum", "paid_sum", "pending_sum"]),
-    allowedGroupBy: new Set(["status", "created_month", "contact_id"]),
-    filterFieldMap: {
-      status: "status",
-      contact_id: "contact_id",
-      invoice_number: "invoice_number",
-      created_by: "created_by",
-    } as Record<string, string>,
-  },
-  tasks: {
-    table: "tasks",
-    select: "id, created_at, status, priority, assigned_to, due_date, created_by",
-    allowedMetrics: new Set(["count", "completed_count", "completion_rate"]),
-    allowedGroupBy: new Set(["status", "priority", "assigned_to", "due_month"]),
-    filterFieldMap: {
-      status: "status",
-      priority: "priority",
-      assigned_to: "assigned_to",
-      created_by: "created_by",
-    } as Record<string, string>,
-  },
-} as const
-
-const reportConfigSchema = z.object({
-  entity: z.enum(["contacts", "opportunities", "invoices", "tasks"]),
-  metrics: z.array(z.string()).min(1).max(10),
-  groupBy: z.string().min(1).max(50),
-  dateRange: z.string().min(1).max(50),
-  filters: z
-    .array(
-      z.object({
-        field: z.string().min(1).max(50),
-        operator: z.string().optional(),
-        value: z.string().min(1).max(200),
-      })
-    )
-    .max(10)
-    .optional(),
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,26 +30,10 @@ export async function POST(request: NextRequest) {
     const config = parsed.data
 
     const { entity, metrics, groupBy, dateRange, filters } = config
-    const def = ENTITY_DEFS[entity]
-
-    if (!def.allowedGroupBy.has(groupBy)) {
-      return NextResponse.json(
-        { success: false, error: `groupBy no permitido para entidad '${entity}'` },
-        { status: 400 }
-      )
-    }
-
-    for (const metric of metrics) {
-      if (!def.allowedMetrics.has(metric)) {
-        return NextResponse.json(
-          { success: false, error: `Métrica no permitida: ${metric}` },
-          { status: 400 }
-        )
-      }
-    }
+    const def = REPORT_ENTITY_DEFS[entity]
 
     // Build date filter
-    const dateFilter = getDateFilter(dateRange)
+    const dateFilter = getReportDateFilter(dateRange)
 
     // Build query based on entity
     let query: any = supabase
@@ -153,13 +56,7 @@ export async function POST(request: NextRequest) {
       const value = filter.value?.trim()
       if (!field || !value) continue
 
-      const mapped = def.filterFieldMap[field]
-      if (!mapped) {
-        return NextResponse.json(
-          { success: false, error: `Filtro no permitido para '${entity}': ${field}` },
-          { status: 400 }
-        )
-      }
+      const mapped = def.filterFieldMap[field as keyof typeof def.filterFieldMap]
 
       query = query.eq(mapped, value)
     }
@@ -197,49 +94,6 @@ export async function POST(request: NextRequest) {
       { success: false, error: sanitizeErrorForClient(error) },
       { status: getHttpStatusForError(error) }
     )
-  }
-}
-
-function getDateFilter(dateRange: string): { start?: string; end?: string } {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-  switch (dateRange) {
-    case "today":
-      return { start: today.toISOString(), end: now.toISOString() }
-    case "yesterday":
-      const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
-      return { start: yesterday.toISOString(), end: today.toISOString() }
-    case "this_week":
-      const weekStart = new Date(today)
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-      return { start: weekStart.toISOString(), end: now.toISOString() }
-    case "last_week":
-      const lastWeekEnd = new Date(today)
-      lastWeekEnd.setDate(lastWeekEnd.getDate() - lastWeekEnd.getDay())
-      const lastWeekStart = new Date(lastWeekEnd)
-      lastWeekStart.setDate(lastWeekStart.getDate() - 7)
-      return { start: lastWeekStart.toISOString(), end: lastWeekEnd.toISOString() }
-    case "this_month":
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      return { start: monthStart.toISOString(), end: now.toISOString() }
-    case "last_month":
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { start: lastMonthStart.toISOString(), end: lastMonthEnd.toISOString() }
-    case "this_quarter":
-      const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-      return { start: quarterStart.toISOString(), end: now.toISOString() }
-    case "this_year":
-      const yearStart = new Date(now.getFullYear(), 0, 1)
-      return { start: yearStart.toISOString(), end: now.toISOString() }
-    case "last_year":
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
-      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31)
-      return { start: lastYearStart.toISOString(), end: lastYearEnd.toISOString() }
-    default:
-      return {}
   }
 }
 

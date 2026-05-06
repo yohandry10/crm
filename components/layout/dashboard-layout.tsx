@@ -7,7 +7,6 @@ import { SidebarOptimized } from "@/components/dashboard/sidebar-optimized"
 import { Header } from "@/components/dashboard/header"
 import { useCRMPrefetch } from "@/hooks/use-route-prefetch"
 import { useKeyboardShortcuts } from "@/components/keyboard"
-import { useAuth } from "@/components/providers/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { useTheme } from "@/hooks/use-theme"
 
@@ -44,9 +43,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-
-  // ✅ Use cached auth data from AuthProvider
-  const { organizationId } = useAuth()
 
   // ✅ Use theme for dynamic styling
   const { getBgClass, getTextClass } = useTheme()

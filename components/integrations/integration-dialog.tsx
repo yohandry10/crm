@@ -28,6 +28,7 @@ interface IntegrationDialogProps {
 
 export function IntegrationDialog({ open, onOpenChange, integration, onSave }: IntegrationDialogProps) {
     const jsonObjectStringSchema = z.string().refine((value) => {
+        if (value.trim() === "") return true
         try {
             const parsed = JSON.parse(value || "{}")
             return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
@@ -61,14 +62,6 @@ export function IntegrationDialog({ open, onOpenChange, integration, onSave }: I
 
         if (!integration) return base
 
-        let config_json = "{}"
-        try {
-            const cfg = (integration as any).config ?? {}
-            config_json = JSON.stringify(cfg, null, 2)
-        } catch {
-            config_json = "{}"
-        }
-
         return {
             ...base,
             name: integration.name ?? "",
@@ -77,7 +70,7 @@ export function IntegrationDialog({ open, onOpenChange, integration, onSave }: I
             category: integration.category ?? "communication",
             status: (integration.status as any) ?? "disconnected",
             is_active: integration.is_active ?? true,
-            config_json,
+            config_json: "",
         }
     }, [integration])
 
@@ -95,15 +88,20 @@ export function IntegrationDialog({ open, onOpenChange, integration, onSave }: I
 
     const onSubmit = async (data: IntegrationDialogFormData) => {
         try {
+            const configText = data.config_json.trim()
+            const integrationBase = { ...(integration ?? {}) }
+            delete integrationBase.config
+            delete integrationBase.config_encrypted
+            delete integrationBase.has_config
             const payload = {
-                ...integration,
+                ...integrationBase,
                 name: data.name,
                 provider: data.provider,
                 description: data.description || null,
                 category: data.category,
                 status: data.status,
                 is_active: data.is_active,
-                config: JSON.parse(data.config_json || "{}"),
+                ...(configText ? { config: JSON.parse(configText) } : {}),
             }
             const result = await onSave(payload)
 

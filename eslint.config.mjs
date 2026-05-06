@@ -13,7 +13,7 @@ try {
 
 export default [
   {
-    ignores: [".next/**", "node_modules/**", "*.config.*"],
+    ignores: [".next/**", ".next-build/**", "coverage/**", "node_modules/**", "*.config.*"],
   },
   {
     files: ["**/*.ts", "**/*.tsx"],
@@ -31,7 +31,15 @@ export default [
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrors: "none",
+          caughtErrorsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
       "@next/next/no-html-link-for-pages": "off",
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/rules-of-hooks": "error",

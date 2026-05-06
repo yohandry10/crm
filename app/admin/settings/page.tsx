@@ -16,8 +16,8 @@ export default function AdminSettingsPage() {
     allowSelfSignup: false,
     requireEmailVerification: true,
     maintenanceMode: false,
-    stripeEnabled: false,
-    mercadoPagoEnabled: false,
+    culqiEnabled: false,
+    pagoEfectivoEnabled: false,
   })
   const [activeTab, setActiveTab] = useState("general")
 
@@ -184,23 +184,23 @@ export default function AdminSettingsPage() {
           <div className="p-4 bg-white/[0.02] rounded-xl border border-white/[0.04] space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[14px] text-slate-200">Stripe</p>
-                <p className="text-[12px] text-slate-500">Pagos internacionales</p>
+                <p className="font-medium text-[14px] text-slate-200">Culqi</p>
+                <p className="text-[12px] text-slate-500">Tarjetas y pagos locales</p>
               </div>
               <Switch
-                checked={settings.stripeEnabled}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, stripeEnabled: checked }))}
+                checked={settings.culqiEnabled}
+                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, culqiEnabled: checked }))}
               />
             </div>
-            {settings.stripeEnabled && (
+            {settings.culqiEnabled && (
               <div className="space-y-3 pt-3 border-t border-white/[0.06]">
                 <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-[12px]">Stripe Secret Key</Label>
-                  <Input type="password" placeholder="sk_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
+                  <Label className="text-slate-400 text-[12px]">Culqi Public Key</Label>
+                  <Input type="password" placeholder="pk_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-[12px]">Stripe Webhook Secret</Label>
-                  <Input type="password" placeholder="whsec_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
+                  <Label className="text-slate-400 text-[12px]">Culqi Secret Key</Label>
+                  <Input type="password" placeholder="sk_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
                 </div>
               </div>
             )}
@@ -209,19 +209,19 @@ export default function AdminSettingsPage() {
           <div className="p-4 bg-white/[0.02] rounded-xl border border-white/[0.04] space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[14px] text-slate-200">MercadoPago</p>
-                <p className="text-[12px] text-slate-500">Pagos locales (Perú)</p>
+                <p className="font-medium text-[14px] text-slate-200">PagoEfectivo</p>
+                <p className="text-[12px] text-slate-500">Voucher y banca por internet</p>
               </div>
               <Switch
-                checked={settings.mercadoPagoEnabled}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, mercadoPagoEnabled: checked }))}
+                checked={settings.pagoEfectivoEnabled}
+                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, pagoEfectivoEnabled: checked }))}
               />
             </div>
-            {settings.mercadoPagoEnabled && (
+            {settings.pagoEfectivoEnabled && (
               <div className="space-y-3 pt-3 border-t border-white/[0.06]">
                 <div className="space-y-1.5">
                   <Label className="text-slate-400 text-[12px]">Access Token</Label>
-                  <Input type="password" placeholder="APP_USR-..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
+                  <Input type="password" placeholder="pe_live_..." className="bg-white/[0.04] border-white/[0.08] text-slate-200" />
                 </div>
               </div>
             )}

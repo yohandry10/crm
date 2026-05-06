@@ -1,14 +1,14 @@
 /**
- * API Versioning Middleware
+ * API Versioning metadata helpers
  *
- * Maneja versionado de API automático
+ * Estado actual:
+ * - /api/v1/version expone metadata de version.
+ * - Las rutas de recursos siguen usando /api/* sin version.
+ * - Este archivo no esta conectado a middleware.ts para reescritura automatica.
  *
- * Rutas soportadas:
- * - /api/contacts → versión actual (sin versión = latest)
- * - /api/v1/contacts → versión 1
- * - /api/v2/contacts → versión 2 (futuro)
+ * Rutas de recursos versionadas como /api/v1/contacts no existen todavia.
  *
- * Características:
+ * Funcionalidad preparada:
  * - Backward compatibility automático
  * - Headers de deprecación
  * - Sunset dates para APIs antiguas

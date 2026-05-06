@@ -3,9 +3,29 @@ import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { z } from "zod"
 import crypto from "crypto"
 
 const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 10 }
+const exportFormatSchema = z.enum(["csv", "xlsx"]).default("csv")
+const exportPayloadSchema = z.object({
+  config: z.object({
+    name: z.string().trim().max(100).optional(),
+  }).passthrough().optional().default({}),
+  data: z.object({
+    columns: z.array(z.string().min(1).max(80)).min(1).max(50),
+    rows: z.array(z.record(z.any())).max(5000),
+  }).passthrough(),
+})
+
+function safeFilename(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .substring(0, 80) || "reporte"
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,17 +34,25 @@ export async function POST(request: NextRequest) {
 
     await getAuthenticatedContext() // Verify auth
 
-    const format = request.nextUrl.searchParams.get("format") || "csv"
-    const { config, data } = await request.json()
-
-    if (!data || !data.rows) {
+    const formatParse = exportFormatSchema.safeParse(request.nextUrl.searchParams.get("format") || undefined)
+    if (!formatParse.success) {
       return NextResponse.json(
-        { success: false, error: "No hay datos para exportar" },
+        { success: false, error: "Formato no soportado" },
         { status: 400 }
       )
     }
 
-    const filename = `${config.name || "reporte"}-${new Date().toISOString().split("T")[0]}`
+    const parsed = exportPayloadSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Datos de exportación inválidos", details: parsed.error.format() },
+        { status: 400 }
+      )
+    }
+
+    const { config, data } = parsed.data
+    const format = formatParse.data
+    const filename = `${safeFilename(config.name || "reporte")}-${new Date().toISOString().split("T")[0]}`
 
     if (format === "csv") {
       const csv = generateCSV(data.columns, data.rows)
@@ -46,11 +74,6 @@ export async function POST(request: NextRequest) {
         },
       })
     }
-
-    return NextResponse.json(
-      { success: false, error: "Formato no soportado" },
-      { status: 400 }
-    )
 
   } catch (error: any) {
     await logError({

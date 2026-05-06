@@ -12,13 +12,26 @@ export async function GET() {
       .eq("name", organization.subscription_plan)
       .single()
 
-    // Get invoices from Stripe
-    const { data: invoices } = await supabase
-      .from("stripe_invoices")
-      .select("*")
+    const { data: history } = await supabase
+      .from("subscription_history")
+      .select("id, amount, currency, status, billing_period, started_at, ended_at, payment_reference, created_at")
       .eq("organization_id", organizationId)
-      .order("paid_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(12)
+
+    const invoices = (history || []).map((entry: any) => ({
+      id: entry.id,
+      amount_paid: Math.round(Number(entry.amount || 0) * 100),
+      currency: entry.currency || "PEN",
+      status: entry.status === "active" ? "paid" : entry.status,
+      invoice_pdf: null,
+      hosted_invoice_url: null,
+      period_start: entry.started_at,
+      period_end: entry.ended_at || entry.started_at,
+      paid_at: entry.created_at || entry.started_at,
+      payment_reference: entry.payment_reference,
+      billing_period: entry.billing_period,
+    }))
 
     return NextResponse.json({
       success: true,
@@ -31,9 +44,9 @@ export async function GET() {
           trial_ends_at: organization.trial_ends_at,
           subscription_ends_at: organization.subscription_ends_at,
           cancel_at_period_end: organization.cancel_at_period_end,
-          stripe_customer_id: organization.stripe_customer_id,
+          payment_customer_id: null,
         },
-        invoices: invoices || [],
+        invoices,
         currentPlan,
       },
     })

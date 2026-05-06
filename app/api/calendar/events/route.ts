@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit"
 import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
+import { assertCalendarDateRange, serializeCalendarEvent, validateCalendarEventReferences } from "@/lib/calendar-events"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -12,17 +13,23 @@ const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 30 }
 
 const eventSchema = z.object({
   title: z.string().min(1, "Título requerido"),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   start: z.string().datetime(),
   end: z.string().datetime(),
-  location: z.string().optional(),
-  contact_id: z.string().uuid().optional(),
-  opportunity_id: z.string().uuid().optional(),
+  location: z.string().optional().nullable(),
+  contact_id: z.preprocess(
+    (value) => (!value || value === "none" ? null : value),
+    z.string().uuid().optional().nullable()
+  ),
+  opportunity_id: z.preprocess(
+    (value) => (!value || value === "none" ? null : value),
+    z.string().uuid().optional().nullable()
+  ),
   attendees: z.array(z.object({
     email: z.string().email(),
     name: z.string().optional()
   })).optional(),
-  reminder_minutes: z.number().optional(),
+  reminder_minutes: z.coerce.number().int().min(0).max(10080).optional(),
   event_type: z.enum(["meeting", "call", "task", "other"]).default("meeting"),
 })
 
@@ -70,18 +77,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: data.map(event => ({
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        start: event.start_time,
-        end: event.end_time,
-        location: event.location,
-        event_type: event.event_type,
+        ...serializeCalendarEvent(event),
         contact: event.contact,
         opportunity: event.opportunity,
         owner: event.owner,
-        attendees: event.attendees,
-        meeting_link: event.meeting_link,
       }))
     })
 
@@ -117,6 +116,8 @@ export async function POST(request: NextRequest) {
     }
 
     const eventData = validation.data
+    assertCalendarDateRange(eventData.start, eventData.end)
+    await validateCalendarEventReferences(supabase, organizationId, eventData)
 
     const { data, error } = await supabase
       .from("calendar_events")
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
       newData: eventData,
     })
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: serializeCalendarEvent(data) })
 
   } catch (error: any) {
     await logError({

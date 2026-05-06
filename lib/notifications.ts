@@ -5,6 +5,7 @@ import { logger } from "./logger"
 
 export interface NotificationPayload {
     userId: string
+    organizationId?: string
     title: string
     body: string
     type?: 'info' | 'warning' | 'success' | 'error' | 'reminder'
@@ -22,11 +23,34 @@ export interface NotificationPayload {
 export async function sendNotification(payload: NotificationPayload) {
     try {
         const supabase = createSupabaseServiceClient()
+        let organizationId = payload.organizationId
+
+        if (!organizationId) {
+            const { data: membership, error: membershipError } = await supabase
+                .from('organization_members')
+                .select('organization_id')
+                .eq('user_id', payload.userId)
+                .eq('is_active', true)
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle()
+
+            if (membershipError) throw membershipError
+            organizationId = membership?.organization_id
+        }
+
+        if (!organizationId) {
+            return {
+                success: false,
+                error: 'No active organization found for notification recipient'
+            }
+        }
 
         // 1. Guardar notificación en BD
         const { data: notification, error: dbError } = await supabase
             .from('notifications')
             .insert({
+                organization_id: organizationId,
                 user_id: payload.userId,
                 title: payload.title,
                 message: payload.body,

@@ -75,9 +75,7 @@ vi.mock("@/lib/supabase-auth", () => ({
 import { POST as createAccount } from "@/app/api/accounts/route"
 import { PUT as updateAccount, DELETE as deleteAccount } from "@/app/api/accounts/[id]/route"
 import { POST as createTicket } from "@/app/api/tickets/route"
-import { DELETE as deleteTicket } from "@/app/api/tickets/[id]/route"
 import { POST as createOrder } from "@/app/api/orders/route"
-import { PUT as updateOrder } from "@/app/api/orders/[id]/route"
 
 describe("CRM CRUD APIs", () => {
   beforeEach(() => {
@@ -98,7 +96,7 @@ describe("CRM CRUD APIs", () => {
 
   it("rechaza cuenta sin nombre", async () => {
     // Hacer que el mock devuelva error de validación
-    mockSupabase.from = vi.fn((table: string) => {
+    mockSupabase.from = vi.fn((_table: string) => {
       const chain = createQueryChain(null)
       chain.single = vi.fn(() => Promise.resolve({ data: null, error: { message: "Validation error" } }))
       return chain

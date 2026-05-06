@@ -11,8 +11,10 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { getJobStatus } from "@/lib/queues/workflow-queue"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(
     request: NextRequest,
@@ -32,6 +34,7 @@ export async function GET(
         }
 
         // Obtener estado del job
+        const { getJobStatus } = await import("@/lib/queues/workflow-queue")
         const status = await getJobStatus(jobId)
 
         if (!status) {
@@ -122,6 +125,7 @@ export async function DELETE(
         const { jobId } = await params
 
         // Primero verificar que el job existe
+        const { getJobStatus, cancelJob } = await import("@/lib/queues/workflow-queue")
         const status = await getJobStatus(jobId)
 
         if (!status) {
@@ -141,7 +145,6 @@ export async function DELETE(
         }
 
         // Cancelar el job
-        const { cancelJob } = await import("@/lib/queues/workflow-queue")
         const cancelled = await cancelJob(jobId)
 
         if (cancelled) {

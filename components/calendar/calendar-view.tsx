@@ -16,7 +16,7 @@ import {
     isBefore
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, MoreHorizontal } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
@@ -157,7 +157,7 @@ export function CalendarView({
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="grid grid-cols-7 grid-rows-5 lg:grid-rows-6 h-full absolute inset-0"
                     >
-                        {days.map((day, index) => {
+                        {days.map((day) => {
                             const dayEvents = getEventsForDay(day)
                             const isCurrentMonth = isSameMonth(day, monthStart)
                             const isDayToday = isToday(day)

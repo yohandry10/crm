@@ -1,10 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { rateLimit } from "@/lib/rate-limit"
+import { sanitizeErrorForClient, getHttpStatusForError, ValidationError } from "@/lib/error-handler"
+import { validateConversationReferences } from "@/lib/work-item-references"
 import { z } from "zod"
-
 const READ_LIMIT = { interval: 60 * 1000, maxRequests: 60 }
 const WRITE_LIMIT = { interval: 60 * 1000, maxRequests: 20 }
+const conversationQuerySchema = z.object({
+    status: z.enum(['open', 'closed', 'snoozed']).optional(),
+    search: z.string().trim().max(100).optional(),
+})
+
+function normalizeSearchTerm(value: string) {
+    return value.replace(/[(),]/g, ' ').trim()
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,7 +22,14 @@ export async function GET(request: NextRequest) {
 
         const { supabase, organizationId } = await getAuthenticatedContext()
         const searchParams = request.nextUrl.searchParams
-        const status = searchParams.get('status')
+        const filters = conversationQuerySchema.safeParse({
+            status: searchParams.get('status') || undefined,
+            search: searchParams.get('search') || undefined,
+        })
+
+        if (!filters.success) {
+            throw new ValidationError("Filtros inválidos", filters.error.format())
+        }
 
         let query = supabase
             .from('conversations')
@@ -26,21 +42,35 @@ export async function GET(request: NextRequest) {
             .eq('organization_id', organizationId)
             .order('last_message_at', { ascending: false })
 
-        if (status) {
-            query = query.eq('status', status)
+        if (filters.data.status) {
+            query = query.eq('status', filters.data.status)
         }
 
-        const search = searchParams.get('search')
+        const search = filters.data.search ? normalizeSearchTerm(filters.data.search) : ''
         if (search) {
             // 1. Find contacts matching the search term
-            const { data: foundContacts } = await supabase
-                .from('contacts')
-                .select('id')
-                .eq('organization_id', organizationId)
-                .or(`name.ilike.%${search}%,email.ilike.%${search}%`)
-                .limit(50)
+            const [contactsByName, contactsByEmail] = await Promise.all([
+                supabase
+                    .from('contacts')
+                    .select('id')
+                    .eq('organization_id', organizationId)
+                    .ilike('name', `%${search}%`)
+                    .limit(50),
+                supabase
+                    .from('contacts')
+                    .select('id')
+                    .eq('organization_id', organizationId)
+                    .ilike('email', `%${search}%`)
+                    .limit(50),
+            ])
 
-            const contactIds = foundContacts?.map(c => c.id) || []
+            if (contactsByName.error) throw contactsByName.error
+            if (contactsByEmail.error) throw contactsByEmail.error
+
+            const contactIds = Array.from(new Set([
+                ...(contactsByName.data || []).map(c => c.id),
+                ...(contactsByEmail.data || []).map(c => c.id),
+            ]))
 
             // 2. Filter conversations by these contacts OR subject
             const orConditions = [`subject.ilike.%${search}%`]
@@ -64,16 +94,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: processedData })
     } catch (error: any) {
         return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
+            { success: false, error: sanitizeErrorForClient(error) },
+            { status: getHttpStatusForError(error) }
         )
     }
 }
 
 const createConversationSchema = z.object({
-    contact_id: z.string().nullable().optional(),
-    channel_id: z.string().nullable().optional(),
-    subject: z.string().nullable().optional(),
+    contact_id: z.string().uuid().nullable().optional(),
+    channel_id: z.string().uuid().nullable().optional(),
+    subject: z.string().trim().max(200).nullable().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -86,8 +116,10 @@ export async function POST(request: NextRequest) {
 
         const validation = createConversationSchema.safeParse(body)
         if (!validation.success) {
-            return NextResponse.json({ success: false, error: "Datos inválidos: " + validation.error.issues.map(i => i.message).join(", ") }, { status: 400 })
+            throw new ValidationError("Datos inválidos", validation.error.format())
         }
+
+        await validateConversationReferences(supabase, organizationId, validation.data)
 
         const { data, error } = await supabase
             .from('conversations')
@@ -107,8 +139,8 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
+            { success: false, error: sanitizeErrorForClient(error) },
+            { status: getHttpStatusForError(error) }
         )
     }
 }

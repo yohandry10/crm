@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         const last30Days = getLastNDaysRangeInTimezone(timezone, now, 30)
 
         const [
+            { count: contactsTotal },
             { count: contactsThisMonth },
             { data: invoicesThisMonth },
             { count: inventoryThisMonth },
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
             { data: leadsData },
             { data: stages }
         ] = await Promise.all([
+            supabase.from("contacts").select("*", { count: "exact", head: true })
+                .eq("organization_id", organizationId),
             supabase.from("contacts").select("*", { count: "exact", head: true })
                 .eq("organization_id", organizationId).gte("created_at", thisMonth.startUtc.toISOString()),
             supabase.from("invoices").select("total, status")
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
             ? (((totalSalesThisMonth - totalSalesLastMonth) / totalSalesLastMonth) * 100) : 0
 
         const stats = [
-            { title: "Contactos Totales", value: (contactsThisMonth || 0).toString(), change: `${contactsChange >= 0 ? '+' : ''}${contactsChange.toFixed(1)}%`, changeType: contactsChange >= 0 ? "positive" : "negative", icon: "Users" },
+            { title: "Contactos Totales", value: (contactsTotal || 0).toString(), change: `${contactsChange >= 0 ? '+' : ''}${contactsChange.toFixed(1)}%`, changeType: contactsChange >= 0 ? "positive" : "negative", icon: "Users" },
             { title: "Ventas del Mes", value: `S/ ${totalSalesThisMonth.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`, change: `${salesChange >= 0 ? '+' : ''}${salesChange.toFixed(1)}%`, changeType: salesChange >= 0 ? "positive" : "negative", icon: "DollarSign" },
             { title: "Inventario Total", value: (inventoryThisMonth || 0).toString(), change: "Items", changeType: "neutral", icon: "Package" },
             { title: "Facturas Generadas", value: (invoicesThisMonth?.length || 0).toString(), change: `${invoicesThisMonth?.length || 0} este mes`, changeType: "positive", icon: "FileText" }
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest) {
         const thirtyDaysAgo = last30Days.startUtc
 
         // Init last 30 days with 0
-        for (let i = 0; i <= 30; i++) {
+        for (let i = 0; i < 30; i++) {
             const d = new Date(thirtyDaysAgo)
             d.setUTCDate(d.getUTCDate() + i)
             const dateStr = formatDateOnlyInTimezone(d, timezone)

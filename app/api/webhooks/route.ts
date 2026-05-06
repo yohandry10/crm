@@ -6,6 +6,7 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { rateLimit } from "@/lib/rate-limit"
 import { WEBHOOK_EVENTS } from "@/lib/webhooks"
 import { encryptSecret } from "@/lib/encryption"
+import { validateOutboundWebhookUrl } from "@/lib/outbound-url-security"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -79,6 +80,14 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Validation failed",
         details: validation.error.errors
+      }, { status: 400 })
+    }
+
+    const urlValidation = await validateOutboundWebhookUrl(validation.data.url)
+    if (!urlValidation.valid) {
+      return NextResponse.json({
+        success: false,
+        error: `URL de webhook inválida: ${urlValidation.error}`
       }, { status: 400 })
     }
 

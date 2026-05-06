@@ -2,7 +2,6 @@
 
 import { memo } from "react"
 import useSWR from "swr"
-import { motion } from "framer-motion"
 import { TrendingUp, Users, DollarSign, FileText, Target, Zap, Package, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -137,4 +136,3 @@ export const DashboardOverview = memo(() => {
 DashboardOverview.displayName = "DashboardOverview"
 
 export default DashboardOverview
-

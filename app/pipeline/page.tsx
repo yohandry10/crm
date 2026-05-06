@@ -55,6 +55,7 @@ export default function PipelinePage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set("limit", "100")
       if (search) params.set("search", search)
       if (ownerFilter !== "all") params.set("owner_id", ownerFilter)
 
@@ -202,7 +203,7 @@ export default function PipelinePage() {
               stages={stages.length > 0 ? stages : undefined}
               onStageChange={handleStageChange}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={setOpportunityToDelete}
               onCreate={handleCreate}
             />
           )}

@@ -111,7 +111,7 @@ export function IntegrationsGrid() {
             const res = await fetch(`/api/integrations/${integration.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...integration, status: newStatus })
+                body: JSON.stringify({ status: newStatus })
             })
             const data = await res.json()
             if (data.success) {

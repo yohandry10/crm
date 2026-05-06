@@ -1,202 +1,140 @@
-# Go-Live Checklist (Venta / Producción)
+# Go-live checklist
 
-Este documento separa **bloqueadores de venta** vs **post-launch** por módulo, y una lista de verificación para publicar en producción.
+Este checklist define bloqueadores antes de vender o publicar como produccion.
 
-## Bloqueadores Globales (antes de vender)
+## Bloqueadores globales
 
-1. **Multi-tenant consistente (Org context)**
-   - Confirmar que todos los inserts/updates usan `organization_id` correcto o que la BD lo infiere (migración `089_tenant_insert_safety_defaults.sql`).
-   - Confirmar que cada usuario tiene `profiles.current_organization_id` y un `organization_members` activo.
+- [x] `pnpm typecheck` pasa.
+- [x] `pnpm exec vitest run` pasa.
+- [x] `pnpm test:coverage` funciona y reporta cobertura real.
+- [x] `pnpm build` pasa.
+- [ ] Coverage tiene umbrales por modulo critico y no solo reporte global.
+- [x] Warnings de dependencias server-only revisados; BullMQ externalizado y Supabase SSR Edge warning filtrado.
+- [x] `pnpm lint` no incluye carpetas generadas como `.next-build` o `coverage`.
+- [x] `pnpm production:check` pasa localmente con 0 failures en `BILLING_PROVIDER=manual`.
+- [ ] `pnpm production:check` ejecutado en CI/proveedor con variables reales de produccion.
+- [x] `pnpm production:verify-db` ejecutado contra Supabase objetivo con 0 failures.
+- [ ] Supabase Auth tiene Site URL y Redirect URLs correctas.
+- [x] Platform admin no depende de superadmin hardcodeado en codigo.
+- [x] Operaciones con service role en onboarding/admin/team/subscriptions validan body/filtros antes de escribir.
+- [ ] RLS habilitado y probado en tablas sensibles.
+- [x] RPC `verify_production_readiness` ejecutada en la base objetivo con todos los checks `pass=true`.
+- [x] Migracion 095 endurece el primer bloque de funciones `SECURITY DEFINER` sensibles.
+- [x] Migracion 095 aplicada y verificada en la base objetivo.
+- [x] Migracion 097 endurece RPCs expuestas `SECURITY DEFINER` y funciones server-only.
+- [x] Migracion 097 aplicada y verificada en la base objetivo.
+- [x] Migracion 098 crea booking publico atomico con lock transaccional por owner/dia.
+- [x] Migracion 098 aplicada y verificada en la base objetivo.
+- [x] Migracion 099 endurece permisos y constraint de `public_payment_tokens`.
+- [x] Migracion 099 aplicada y verificada en la base objetivo.
+- [x] Migracion 100 alinea contratos revenue-inventory y endurece la RPC atomica de facturas.
+- [x] Migracion 100 aplicada y verificada en la base objetivo.
+- [x] Migracion 101 agrega RPC read-only para verificacion automatizable de produccion.
+- [x] Migracion 101 aplicada y `production:verify-db` ejecutado en la base objetivo.
+- [x] Migraciones 102-103 aplicadas y verificadas en la base objetivo.
+- [ ] Credenciales reales de Culqi/PagoEfectivo configuradas antes de activar `BILLING_PROVIDER=culqi_pagoefectivo`.
+- [x] Migracion 095 revoca `organizations_decrypted` para `authenticated`.
+- [ ] Confirmar que ningun cliente `authenticated` depende de `organizations_decrypted`.
+- [x] Migracion de pagos agrega idempotencia respaldada por indice unico parcial.
+- [ ] Base objetivo revisada sin duplicados historicos antes de aplicar el indice unico de pagos.
+- [x] Rutas activas de Stripe eliminadas; pagos operan por Culqi/PagoEfectivo, gateway manual o payment links.
+- [x] Migracion 096 aplicada y verificada en la base objetivo.
+- [x] Pagos manuales son idempotentes y transaccionales via RPC.
+- [x] Pagos filtran sumas y actualizaciones auxiliares por `organization_id`.
+- [x] Cron jobs definidos en `vercel.json` con perfil diario compatible con Vercel Hobby.
+- [x] Drainer acotado de workflows configurado por cron (`WORKFLOW_PROCESSING_MODE=cron-drainer`).
+- [ ] Worker persistente configurado si workflows se venden como near-real-time (`WORKFLOW_PROCESSING_MODE=worker`).
+- [x] Endpoints `/api/cron/*` validan `CRON_SECRET` con helper central y fallan cerrado si falta.
+- [x] Politica Redis decidida y documentada: Redis obligatorio y `RATE_LIMIT_FAIL_OPEN=false`.
+- [ ] Endpoints publicos tienen rate limit, CORS y validacion estricta en todos los flujos.
+- [x] Public forms y booking fallan cerrado en CORS de produccion si no hay allowlist.
+- [x] Public forms valida campos enviados contra la definicion del formulario.
+- [x] Forms privados validan schema y assignee del tenant antes de escribir.
+- [x] Public forms no devuelve CORS wildcard en errores despues de validar origen.
+- [x] Public pay valida token, comprobante y CORS de produccion antes de usar service role.
+- [x] Form submissions por id verifican ownership del formulario antes de listar.
+- [x] Tasks/tickets validan referencias y assignees del tenant antes de escribir.
+- [x] Inbox valida ownership de conversaciones antes de leer/escribir mensajes.
+- [x] Notificaciones se filtran por organizacion activa.
+- [ ] Logs no exponen secretos ni cuerpos sensibles.
+- [ ] Webhooks con service role no aceptan `organization_id` libre desde el body.
+- [x] Integrations no devuelve configuracion descifrada ni `config_encrypted`.
 
-2. **Workflows y colas (BullMQ)**
-   - BullMQ requiere **Redis estable** y un **worker** corriendo fuera de Vercel (Vercel no ejecuta procesos persistentes).
-   - Decisión de producto:
-     - Opción A: habilitar Workflows solo si hay worker en producción.
-     - Opción B: ocultar/deshabilitar Workflows hasta tener worker.
+## Modulos criticos
 
-3. **Reportes (builder) - seguridad y robustez**
-   - El endpoint `/api/reports/run` permite `entity` y `filters.field` desde el cliente.
-   - Recomendado antes de vender: **allowlist** de entidades/campos para evitar consultas inesperadas y errores 500 por columnas inexistentes.
+### Auth / onboarding / admin
 
-4. **Dominios / Auth / CORS**
-   - Al cambiar dominio (Vercel): actualizar simultáneamente:
-     - `NEXT_PUBLIC_APP_URL` (Vercel prod env)
-     - `ALLOWED_ORIGINS`
-     - `PUBLIC_FORMS_ALLOWED_ORIGINS`, `PUBLIC_BOOKING_ALLOWED_ORIGINS`, `PUBLIC_PAY_ALLOWED_ORIGINS`
-     - Supabase Auth: **Site URL** y **Redirect URLs** (Google OAuth depende de esto)
-     - Google Cloud Console: Authorized redirect URIs / Authorized domains (si aplica)
+- [ ] Login, signup, reset y OAuth probados.
+- [ ] Platform admin validado.
+- [ ] Invitaciones y miembros de organizacion probados.
 
-5. **Endpoints públicos con service role**
-   - `app/api/public/*` y `app/api/calendar/booking` usan `SUPABASE_SERVICE_ROLE_KEY`.
-   - Antes de vender: asegurar límites, validación estricta, y `PUBLIC_*_ALLOWED_ORIGINS` configurados (si quedan vacíos, la lógica actualmente es permisiva).
+### CRM core
 
-## Módulos (bloqueadores vs post-launch)
+- [ ] Contacts/leads/accounts filtran por organizacion.
+- [x] `PATCH /api/opportunities/[id]` valida campos permitidos y etapas/contactos por organizacion.
+- [ ] Pipeline/opportunities tiene etapas por organizacion en todos los flujos de creacion, edicion y migracion.
+- [ ] Conversion lead -> contact/opportunity preserva tenant.
 
-### Dashboard
-- Bloqueadores:
-  - Si depende de `/api/auth/bootstrap` y falla por contexto de organización, rompe el resto (errores cascada 500/403).
-- Post-launch:
-  - Métricas reales por rol, performance (caching por org).
+### Revenue
 
-### Contactos
-- Bloqueadores:
-  - RLS/tenant: insert/update debe persistir `organization_id` siempre.
-- Post-launch:
-  - Importación masiva, deduplicación avanzada, enrichment.
+- [ ] Quotes e invoices calculan totales consistentemente.
+- [x] Quotes validan contacto, oportunidad y productos por organizacion antes de insertar items.
+- [x] Facturas creadas por RPC validan tenant/contacto/productos antes de descontar stock.
+- [x] Sales orders tienen `order_number`, `items`, estado `completed` y validacion de referencias alineados con API/UI.
+- [ ] PDFs no exponen datos de otra organizacion.
+- [x] Payment links se generan via RPC con validacion de tenant/recurso.
+- [ ] Payment links validados contra la base objetivo despues de aplicar migracion 099.
+- [x] Public pay valida formato de token antes de resolver documentos.
+- [x] Pagos activos excluyen Stripe y aceptan gateways locales configurados.
 
-### Leads
-- Bloqueadores:
-  - Conversión Lead -> Contacto/Oportunidad debe mantener `organization_id` (y no duplicar datos).
-- Post-launch:
-  - Scoring automático, fuentes personalizables por org.
+### Public forms / booking
 
-### Oportunidades (Pipeline)
-- Bloqueadores:
-  - Asegurar que existen `pipeline_stages` por organización (si no, usuarios sin permisos de admin pueden quedar bloqueados creando oportunidades).
-  - Drag & drop debe actualizar `stage_id` real (UUID) y persistir.
-- Post-launch:
-  - Automatizaciones por etapa, forecast, objetivos.
-
-### Cotizaciones
-- Bloqueadores:
-  - Generación/preview PDF estable (sin exponer datos fuera de org).
-- Post-launch:
-  - Plantillas, firma, aprobación.
-
-### Facturación
-- Bloqueadores:
-  - Estados coherentes, totales correctos, RLS.
-- Post-launch (Stripe al final):
-  - Cobro online, dunning, suscripciones.
-
-### Productos
-- Bloqueadores:
-  - Consistencia con Inventario (si descuentan stock).
-- Post-launch:
-  - Variantes, listas de precios.
-
-### Campañas
-- Bloqueadores:
-  - Envío de emails depende de Resend configurado.
-- Post-launch:
-  - Segmentación, A/B, tracking.
-
-### Formularios (públicos)
-- Bloqueadores:
-  - `PUBLIC_FORMS_ALLOWED_ORIGINS` debe estar configurado (si no, se vuelve “allow all”).
-  - Rate limit + antispam (honeypot) ok.
-- Post-launch:
-  - reCAPTCHA/Turnstile, plantillas, embebido con temas.
-
-### Tareas
-- Bloqueadores:
-  - CRUD con RLS y filtros por organización.
-- Post-launch:
-  - Notificaciones push/email.
-
-### Calendario (booking)
-- Bloqueadores:
-  - `PUBLIC_BOOKING_ALLOWED_ORIGINS` configurado.
-  - Evitar doble-booking (conflict check ok).
-- Post-launch:
-  - Integración Google Calendar, ICS, recordatorios.
-
-### Inventario
-- Bloqueadores:
-  - Integridad (movimientos, stock no negativo).
-- Post-launch:
-  - Auditoría, multi-almacén.
-
-### Analytics
-- Bloqueadores:
-  - Endpoints reales usados por UI deben ser consistentes y con límites.
-- Post-launch:
-  - “advanced” (si se expone) está con TODO; ocultar hasta implementar.
-
-### Reportes
-- Bloqueadores:
-  - Allowlist de `entity/groupBy/filters` en `/api/reports/run`.
-- Post-launch:
-  - Exportación avanzada, programados.
+- [ ] Origen permitido configurado.
+- [ ] Rate limit y antispam activos.
+- [x] Booking valida horario contra reglas de agenda.
+- [x] Booking evita doble reserva bajo concurrencia a nivel de RPC/migracion.
+- [x] `/calendar` y booking publico usan `calendar_events` como fuente comun.
+- [x] Eventos manuales validan rango de fechas y referencias de tenant.
+- [ ] Booking validado contra la base objetivo despues de aplicar migracion 098.
+- [ ] Campaigns conectado a segmentacion/envio real antes de venderlo como modulo operativo.
 
 ### Workflows
-- Bloqueadores:
-  - Worker en producción + Redis.
-  - Sin worker: el módulo debe ocultarse o degradar.
-- Post-launch:
-  - UI de logs, retries, versionado.
 
-### Integraciones
-- Bloqueadores:
-  - Asegurar que integraciones “demo” no se venden como completas.
-- Post-launch:
-  - WhatsApp test (hay TODO), Gmail sync (TODO token refresh).
+- [x] Drainer de workflow configurado en cron diario con limites de tiempo/jobs.
+- [ ] Worker persistente operativo si se requiere procesamiento near-real-time.
+- [x] Acciones principales con service role filtran por organizacion.
+- [x] Webhook actions tienen proteccion SSRF compartida antes de `fetch`.
+- [ ] Decidir si webhooks salientes requieren allowlist por dominio/tenant.
 
-### Configuración
-- Bloqueadores:
-  - Equipo/invitaciones/roles consistentes.
-- Post-launch:
-  - Ajustes globales (platform settings) aplicados a signup/trial/mantenimiento.
+### Tasks / tickets / inbox
 
-## Checklist Go-Live (Producción)
+- [x] Tasks validan contacto, workflow y assignee contra la organizacion.
+- [x] Tickets validan cuenta, contacto y assignee contra la organizacion.
+- [x] Bulk updates de tasks/tickets usan allowlist estricta.
+- [x] Tickets UI/search/export usan `title`, no columnas legacy.
+- [x] Inbox valida conversacion por organizacion antes de listar/enviar mensajes.
+- [ ] Tickets tiene flujo UI completo de crear/editar.
+- [ ] Notificaciones globales tienen read-state por usuario o decision explicita de lectura global.
 
-### 1) Base de Datos (Supabase)
-- Aplicar migraciones nuevas en prod:
-  - `088_restore_bootstrap_and_backfill_auth.sql`
-  - `089_tenant_insert_safety_defaults.sql`
-  - `090_platform_settings.sql`
-  - `091_seed_default_pipeline_stages.sql`
-- Verificar RLS habilitado en tablas sensibles.
-- Verificar funciones/triggers de bootstrap activos:
-  - `on_auth_user_created` (auth.users -> profiles)
-  - `on_organization_created` (organizations -> organization_members + profile org)
-- Backup/restore probado (ver `docs/BACKUP_RESTORE.md`).
+### Reports / analytics
 
-### 2) Auth y Dominios
-- Supabase Auth:
-  - Site URL = dominio final (ej: `https://crm-iota-inky.vercel.app`)
-  - Redirect URLs incluye:
-    - `https://<dominio>/auth/callback`
-    - `https://<dominio>/`
-    - `https://<dominio>/reset-password`
-- Google OAuth:
-  - Authorized redirect URI coincide con `/auth/callback`.
+- [x] Report builder valida entidades, metricas, agrupaciones, filtros y date ranges con contrato compartido.
+- [x] Saved/export reports validan configuracion y payload antes de guardar/exportar.
+- [x] Analytics advanced no devuelve datos ficticios.
+- [ ] Analytics advanced conectado a metricas reales antes de venderlo.
+- [ ] Errores de columnas invalidas cubiertos con tests runtime, no solo contratos estaticos.
 
-### 3) Variables de Entorno (Vercel)
-- Obligatorio:
-  - `NEXT_PUBLIC_APP_URL`
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `ENCRYPTION_KEY`
-  - `CRON_SECRET`
-- Email:
-  - `RESEND_API_KEY`
-  - `EMAIL_FROM`
-- CORS:
-  - `ALLOWED_ORIGINS` incluye el dominio final
-  - `PUBLIC_FORMS_ALLOWED_ORIGINS`, `PUBLIC_BOOKING_ALLOWED_ORIGINS`, `PUBLIC_PAY_ALLOWED_ORIGINS`
-- Redis (si hay Workflows/BullMQ):
-  - `REDIS_URL`
-  - Opción A (recomendado si NO quieres otro host): Cloudflare Worker (cron) llamando al drainer: ver `docs/CLOUDFLARE_WORKER_CRON.md`
-  - Opción B: worker persistente (VPS/railway/etc.)
+## Smoke test manual
 
-### 4) Observabilidad / Operación
-- Sentry:
-  - `SENTRY_DSN`, `SENTRY_ENVIRONMENT=production`, `SENTRY_RELEASE`
-- Alertas:
-  - Errores 5xx, latencia API, fallos de Redis, fallos de email.
-
-### 5) Verificación Rápida
-- Ejecutar:
-  - `pnpm run typecheck`
-  - `pnpm exec vitest run`
-  - `pnpm run build`
-- Smoke test manual:
-  - Signup/Login (email + Google)
-  - Crear org / invitar miembro
-  - Crear contacto
-  - Crear oportunidad (drag stages)
-  - Crear cotización/factura (preview PDF)
-  - Formularios públicos (submit)
-  - Booking público (reservar)
+1. Crear usuario y organizacion.
+2. Invitar miembro.
+3. Crear contacto.
+4. Crear lead y convertirlo.
+5. Crear oportunidad y mover etapa.
+6. Crear producto.
+7. Crear cotizacion y factura.
+8. Registrar pago o simular webhook.
+9. Enviar formulario publico.
+10. Crear booking publico.
+11. Ejecutar workflow simple.
+12. Ver dashboard/reportes.

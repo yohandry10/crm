@@ -4,7 +4,12 @@ import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handl
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { formatDateOnlyInTimezone, getOrganizationTimezone, getRangeStartInTimezone } from "@/lib/date-utils"
 import { createRequestLogger } from "@/lib/logger"
+import { z } from "zod"
 import crypto from "crypto"
+
+const analyticsQuerySchema = z.object({
+    period: z.enum(["week", "month", "quarter", "year"]).default("month"),
+})
 
 function groupPaymentsByWeek(payments: any[], timezone: string) {
     if (payments.length === 0) {
@@ -38,14 +43,20 @@ export async function GET(request: NextRequest) {
         const { supabase, organizationId } = await getAuthenticatedContext()
         log.info("Analytics requested", { organizationId })
         const searchParams = request.nextUrl.searchParams
-        const period = searchParams.get("period") || "month"
+        const query = analyticsQuerySchema.safeParse({
+            period: searchParams.get("period") || undefined,
+        })
+        if (!query.success) {
+            return NextResponse.json(
+                { success: false, error: "Filtros inválidos", details: query.error.format() },
+                { status: 400 }
+            )
+        }
+        const period = query.data.period
 
         const now = new Date()
         const timezone = await getOrganizationTimezone(supabase, organizationId)
-        const range = (period === "week" || period === "month" || period === "quarter" || period === "year")
-            ? (period as "week" | "month" | "quarter" | "year")
-            : "month"
-        const { startUtc, startDate } = getRangeStartInTimezone(timezone, now, range)
+        const { startUtc, startDate } = getRangeStartInTimezone(timezone, now, period)
 
         const { data: contacts, error } = await supabase
             .from("contacts")

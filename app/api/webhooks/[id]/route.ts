@@ -5,6 +5,7 @@ import { logError } from "@/lib/error-logging"
 import { sanitizeErrorForClient, getHttpStatusForError } from "@/lib/error-handler"
 import { rateLimit } from "@/lib/rate-limit"
 import { decryptSecret, encryptSecret } from "@/lib/encryption"
+import { validateOutboundWebhookUrl } from "@/lib/outbound-url-security"
 import crypto from "crypto"
 import { z } from "zod"
 
@@ -96,6 +97,16 @@ export async function PUT(
         error: "Validation failed",
         details: validation.error.errors
       }, { status: 400 })
+    }
+
+    if (validation.data.url) {
+      const urlValidation = await validateOutboundWebhookUrl(validation.data.url)
+      if (!urlValidation.valid) {
+        return NextResponse.json({
+          success: false,
+          error: `URL de webhook inválida: ${urlValidation.error}`
+        }, { status: 400 })
+      }
     }
 
     // Get existing
@@ -290,6 +301,14 @@ export async function POST(
       .createHmac("sha256", webhookSecret)
       .update(body)
       .digest("hex")
+
+    const urlValidation = await validateOutboundWebhookUrl(webhook.url)
+    if (!urlValidation.valid) {
+      return NextResponse.json(
+        { success: false, error: `URL de webhook inválida: ${urlValidation.error}` },
+        { status: 400 }
+      )
+    }
 
     const response = await fetch(webhook.url, {
       method: "POST",

@@ -69,21 +69,17 @@ export function ImportModal({
   templateUrl,
 }: ImportModalProps) {
   const [step, setStep] = useState<ImportStep>("upload")
-  const [file, setFile] = useState<File | null>(null)
   const [csvData, setCsvData] = useState<string[][]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [validationResult, setValidationResult] = useState<ImportResult | null>(null)
-  const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; errors: string[] } | null>(null)
   const [dragActive, setDragActive] = useState(false)
 
   const reset = () => {
     setStep("upload")
-    setFile(null)
     setCsvData([])
     setMapping({})
     setValidationResult(null)
-    setImporting(false)
     setImportResult(null)
   }
 
@@ -102,29 +98,11 @@ export function ImportModal({
     }
   }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0])
-    }
-  }, [])
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0])
-    }
-  }
-
-  const handleFile = async (selectedFile: File) => {
+  const handleFile = useCallback(async (selectedFile: File) => {
     if (!selectedFile.name.endsWith(".csv")) {
       toast.error("Por favor selecciona un archivo CSV")
       return
     }
-
-    setFile(selectedFile)
 
     try {
       const text = await readFileAsText(selectedFile)
@@ -145,6 +123,22 @@ export function ImportModal({
     } catch (error) {
       toast.error("Error al leer el archivo")
     }
+  }, [columns])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0])
+    }
+  }, [handleFile])
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0])
+    }
   }
 
   const handleMappingChange = (columnKey: string, csvHeader: string) => {
@@ -163,7 +157,6 @@ export function ImportModal({
   const handleImport = async () => {
     if (!validationResult || validationResult.data.length === 0) return
 
-    setImporting(true)
     setStep("importing")
 
     try {
@@ -180,8 +173,6 @@ export function ImportModal({
     } catch (error: any) {
       toast.error(error.message || "Error al importar")
       setStep("preview")
-    } finally {
-      setImporting(false)
     }
   }
 

@@ -1,6 +1,6 @@
 /**
  * AI Integration Module
- * Conecta con OpenAI para respuestas inteligentes del chatbot
+ * Conecta con Gemini para respuestas inteligentes del chatbot.
  */
 
 import { logger } from "./logger"
@@ -39,9 +39,6 @@ Formato de respuestas:
 - Incluye números y métricas cuando sea relevante
 - Sugiere acciones concretas cuando sea apropiado`
 
-/**
- * Genera una respuesta usando OpenAI
- */
 export async function generateAIResponse(
     userMessage: string,
     context?: {
@@ -51,19 +48,21 @@ export async function generateAIResponse(
         metrics?: any
     }
 ): Promise<AIResponse> {
-    const apiKey = process.env.OPENAI_API_KEY
+    const provider = process.env.AI_PROVIDER?.trim().toLowerCase() || "fallback"
+    const apiKey = process.env.GEMINI_API_KEY
 
-    // Si no hay API key, usar respuesta de fallback inteligente
-    if (!apiKey) {
+    if (provider === "disabled" || provider === "local" || provider === "fallback" || !apiKey) {
+        return generateFallbackResponse(userMessage, context)
+    }
+
+    if (provider !== "gemini") {
+        logger.warn("Unsupported AI provider configured, using fallback", { provider })
         return generateFallbackResponse(userMessage, context)
     }
 
     try {
-        const messages: AIMessage[] = [
-            { role: 'system', content: SYSTEM_PROMPT }
-        ]
+        const contents: Array<{ role: "user"; parts: Array<{ text: string }> }> = []
 
-        // Agregar contexto si está disponible
         if (context) {
             let contextMessage = 'Contexto actual del CRM:\n'
             
@@ -87,46 +86,60 @@ export async function generateAIResponse(
                 contextMessage += `\nMétricas: Ingresos ${context.metrics.total_revenue || 0}, Contactos ${context.metrics.total_contacts || 0}`
             }
 
-            messages.push({ role: 'system', content: contextMessage })
+            contents.push({ role: "user", parts: [{ text: contextMessage }] })
         }
 
-        messages.push({ role: 'user', content: userMessage })
+        contents.push({ role: "user", parts: [{ text: userMessage }] })
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash"
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'x-goog-api-key': apiKey,
             },
             body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
-                messages,
-                max_tokens: 500,
-                temperature: 0.7
+                systemInstruction: {
+                    parts: [{ text: SYSTEM_PROMPT }],
+                },
+                contents,
+                generationConfig: {
+                    maxOutputTokens: 500,
+                    temperature: 0.7,
+                },
             })
         })
 
         if (!response.ok) {
             const error = await response.json()
-            throw new Error(error.error?.message || 'OpenAI API error')
+            throw new Error(error.error?.message || 'Gemini API error')
         }
 
         const data = await response.json()
-        
+        const responseText = data.candidates?.[0]?.content?.parts
+            ?.map((part: { text?: string }) => part.text || "")
+            .join("")
+            .trim()
+
         return {
             success: true,
-            response: data.choices[0]?.message?.content || 'No pude generar una respuesta.',
-            usage: data.usage
+            response: responseText || 'No pude generar una respuesta.',
+            usage: data.usageMetadata
+                ? {
+                    prompt_tokens: data.usageMetadata.promptTokenCount || 0,
+                    completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
+                    total_tokens: data.usageMetadata.totalTokenCount || 0,
+                }
+                : undefined,
         }
     } catch (error: any) {
-        logger.error("OpenAI API error", error)
-        // Fallback a respuesta local si falla OpenAI
+        logger.error("Gemini API error", error)
         return generateFallbackResponse(userMessage, context)
     }
 }
 
 /**
- * Respuesta de fallback cuando no hay API key o falla OpenAI
+ * Respuesta de fallback cuando no hay API key o falla Gemini
  * Genera respuestas basadas en el contexto real del usuario
  */
 function generateFallbackResponse(

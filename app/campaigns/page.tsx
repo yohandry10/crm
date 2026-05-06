@@ -92,6 +92,11 @@ export default function CampaignsPage() {
         return Math.round((campaign.clicked_count / campaign.opened_count) * 100)
     }
 
+    const getSendProgress = (campaign: Campaign) => {
+        if (!campaign.contact_count || campaign.contact_count <= 0) return 0
+        return Math.min(100, Math.round((campaign.sent_count / campaign.contact_count) * 100))
+    }
+
     const openCreate = () => {
         setForm({ type: 'email', status: 'draft' })
         setDialogOpen(true)
@@ -271,9 +276,9 @@ export default function CampaignsPage() {
                                             <div className="mt-4">
                                                 <div className="flex justify-between text-sm mb-1">
                                                     <span>Progreso</span>
-                                                    <span>{Math.round((campaign.sent_count / campaign.contact_count) * 100)}%</span>
+                                                    <span>{getSendProgress(campaign)}%</span>
                                                 </div>
-                                                <Progress value={(campaign.sent_count / campaign.contact_count) * 100} />
+                                                <Progress value={getSendProgress(campaign)} />
                                             </div>
                                         )}
                                     </CardContent>

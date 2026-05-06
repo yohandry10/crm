@@ -74,7 +74,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     .rpc('check_quote_stock_availability', { p_quote_id: id })
 
                 if (stockError) {
-                    console.warn('Stock check failed, continuing without validation:', stockError)
+                    return NextResponse.json({
+                        success: false,
+                        error: stockError.message || 'No se pudo validar el stock de la cotización'
+                    }, { status: 400 })
                 } else if (stockCheck && stockCheck.length > 0) {
                     const outOfStock = stockCheck.filter((item: any) => !item.has_stock)
                     if (outOfStock.length > 0) {

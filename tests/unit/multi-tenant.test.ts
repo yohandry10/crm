@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock de NextRequest
-const createMockRequest = (headers: Record<string, string> = {}) => ({
+const _createMockRequest = (headers: Record<string, string> = {}) => ({
   headers: {
     get: (key: string) => headers[key] || null,
   },
