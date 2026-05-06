@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { request, type FullConfig } from "@playwright/test"
 import { createClient } from "@supabase/supabase-js"
@@ -231,8 +231,28 @@ async function globalSetup(config: FullConfig) {
       throw new Error(`E2E login failed for ${emailEnv}: ${response.status()} ${await response.text()}`)
     }
 
-    await context.storageState({ path: path.join(authDir, authFileName) })
+    const authPath = path.join(authDir, authFileName)
+    await context.storageState({ path: authPath })
     await context.dispose()
+
+    const storageState = JSON.parse(await readFile(authPath, "utf8"))
+    const origin = new URL(baseURL).origin
+    const existingOrigin = storageState.origins?.find((entry: any) => entry.origin === origin)
+    const tourFlag = { name: "hasSeenWelcomeTour", value: "true" }
+
+    if (existingOrigin) {
+      existingOrigin.localStorage = [
+        ...(existingOrigin.localStorage || []).filter((item: any) => item.name !== tourFlag.name),
+        tourFlag,
+      ]
+    } else {
+      storageState.origins = [
+        ...(storageState.origins || []),
+        { origin, localStorage: [tourFlag] },
+      ]
+    }
+
+    await writeFile(authPath, `${JSON.stringify(storageState, null, 2)}\n`)
   }
 
   await ensureConfiguredE2EAccounts()

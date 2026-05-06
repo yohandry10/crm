@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
             .from('products')
             .select('*', { count: 'exact' })
             .eq('organization_id', organizationId)
-            .order('name', { ascending: true })
+            .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1)
 
         if (category_id) query = query.eq('category_id', category_id)

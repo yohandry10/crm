@@ -113,6 +113,11 @@ export function ProductsCatalog() {
       toast.success(form.id ? "Producto actualizado" : "Producto creado")
       setDialogOpen(false)
       setForm({})
+      setProducts((current) => {
+        if (!json.data) return current
+        if (form.id) return current.map((product) => product.id === json.data.id ? json.data : product)
+        return [json.data, ...current.filter((product) => product.id !== json.data.id)]
+      })
       fetchProducts()
     } catch (error: any) {
       toast.error(error.message || "Error al guardar")
