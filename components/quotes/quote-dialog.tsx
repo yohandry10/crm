@@ -113,7 +113,7 @@ export function QuoteDialog({
 
         loadData().catch(console.error)
         if (quote) {
-            // Fetch items if editing (not implemented fully in this snippet for brevity, assuming new quote mostly)
+            // Reset with quote items when the loaded quote payload includes them.
             form.reset({
                 contact_id: quote.contact_id,
                 opportunity_id: quote.opportunity_id || "none",

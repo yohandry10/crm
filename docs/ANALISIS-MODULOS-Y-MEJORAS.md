@@ -81,7 +81,7 @@ Acciones:
 - Mantener `statusUrl` de workflows/jobs cubierto por test contractual.
 - Decidir si `/api/v1/version` queda como metadata o si se implementan recursos versionados reales.
 - Mantener OpenAPI alineado con rutas reales no versionadas y response wrappers actuales.
-- Resolver placeholders: analytics advanced y Bull Board no deben venderse como funcionales hasta conectar datos reales.
+- Resolver placeholders: analytics advanced no debe venderse como funcional hasta conectar datos reales.
 - Separar APIs publicas y privadas para booking/forms/pay.
 
 ## Fase 4 - Modulos funcionales
@@ -131,7 +131,7 @@ Pendientes:
 - Hecho: `companyData`, `configData` y `teamMembers` en `/api/onboarding/complete` se validan con Zod antes de usar service role.
 - P1: unificar validacion de platform admin entre middleware, layout cliente y `requirePlatformAdmin`.
 - P1: agregar tests API para `requirePlatformAdmin`, onboarding y team invitations.
-- P1: admin queues todavia muestra Bull Board informativo; no debe presentarse como panel operativo real.
+- Hecho: `/admin/queues` ya no embebe Bull Board informativo; muestra estadisticas reales de workflows, emails e importaciones desde Redis/BullMQ.
 - P2: evitar `window.location.href` en login si se quiere mantener navegacion SPA y estados consistentes.
 
 #### 2. CRM core
@@ -263,7 +263,7 @@ Mejoras aplicadas:
 - `GET /api/tasks` y `GET /api/tickets` validan filtros; tickets ya aplica `search` contra `title`.
 - `GET /api/tickets/[id]` existe y `PATCH /api/tickets/[id]` queda soportado para updates parciales.
 - UI, busqueda global y exportacion de tickets quedan alineadas a `title`/`id` y ya no dependen de columnas inexistentes.
-- Inbox valida `contact_id`/`channel_id` al crear conversaciones y verifica ownership de la conversacion antes de leer, simular o insertar mensajes.
+- Inbox valida `contact_id`/`channel_id` al crear conversaciones y verifica ownership de la conversacion antes de leer o insertar mensajes.
 - Notificaciones privadas filtran por `organization_id` + `user_id`; `system_notifications` se limitan a la organizacion activa y a usuario especifico o aviso global.
 - Eventos que generan notificaciones incluyen `organization_id`, usan roles reales (`owner/admin/manager`) y el titulo real del ticket.
 - Se agregaron tests contractuales para referencias de tasks/tickets, contrato `title` de tickets e isolation de inbox/notificaciones.
@@ -271,7 +271,7 @@ Mejoras aplicadas:
 Pendientes:
 
 - P1: `system_notifications` no tiene read-state por usuario para avisos globales; marcar como leida una global afecta la fila compartida.
-- P1: inbox sigue siendo polling y simulacion local; falta decidir proveedor real de WhatsApp/email y estados de entrega.
+- P1: inbox sigue siendo polling; falta decidir proveedor real de WhatsApp/email y estados de entrega.
 - P1: tickets necesita flujo completo de crear/editar desde UI, no solo listar/eliminar.
 - P2: tasks/tickets necesitan tests runtime de permisos por rol y estados de error en UI.
 

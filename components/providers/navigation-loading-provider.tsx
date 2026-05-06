@@ -27,13 +27,11 @@ export function NavigationLoadingProvider({ children }: { children: ReactNode })
   const pathname = usePathname()
 
   useEffect(() => {
-    // Simular carga cuando cambia la ruta
     setIsLoading(true)
 
-    // Terminar la carga después de un breve momento
     const timer = setTimeout(() => {
       setIsLoading(false)
-    }, 150) // Pequeño delay para suavizar transiciones
+    }, 150)
 
     return () => clearTimeout(timer)
   }, [pathname])

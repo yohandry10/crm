@@ -117,10 +117,24 @@ describe("production preflight", () => {
 
   it("detects production debug route files", () => {
     const cwd = path.join(tmpdir(), `crm-preflight-debug-${Date.now()}`)
-    const routeDir = path.join(cwd, "app", "api", "debug-env")
+    const routeDir = path.join(cwd, "app", "api", "chat", "simulate")
+    const bullBoardDir = path.join(cwd, "app", "api", "admin", "bull-board", "[[...path]]")
+    const debugEnvDir = path.join(cwd, "app", "api", "debug-env")
+    const mcpServerDir = path.join(cwd, "app", "api", "mcp", "server")
     mkdirSync(routeDir, { recursive: true })
+    mkdirSync(bullBoardDir, { recursive: true })
+    mkdirSync(debugEnvDir, { recursive: true })
+    mkdirSync(mcpServerDir, { recursive: true })
     writeFileSync(path.join(routeDir, "route.ts"), "export function GET() {}")
+    writeFileSync(path.join(bullBoardDir, "route.ts"), "export function GET() {}")
+    writeFileSync(path.join(debugEnvDir, "route.ts"), "export function GET() {}")
+    writeFileSync(path.join(mcpServerDir, "route.ts"), "export function GET() {}")
 
-    expect(findForbiddenProductionRoutes(cwd)).toEqual(["app/api/debug-env/route.ts"])
+    expect(findForbiddenProductionRoutes(cwd)).toEqual([
+      "app/api/admin/bull-board/[[...path]]/route.ts",
+      "app/api/chat/simulate/route.ts",
+      "app/api/debug-env/route.ts",
+      "app/api/mcp/server/route.ts",
+    ])
   })
 })

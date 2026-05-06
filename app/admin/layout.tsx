@@ -4,7 +4,19 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
-import { Loader2, Shield, Building2, CreditCard, BarChart3, Settings, LogOut, Users, Sun, Moon } from "lucide-react"
+import {
+  Loader2,
+  Shield,
+  Building2,
+  CreditCard,
+  BarChart3,
+  Settings,
+  LogOut,
+  Users,
+  Sun,
+  Moon,
+  ListChecks,
+} from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
@@ -13,6 +25,7 @@ const adminNavItems = [
   { href: "/admin/organizations", label: "Organizaciones", icon: Building2 },
   { href: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
   { href: "/admin/users", label: "Usuarios", icon: Users },
+  { href: "/admin/queues", label: "Colas", icon: ListChecks },
   { href: "/admin/settings", label: "Configuración", icon: Settings },
 ]
 
@@ -116,9 +129,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1">
           {adminNavItems.map((item) => {
-            const isActive = pathname === item.href || 
+            const isActive = pathname === item.href ||
               (item.href !== "/admin" && pathname?.startsWith(item.href))
-            
+
             return (
               <Link
                 key={item.href}

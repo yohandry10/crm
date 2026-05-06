@@ -778,7 +778,7 @@ describe('API contracts', () => {
     const helper = readFileSync('lib/work-item-references.ts', 'utf8')
     const conversationsRoute = readFileSync('app/api/chat/conversations/route.ts', 'utf8')
     const messagesRoute = readFileSync('app/api/chat/[id]/messages/route.ts', 'utf8')
-    const simulateRoute = readFileSync('app/api/chat/simulate/route.ts', 'utf8')
+    const contactSidebar = readFileSync('components/chat/inbox/contact-sidebar.tsx', 'utf8')
     const notificationsRoute = readFileSync('app/api/notifications/route.ts', 'utf8')
     const notificationsLib = readFileSync('lib/notifications.ts', 'utf8')
 
@@ -792,8 +792,8 @@ describe('API contracts', () => {
     expect(messagesRoute.indexOf('await assertConversationInOrganization')).toBeLessThan(
       messagesRoute.indexOf(".from('messages')")
     )
-    expect(simulateRoute).toContain('await assertConversationInOrganization')
-    expect(simulateRoute).toContain(".eq('organization_id', organizationId)")
+    expect(existsSync('app/api/chat/simulate/route.ts')).toBe(false)
+    expect(contactSidebar).not.toContain('/api/chat/simulate')
     expect(notificationsRoute).toContain('notificationsQuerySchema.safeParse')
     expect(notificationsRoute).toContain('markNotificationsSchema.safeParse')
     expect(notificationsRoute).toContain('.eq("organization_id", organizationId)')
@@ -810,7 +810,7 @@ describe('API contracts', () => {
     const pipelineRoute = readFileSync('app/api/analytics/pipeline/route.ts', 'utf8')
     const campaignsRoute = readFileSync('app/api/analytics/campaigns/route.ts', 'utf8')
 
-    expect(advancedRoute).toContain("Advanced analytics is not implemented")
+    expect(advancedRoute).toContain("Advanced analytics is disabled")
     expect(advancedRoute).not.toContain('total: 125000')
     expect(advancedRoute).not.toContain('Product A')
     expect(aggregatedRoute).toContain('querySchema.safeParse')

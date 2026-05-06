@@ -81,6 +81,10 @@ const EXCLUDED_SCAN_DIRS = new Set([
 ])
 
 export const FORBIDDEN_PRODUCTION_ROUTE_FILES = [
+  path.join("app", "api", "admin", "bull-board", "[[...path]]", "route.ts"),
+  path.join("app", "api", "ai", "chat", "route.ts"),
+  path.join("app", "api", "chat", "simulate", "route.ts"),
+  path.join("app", "api", "mcp", "server", "route.ts"),
   path.join("app", "api", "debug-env", "route.ts"),
   path.join("app", "api", "sentry-example-api", "route.ts"),
   path.join("app", "sentry-example-page", "page.tsx"),

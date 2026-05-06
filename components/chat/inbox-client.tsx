@@ -133,35 +133,6 @@ export function InboxClient() {
     }
   }
 
-  const handleSendBrochure = async () => {
-    if (!selectedId) return
-
-    toast.promise(new Promise((resolve) => setTimeout(resolve, 1500)), {
-      loading: "Generando PDF personalizado con IA...",
-      success: "Brochure enviado correctamente",
-      error: "Error al generar brochure",
-    })
-
-    setTimeout(() => {
-      const tempId = crypto.randomUUID()
-      const optimisticMsg: Message = {
-        id: tempId,
-        organization_id: "",
-        conversation_id: selectedId,
-        sender_id: "me",
-        direction: "outbound",
-        content: "📄 Brochure_Corporativo_2025.pdf",
-        content_type: "text",
-        attachments: [],
-        status: "sent",
-        external_id: null,
-        metadata: { is_file: true } as any,
-        created_at: new Date().toISOString(),
-      }
-      setMessages((prev) => [...prev, optimisticMsg])
-    }, 1500)
-  }
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -204,12 +175,8 @@ export function InboxClient() {
       {selectedConversation && (
         <ContactSidebar
           selectedConversation={selectedConversation}
-          selectedId={selectedId}
-          onSendBrochure={handleSendBrochure}
-          onRefreshConversations={() => loadConversations(searchTerm)}
         />
       )}
     </div>
   )
 }
-

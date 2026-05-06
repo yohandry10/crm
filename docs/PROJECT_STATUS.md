@@ -31,11 +31,11 @@ pnpm build
 
 Resultado observado:
 
-- Tests: 193 passed, 4 skipped.
+- Tests: 194 passed, 4 skipped.
 - Typecheck: OK.
-- Lint: OK con 73 warnings.
+- Lint: OK; solo queda el aviso externo de `baseline-browser-mapping` desactualizado.
 - Production preflight: OK con 0 failures y 0 warnings locales en `BILLING_PROVIDER=manual`.
-- Production DB verify: OK contra Supabase objetivo con 0 failures y 75 checks.
+- Production DB verify: OK contra Supabase objetivo con 0 failures y 76 checks.
 - Coverage: genera reporte real; baseline global observado: statements/lines 4.99%, branches 26.78%, functions 13.5%. No tiene umbrales globales obligatorios mientras se sube la base por modulo.
 - Build: OK. BullMQ queda externalizado del bundle Next; los warnings de dependencias server-only quedan filtrados en `next.config.mjs`.
 
@@ -47,7 +47,7 @@ Estos claims no deben repetirse hasta corregirlos:
 - "Test coverage 70%+" como verificado.
 - "Todas las APIs estan bajo `/api/v1`".
 - "Redis fail closed en produccion" como comportamiento real.
-- "Bull Board completo" si la ruta sigue siendo placeholder/informativa.
+- "Bull Board completo"; `/admin/queues` muestra metricas reales, no la UI externa de Bull Board.
 - Metrica de performance sin comando reproducible.
 
 ## Bloqueadores principales

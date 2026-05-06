@@ -9,9 +9,6 @@ export interface ConnectionResult {
 }
 
 export async function testConnection(provider: string, config: IntegrationConfig): Promise<ConnectionResult> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
     switch (provider) {
         case "google":
             return testGoogle(config)

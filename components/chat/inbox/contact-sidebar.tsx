@@ -3,19 +3,15 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import type { Conversation } from "@/types/chat"
 import Link from "next/link"
 import { toast } from "sonner"
 
 type Props = {
   selectedConversation: Conversation
-  selectedId: string | null
-  onSendBrochure: () => void
-  onRefreshConversations: () => void
 }
 
-export function ContactSidebar({ selectedConversation, selectedId, onSendBrochure, onRefreshConversations }: Props) {
+export function ContactSidebar({ selectedConversation }: Props) {
   return (
     <div className="w-80 border-l border-gray-100 bg-white hidden xl:flex flex-col shrink-0">
       <div className="p-6 text-center border-b border-gray-100">
@@ -92,78 +88,6 @@ export function ContactSidebar({ selectedConversation, selectedId, onSendBrochur
             </Button>
           )}
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 text-xs h-8"
-            onClick={onSendBrochure}
-          >
-            Enviar Brochure PDF
-          </Button>
-        </div>
-
-        <div className="bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300">
-          <p className="text-[10px] text-gray-400 mb-2 font-mono uppercase">Simulador de Cliente</p>
-          <div className="flex gap-2">
-            <Input
-              className="h-7 text-xs bg-white"
-              placeholder="Simular respuesta..."
-              onKeyDown={async (e) => {
-                if (e.key !== "Enter") return
-                if (!selectedId) return
-                const val = (e.currentTarget as HTMLInputElement).value
-                ;(e.currentTarget as HTMLInputElement).value = ""
-                try {
-                  await fetch("/api/chat/simulate", {
-                    method: "POST",
-                    body: JSON.stringify({ conversation_id: selectedId, content: val }),
-                  })
-                  toast.success("Mensaje simulado")
-                  onRefreshConversations()
-                } catch {
-                  toast.error("Error simulando")
-                }
-              }}
-            />
-          </div>
-          <div className="flex gap-1 mt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 text-[10px] w-full"
-              onClick={async () => {
-                if (!selectedId) return
-                await fetch("/api/chat/simulate", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    conversation_id: selectedId,
-                    content: "Esto es una estafa, estoy muy molesto con el servicio!",
-                  }),
-                })
-                onRefreshConversations()
-              }}
-            >
-              😡 Enojo
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 text-[10px] w-full"
-              onClick={async () => {
-                if (!selectedId) return
-                await fetch("/api/chat/simulate", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    conversation_id: selectedId,
-                    content: "Me interesa mucho el precio del plan pro, quiero comprar.",
-                  }),
-                })
-                onRefreshConversations()
-              }}
-            >
-              💰 Compra
-            </Button>
-          </div>
         </div>
 
         <Link href={`/contacts/${selectedConversation?.contact_id || ""}`} className="w-full block">
@@ -175,4 +99,3 @@ export function ContactSidebar({ selectedConversation, selectedId, onSendBrochur
     </div>
   )
 }
-

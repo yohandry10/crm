@@ -2,7 +2,7 @@
  * API: Advanced Analytics (Feature Flag Protected)
  *
  * GET /api/analytics/advanced
- * Retorna analytics avanzado (solo para usuarios Pro/Enterprise)
+ * Reserva el contrato de analytics avanzado sin devolver datos ficticios.
  *
  * Este endpoint está protegido por feature flag
  */
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Advanced analytics is not implemented',
+        error: 'Advanced analytics is disabled',
         message: 'Este modulo no devuelve datos ficticios. Debe conectarse a métricas reales antes de habilitarse.',
       },
       { status: 501 }

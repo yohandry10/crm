@@ -12,8 +12,8 @@ Este mapa describe el estado funcional observado desde `app/`, `components/` y `
 | Marketing | `/campaigns`, `/forms`, `/forms/[id]/submissions`, `/f/[slug]` | `/api/campaigns/*`, `/api/forms/*`, `/api/public/forms/*` | Public forms necesitan allowlists, rate limit y antispam. |
 | Calendario | `/calendar`, `/book/[configId]` | `/api/calendar/events/*`, `/api/calendar/booking`, `/api/events/*` legacy | `calendar_events` es canonico; `/api/events` queda como compatibilidad. |
 | Soporte/trabajo | `/tasks`, `/tickets`, `/inbox` | `/api/tasks/*`, `/api/tickets/*`, `/api/chat/*`, `/api/notes/*`, `/api/notifications` | Inbox usa chat, no `/api/inbox`; tasks/tickets/inbox ya validan referencias de tenant antes de escribir. |
-| Automatizacion/integraciones | `/workflows`, `/workflows/[id]/builder`, `/integrations`, `/settings/webhooks`, `/ai` | `/api/workflows/*`, `/api/jobs/*`, `/api/integrations/*`, `/api/webhooks/*`, `/api/ai/chat`, `/api/mcp/server`, `/api/whatsapp/send`, `/api/emails/sync` | Unificar motores workflow y operacion worker. |
-| Organizacion/admin/settings | `/settings/*`, `/admin/*`, `/onboarding` | `/api/settings`, `/api/team/*`, `/api/subscriptions/*`, `/api/organizations/*`, `/api/admin/*`, `/api/onboarding/complete` | Alta sensibilidad multi-tenant y platform admin. |
+| Automatizacion/integraciones | `/workflows`, `/workflows/[id]/builder`, `/integrations`, `/settings/webhooks`, `/ai` | `/api/workflows/*`, `/api/jobs/*`, `/api/integrations/*`, `/api/webhooks/*`, `/api/chat`, `/api/whatsapp/send`, `/api/emails/sync` | Unificar motores workflow y operacion worker. |
+| Organizacion/admin/settings | `/settings/*`, `/admin/*`, `/onboarding` | `/api/settings`, `/api/team/*`, `/api/subscriptions/*`, `/api/organizations/*`, `/api/onboarding/complete` | Alta sensibilidad multi-tenant y platform admin; `/admin/queues` lee estadisticas reales de BullMQ desde Redis. |
 | Operacional | Sin UI directa | `/api/cron/*`, `/api/health`, `/api/upload`, `/api/search`, `/api/docs`, `/api/v1/version` | Cron y diagnostico requieren proteccion y contrato claro. |
 
 ## Inconsistencias a resolver
@@ -24,7 +24,7 @@ Este mapa describe el estado funcional observado desde `app/`, `components/` y `
 - `/sales` redirige a `/pipeline`, mientras la API real es opportunities.
 - `/inventory` redirige a productos, pero la API inventory sigue viva.
 - `/api/activity` y `/api/activities` son nombres demasiado cercanos para modelos distintos.
-- `/api/analytics/advanced` responde `501` hasta conectarse a datos reales; `/api/admin/bull-board` tiene comportamiento placeholder/informativo.
+- `/api/analytics/advanced` responde `501` hasta conectarse a datos reales.
 - `system_notifications` globales no tienen lectura por usuario; falta definir si se acepta lectura global o se normaliza con tabla puente.
 
 ## Decision pendiente

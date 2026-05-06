@@ -133,7 +133,7 @@ Este checklist define bloqueadores antes de vender o publicar como produccion.
 5. Crear oportunidad y mover etapa.
 6. Crear producto.
 7. Crear cotizacion y factura.
-8. Registrar pago o simular webhook.
+8. Registrar pago manual.
 9. Enviar formulario publico.
 10. Crear booking publico.
 11. Ejecutar workflow simple.

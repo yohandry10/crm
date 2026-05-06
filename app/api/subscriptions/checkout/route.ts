@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { randomUUID } from "node:crypto"
 import { getAuthenticatedContext } from "@/lib/supabase-auth"
 import { createSupabaseServiceClient } from "@/lib/supabase-service"
 import { getBillingProvider, getBillingProviderLabel, isManualBillingProvider, PLAN_AMOUNTS } from "@/lib/billing-providers"
@@ -9,6 +10,10 @@ const checkoutSchema = z.object({
   plan: z.enum(["starter", "professional", "enterprise"]),
   billingPeriod: z.enum(["monthly", "yearly"]),
 })
+
+function createPaymentReference(prefix: string) {
+  return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,7 +61,7 @@ export async function POST(request: NextRequest) {
     const billingProvider = getBillingProvider()
 
     if (!isManualBillingProvider(billingProvider)) {
-      const paymentReference = `${billingProvider.toUpperCase()}-${Date.now()}`
+      const paymentReference = createPaymentReference(billingProvider.toUpperCase())
 
       const { error: historyError } = await supabaseAdmin.from("subscription_history").insert({
         organization_id: organizationId,
@@ -111,7 +116,7 @@ export async function POST(request: NextRequest) {
       p_organization_id: organizationId,
       p_plan: plan,
       p_billing_period: billingPeriod,
-      p_payment_reference: `DEMO-${Date.now()}`,
+      p_payment_reference: createPaymentReference("MANUAL"),
       p_activated_by: user.id,
     })
 

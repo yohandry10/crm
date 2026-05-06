@@ -69,7 +69,7 @@ export async function POST(
             default:
                 testResult = {
                     success: false,
-                    message: `Testing not implemented for type: ${provider}`,
+                    message: `Testing is not supported for type: ${provider}`,
                     details: {}
                 }
         }
