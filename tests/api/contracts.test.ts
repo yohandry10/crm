@@ -882,6 +882,7 @@ describe('API contracts', () => {
     const submissionsPage = readFileSync('app/forms/[id]/submissions/page.tsx', 'utf8')
     const duplicateDetector = readFileSync('components/contacts/duplicate-detector.tsx', 'utf8')
     const footer = readFileSync('components/landing/ui/Footer.tsx', 'utf8')
+    const middleware = readFileSync('middleware.ts', 'utf8')
 
     expect(contactSidebar).toContain('/contacts/${selectedConversation?.contact_id')
     expect(submissionsPage).toContain('`/contacts/${submission.contact!.id}`')
@@ -889,6 +890,8 @@ describe('API contracts', () => {
     expect(existsSync('app/contacts/[id]/page.tsx')).toBe(true)
     expect(footer).toContain('href="/terms"')
     expect(footer).toContain('href="/privacy"')
+    expect(middleware).toContain("'/terms'")
+    expect(middleware).toContain("'/privacy'")
     expect(existsSync('app/terms/page.tsx')).toBe(true)
     expect(existsSync('app/privacy/page.tsx')).toBe(true)
   })

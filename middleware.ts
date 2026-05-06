@@ -114,6 +114,8 @@ const publicRoutes = [
     '/forgot-password',
     '/reset-password',
     '/pricing',
+    '/terms',
+    '/privacy',
     '/f', // Formularios públicos embebibles
     '/pay',
     '/book',
