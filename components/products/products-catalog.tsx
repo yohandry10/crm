@@ -327,26 +327,28 @@ export function ProductsCatalog() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Nombre*</Label>
-                <Input value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Label htmlFor="product-name">Nombre*</Label>
+                <Input id="product-name" value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div>
-                <Label>SKU</Label>
-                <Input value={form.sku || ""} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
+                <Label htmlFor="product-sku">SKU</Label>
+                <Input id="product-sku" value={form.sku || ""} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Precio Venta</Label>
+                <Label htmlFor="product-unit-price">Precio Venta</Label>
                 <Input
+                  id="product-unit-price"
                   type="number"
                   value={form.unit_price || 0}
                   onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })}
                 />
               </div>
               <div>
-                <Label>Precio Costo</Label>
+                <Label htmlFor="product-cost-price">Precio Costo</Label>
                 <Input
+                  id="product-cost-price"
                   type="number"
                   value={form.cost_price || 0}
                   onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })}
@@ -355,8 +357,9 @@ export function ProductsCatalog() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Stock</Label>
+                <Label htmlFor="product-stock">Stock</Label>
                 <Input
+                  id="product-stock"
                   type="number"
                   value={form.stock_quantity || 0}
                   onChange={(e) => setForm({ ...form, stock_quantity: Number(e.target.value) })}

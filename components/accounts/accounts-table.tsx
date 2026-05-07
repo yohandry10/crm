@@ -207,14 +207,14 @@ export function AccountsTable() {
                 <DialogContent className="max-w-lg">
                     <DialogHeader><DialogTitle>{selectedAccount ? "Editar Cuenta" : "Nueva Cuenta"}</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid gap-2"><Label>Nombre *</Label><Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div>
+                        <div className="grid gap-2"><Label htmlFor="account-name">Nombre *</Label><Input id="account-name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2"><Label>RUC</Label><Input value={formData.ruc} onChange={(e) => setFormData({...formData, ruc: e.target.value})} /></div>
-                            <div className="grid gap-2"><Label>Telefono</Label><Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div>
+                            <div className="grid gap-2"><Label htmlFor="account-ruc">RUC</Label><Input id="account-ruc" value={formData.ruc} onChange={(e) => setFormData({...formData, ruc: e.target.value})} /></div>
+                            <div className="grid gap-2"><Label htmlFor="account-phone">Telefono</Label><Input id="account-phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div>
                         </div>
-                        <div className="grid gap-2"><Label>Industria</Label><Input value={formData.industry} onChange={(e) => setFormData({...formData, industry: e.target.value})} /></div>
-                        <div className="grid gap-2"><Label>Website</Label><Input value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} /></div>
-                        <div className="grid gap-2"><Label>Direccion</Label><Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div>
+                        <div className="grid gap-2"><Label htmlFor="account-industry">Industria</Label><Input id="account-industry" value={formData.industry} onChange={(e) => setFormData({...formData, industry: e.target.value})} /></div>
+                        <div className="grid gap-2"><Label htmlFor="account-website">Website</Label><Input id="account-website" value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} /></div>
+                        <div className="grid gap-2"><Label htmlFor="account-address">Direccion</Label><Input id="account-address" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
