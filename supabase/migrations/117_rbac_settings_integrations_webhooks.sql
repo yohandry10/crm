@@ -11,19 +11,26 @@ INSERT INTO role_permissions (
     can_manage_all
 )
 VALUES
+    -- Organization settings include business identity, fiscal defaults and encrypted credential surfaces.
+    ('owner', 'settings', true, true, true, true, true, true),
+    ('admin', 'settings', true, true, true, true, true, true),
+    ('manager', 'settings', false, false, false, false, false, false),
+    ('member', 'settings', false, false, false, false, false, false),
+    ('viewer', 'settings', false, false, false, false, false, false),
+
     -- Integrations can contain operational credentials, so only owner/admin manage them.
     ('owner', 'integrations', true, true, true, true, true, true),
     ('admin', 'integrations', true, true, true, true, true, true),
-    ('manager', 'integrations', false, true, false, false, true, false),
+    ('manager', 'integrations', false, false, false, false, false, false),
     ('member', 'integrations', false, false, false, false, false, false),
-    ('viewer', 'integrations', false, true, false, false, true, false),
+    ('viewer', 'integrations', false, false, false, false, false, false),
 
     -- Webhook configuration controls outbound data flows.
     ('owner', 'webhooks', true, true, true, true, true, true),
     ('admin', 'webhooks', true, true, true, true, true, true),
-    ('manager', 'webhooks', false, true, false, false, true, false),
+    ('manager', 'webhooks', false, false, false, false, false, false),
     ('member', 'webhooks', false, false, false, false, false, false),
-    ('viewer', 'webhooks', false, true, false, false, true, false)
+    ('viewer', 'webhooks', false, false, false, false, false, false)
 ON CONFLICT (role, resource) DO UPDATE SET
     can_create = EXCLUDED.can_create,
     can_read = EXCLUDED.can_read,

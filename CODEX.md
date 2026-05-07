@@ -55,6 +55,8 @@ Ultima validacion registrada: 2026-05-06.
 - `pnpm build`: OK.
 - Produccion Vercel `https://crm-trivia1.vercel.app`: alias de produccion en `main` Ready, health database/auth/redis healthy. Para el ID exacto final consultar `vercel inspect https://crm-trivia1.vercel.app`.
 - E2E remoto contra produccion: 51 passed.
+- Pasada final QA produccion 2026-05-06: 198 pruebas E2E remotas pasaron despues de corregir RBAC de recursos sensibles (`settings`, `integrations`, `webhooks`).
+- Nuevo smoke visual remoto `tests/e2e/production-visual-smoke.spec.ts`: 33 paginas/modulos de usuario y admin sin redirect, trial gate, 404, `pageerror`, errores de consola, 5xx ni 429.
 - Browser local `http://localhost:3000/dashboard`: carga autenticada sin trial gate y sin errores de consola observados.
 - Health local `/api/health`: database/auth/redis healthy.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes.
@@ -93,7 +95,7 @@ Ultima validacion registrada: 2026-05-06.
 - Migracion 114 agrega columnas/indexes de trazabilidad a `auditoria` y restringe lectura por RLS a platform admin, admins/owners del tenant y logs propios globales.
 - Migracion 115 corrige cascadas peligrosas de historial de negocio y agrega `verify_data_integrity()` para FK huérfanas, duplicados, cascadas y consistencia multi-tenant.
 - Migracion 116 agrega indices de performance para listados por tenant, busquedas trigrama y membership activa; tambien agrega `get_dashboard_metrics()` y `verify_performance_indexes()`.
-- Migracion 117 alinea `integrations` y `webhooks` con la matriz RBAC centralizada en `role_permissions`; owner/admin gestionan, manager/viewer leen y member no accede.
+- Migracion 117 alinea `settings`, `integrations` y `webhooks` con la matriz RBAC centralizada en `role_permissions`; solo owner/admin acceden a estos recursos sensibles y manager/member/viewer quedan bloqueados.
 - `/api/dashboard` usa RPC agregada en Postgres para metricas/pipeline/actividad; ya no trae listas completas para agregarlas en Node.
 - Se agrego pipeline de backups automaticos: `.github/workflows/database-backup-restore.yml` ejecuta `pg_dump` diario, sube artefacto con retencion 30 dias y prueba restore completo/parcial en staging.
 - Se agregaron scripts `scripts/db-backup.ts` y `scripts/db-restore-test.ts`; el restore test exige `verify_production_readiness`, `verify_security_hardening` y `verify_data_integrity` sin fallos.
