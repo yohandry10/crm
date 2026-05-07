@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { TrendingUp, Users, DollarSign, FileText, Target, Zap, Package, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { isTransientClientFetchError } from "@/lib/client-transient-errors"
 import { ActivityTimeline } from "@/components/activity"
 import { ActivityOverviewChart } from "./activity-overview-chart"
 import { PipelineChart } from "./pipeline-chart"
@@ -82,6 +83,7 @@ export const DashboardOverview = memo(() => {
   // ✅ Usar configuración global de SWR, solo override onError
   const { data, isLoading } = useSWR('/api/dashboard', {
     onError: (error) => {
+      if (isTransientClientFetchError(error)) return
       console.error("Error fetching dashboard:", error)
       toast.error("Error al cargar el dashboard")
     }

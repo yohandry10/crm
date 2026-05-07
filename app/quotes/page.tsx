@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, RefreshCw, Download, FileText, Loader2, Share2, Send, CheckCircle, XCircle, Trash2, CreditCard, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
+import { isTransientClientFetchError } from "@/lib/client-transient-errors"
 import Link from "next/link"
 
 export default function QuotesPage() {
@@ -108,6 +109,7 @@ export default function QuotesPage() {
             const data = await res.json()
             setQuotes(data.data || [])
         } catch (error) {
+            if (isTransientClientFetchError(error)) return
             console.error(error)
             toast.error("Error al cargar cotizaciones")
         } finally {
