@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -49,7 +49,7 @@ interface EventDialogProps {
     onOpenChange: (open: boolean) => void
     event?: any
     selectedDate?: Date
-    onSuccess: () => void
+    onSuccess: () => void | Promise<void>
 }
 
 export function EventDialog({
@@ -62,6 +62,8 @@ export function EventDialog({
     const [contacts, setContacts] = useState<any[]>([])
     const [opportunities, setOpportunities] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
+    const startInputRef = useRef<HTMLInputElement | null>(null)
+    const endInputRef = useRef<HTMLInputElement | null>(null)
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -120,14 +122,16 @@ export function EventDialog({
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setLoading(true)
         try {
+            const startValue = startInputRef.current?.value || values.start_time
+            const endValue = endInputRef.current?.value || values.end_time
             const payload = {
                 title: values.title,
                 description: values.description,
                 location: values.location,
                 contact_id: values.contact_id === "none" ? null : values.contact_id,
                 opportunity_id: values.opportunity_id === "none" ? null : values.opportunity_id,
-                start: new Date(values.start_time).toISOString(),
-                end: new Date(values.end_time).toISOString(),
+                start: new Date(startValue).toISOString(),
+                end: new Date(endValue).toISOString(),
             }
 
             const response = await fetch(
@@ -145,7 +149,7 @@ export function EventDialog({
             }
 
             toast.success(event ? "Evento actualizado" : "Evento creado")
-            onSuccess()
+            await onSuccess()
             onOpenChange(false)
         } catch (error: any) {
             console.error(error)
@@ -187,28 +191,50 @@ export function EventDialog({
                             <FormField
                                 control={form.control}
                                 name="start_time"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Inicio</FormLabel>
-                                        <FormControl>
-                                            <Input type="datetime-local" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                                render={({ field }) => {
+                                    const { ref, ...fieldProps } = field
+
+                                    return (
+                                        <FormItem>
+                                            <FormLabel>Inicio</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="datetime-local"
+                                                    {...fieldProps}
+                                                    ref={(node) => {
+                                                        ref(node)
+                                                        startInputRef.current = node
+                                                    }}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )
+                                }}
                             />
                             <FormField
                                 control={form.control}
                                 name="end_time"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Fin</FormLabel>
-                                        <FormControl>
-                                            <Input type="datetime-local" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                                render={({ field }) => {
+                                    const { ref, ...fieldProps } = field
+
+                                    return (
+                                        <FormItem>
+                                            <FormLabel>Fin</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="datetime-local"
+                                                    {...fieldProps}
+                                                    ref={(node) => {
+                                                        ref(node)
+                                                        endInputRef.current = node
+                                                    }}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )
+                                }}
                             />
                         </div>
 

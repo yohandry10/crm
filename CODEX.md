@@ -58,6 +58,9 @@ Ultima validacion registrada: 2026-05-06.
 - Pasada final QA produccion 2026-05-06: 198 pruebas E2E remotas pasaron despues de corregir RBAC de recursos sensibles (`settings`, `integrations`, `webhooks`).
 - Nuevo smoke visual remoto `tests/e2e/production-visual-smoke.spec.ts`: 33 paginas/modulos de usuario y admin sin redirect, trial gate, 404, `pageerror`, errores de consola, 5xx ni 429.
 - Browser local `http://localhost:3000/dashboard`: carga autenticada sin trial gate y sin errores de consola observados.
+- Browser visible local 2026-05-06 con Browser Use, usuario tenant `e2e.user.crm@example.com`: login real OK, 22/22 rutas de usuario cargaron sin trial gate, 404, redirect a login ni errores de consola.
+- Acciones creadas desde navegador visible como usuario de tenant: cuenta, contacto, lead, producto/inventario, oportunidad, tarea, ticket, cotizacion, factura, campana, formulario, webhook y workflow. Las grillas/listas confirmaron persistencia visible en los modulos correspondientes; las verificaciones iniciales que salieron falsas fueron por refresco asincrono o por buscar campos no renderizados en la grilla.
+- Calendario: en la pasada visible se detecto que un evento creado desde una fecha futura no se renderizaba de forma confiable hasta pulsar refrescar; se corrigio `EventDialog` para esperar `onSuccess()` antes de cerrar. Revalidado en navegador visible creando un evento el 18 de junio de 2026: aparece inmediatamente en la grilla sin refresco manual y sin errores de consola.
 - Health local `/api/health`: database/auth/redis healthy.
 - Code-vs-DB scan: 0 tablas faltantes y 0 RPC faltantes.
 
