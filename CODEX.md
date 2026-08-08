@@ -114,7 +114,8 @@ Ultima validacion registrada: 2026-05-06.
 - Se corrigio el catalogo de productos para ordenar por `created_at desc` y mostrar inmediatamente el producto creado con la respuesta de `/api/products`.
 - Se corrigio el flujo de demo publica: se agrego `/demo`, `/api/demo/tenant` y la migracion 118 con `public.create_demo_tenant(p_dias_duracion, p_nombre, p_pais_codigo)`.
 - La demo ahora crea tenant trial aislado por 14 dias, usuario owner temporal, membresia real y datos conectados para contactos, cuentas, productos, pipeline, cotizaciones, facturas, pagos, tareas, calendario, campanas, formularios y workflows.
-- Validacion local ejecutada: `pnpm typecheck` OK y smoke de `/api/demo/tenant` OK contra Supabase real.
+- Validacion ejecutada: `pnpm typecheck` OK, smoke local de `/api/demo/tenant` OK contra Supabase real, deploy `be076e9` en Vercel Ready y prueba publica en `https://crm-trivia1.vercel.app/demo` OK.
+- Prueba visual en navegador de la app sobre produccion: `/demo` cargo 200, el boton `Iniciar demo ahora` creo tenant, redirigio a `/dashboard?demo=1`, no mostro banner de trial expirado, no mostro error de RPC y no hubo errores de consola.
 - Hallazgo detectado durante limpieza de smoke SQL: borrar una organizacion con cascada directa puede disparar `trigger_log_contact_changes()` despues de que la organizacion ya no existe, provocando FK en `activity_logs`. Evitar deletes directos de org sin limpieza ordenada hasta corregir el trigger o estrategia de auditoria de cascadas.
 - Ultimo despliegue de produccion: alias `https://crm-trivia1.vercel.app` y `https://crm-iota-inky.vercel.app` desde `main`, aplicado y validado el 2026-05-06.
 
