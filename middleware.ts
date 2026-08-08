@@ -113,6 +113,7 @@ const publicRoutes = [
     '/signup',
     '/forgot-password',
     '/reset-password',
+    '/demo',
     '/pricing',
     '/terms',
     '/privacy',
@@ -121,6 +122,7 @@ const publicRoutes = [
     '/book',
     '/api/health',
     '/api/public',
+    '/api/demo',
     '/api/pay',
     '/api/calendar/booking',
     '/api/auth', // Login, cambio de contraseña

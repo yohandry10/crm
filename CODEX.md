@@ -112,6 +112,10 @@ Ultima validacion registrada: 2026-05-06.
 - Se corrigio `tests/e2e/global-setup.ts` para normalizar cuentas E2E antes de generar storage states; evita tokens invalidos despues de actualizar password/metadata.
 - Se corrigio `tests/e2e/global-setup.ts` para marcar el tour de bienvenida como visto en storage state E2E; evita falsos bloqueos de modales al validar seguridad/perfil en produccion.
 - Se corrigio el catalogo de productos para ordenar por `created_at desc` y mostrar inmediatamente el producto creado con la respuesta de `/api/products`.
+- Se corrigio el flujo de demo publica: se agrego `/demo`, `/api/demo/tenant` y la migracion 118 con `public.create_demo_tenant(p_dias_duracion, p_nombre, p_pais_codigo)`.
+- La demo ahora crea tenant trial aislado por 14 dias, usuario owner temporal, membresia real y datos conectados para contactos, cuentas, productos, pipeline, cotizaciones, facturas, pagos, tareas, calendario, campanas, formularios y workflows.
+- Validacion local ejecutada: `pnpm typecheck` OK y smoke de `/api/demo/tenant` OK contra Supabase real.
+- Hallazgo detectado durante limpieza de smoke SQL: borrar una organizacion con cascada directa puede disparar `trigger_log_contact_changes()` despues de que la organizacion ya no existe, provocando FK en `activity_logs`. Evitar deletes directos de org sin limpieza ordenada hasta corregir el trigger o estrategia de auditoria de cascadas.
 - Ultimo despliegue de produccion: alias `https://crm-trivia1.vercel.app` y `https://crm-iota-inky.vercel.app` desde `main`, aplicado y validado el 2026-05-06.
 
 ## Seguridad y base de datos

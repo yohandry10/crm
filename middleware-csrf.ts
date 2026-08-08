@@ -7,6 +7,7 @@ const CSRF_EXCLUDED_PATHS = [
   "/api/auth/forgot-password",
   "/api/auth/change-password",
   "/api/auth/bootstrap",
+  "/api/demo",
   "/api/public",
   "/api/onboarding",
   "/api/subscriptions",
